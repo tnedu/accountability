@@ -1,0 +1,24 @@
+h1, h2 {
+    font-family: PermianSlabSerifTypeFace, Georgia, serif;
+}
+
+p {
+    font-family: Open Sans, Arial, sans-serif;
+}
+
+.gdbar img {
+  width: 200px !important;
+  height: 100px !important;
+  margin: 8px 8px;
+}
+
+.gdbar {
+  width: 300px !important;
+  height: 110px !important;
+}
+
+slides > slide:not(.nobackground):before {
+  width: 125px;
+  height: 65px;
+  background-size: 125px 65px;
+}

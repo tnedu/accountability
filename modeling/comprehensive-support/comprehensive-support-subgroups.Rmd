@@ -5,6 +5,8 @@ date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: 
     ioslides_presentation:
         widescreen: TRUE
+        css: doe-style.css
+        logo: doe-logo.png
 ---
 
 ```{r setup, include = FALSE}
