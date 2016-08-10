@@ -1,0 +1,151 @@
+---
+title: "Comprehensive Support Schools"
+author: "Alexander Poon"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: 
+    ioslides_presentation:
+        widescreen: TRUE
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+library(readstata13)
+library(readr)
+library(tidyr)
+library(dplyr)
+library(ggvis)
+
+```
+
+``` {r analysis, cache = TRUE}
+
+# Aggregate success rates by pool
+priority_cusp_2015 <- read.dta13("K:/ORP_accountability/projects/2015_Priority_Cusp/priority_cusp_ap.dta") %>%
+    arrange(desc(pool), pctile) %>%
+    filter(pool == "K8" & round(pctile, 1) <= 5.1 | pool == "HS" & round(pctile, 1) <= 5.2) %>%
+    group_by(pool) %>%
+    summarise(n_PA = sum(n_PA), valid_tests = sum(valid_tests)) %>%
+    ungroup() %>%
+    mutate(pool_success_rate = round(100 * n_PA/valid_tests, 1)) %>%
+    select(-valid_tests, -n_PA)
+
+# Existing priority schools
+priority <- read.dta13("K:/ORP_accountability/projects/2015_school_coding/Output/priority_schools_not_exiting_ap.dta") %>%
+    select(system, system_name, school, school_name, priority)
+
+## Priority success rates for all subgroups
+# Read in grade pools
+grade_pools <- readstata13::read.dta13("K:/ORP_accountability/projects/2015_school_coding/Output/grade_pools_immune_ap.dta") %>%
+    select(system, school, designation_ineligible, pool, Title_1)
+
+# School base + merge on grade pools
+school_base <- read_csv("K:/ORP_accountability/data/2015_sas_accountability/ASD included grades/school_base_2015_19jul2015.csv") %>%
+    mutate(grade = ifelse(subject == "Graduation Rate", 12, grade)) %>%
+    filter(grade != "All Grades" & grade != "Missing Grade") %>%
+    filter(!(subject == "Chemistry")) %>%
+    mutate_each_(funs(as.numeric(.)), vars = c("system", "grad_cohort", "grad_count")) %>%
+    mutate(n_prof = ifelse(subject == "Graduation Rate", grad_count, n_prof),
+        valid_tests = ifelse(subject == "Graduation Rate", grad_cohort, valid_tests)) %>%
+    mutate(grade = as.numeric(grade),
+        subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject), 
+        subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "RLA", subject),
+        subject = ifelse(subject == "Biology I" & grade <= 8, "Science", subject),
+        n_adv = ifelse(is.na(n_adv), 0, n_adv),
+        n_PA = n_prof + n_adv) %>%
+    inner_join(grade_pools, by = c("system", "school")) %>%
+    filter(subgroup %in% c("Asian", "Black", "Black/Hispanic/Native American", "Economically Disadvantaged", "English Language Learners",
+        "English Language Learners with T1/T2", "Hispanic", "Native American", "Students with Disabilities", "White"))
+
+# Priority success rates
+subgroups_below_priority <- school_base %>%
+    group_by(year, system, system_name, school, school_name, pool, subgroup, subject, Title_1, designation_ineligible) %>%
+    summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(temp = (subgroup == "English Language Learners" & valid_tests >= 30)) %>%
+    group_by(system, system_name, school, school_name, pool, subject, Title_1, designation_ineligible) %>%
+    ungroup() %>%
+    mutate(ell_30 = max(temp)) %>%
+    filter(!(subgroup == "English Language Learners with T1/T2" & ell_30 == 0)) %>%
+    filter(!(subgroup == "English Language Learners")) %>%
+    mutate(valid_tests = ifelse(valid_tests < 30, 0, valid_tests),
+        n_PA = ifelse(valid_tests < 30, 0, n_PA)) %>%
+    group_by(system, system_name, school, school_name, pool, subgroup, Title_1, designation_ineligible) %>%
+    summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(success_rate_3yr = ifelse(valid_tests != 0, round(100 * n_PA/valid_tests, 1), NA)) %>%
+    inner_join(priority_cusp_2015, by = "pool") %>% 
+    filter(Title_1 == 1) %>%
+    mutate(subgroup_below_pool_success_rate = ifelse(valid_tests != 0, success_rate_3yr <= pool_success_rate, NA))
+
+schools_w_subgroups_below_priority <- subgroups_below_priority %>%
+    group_by(system, system_name, school, school_name) %>%
+    summarise(subgroups_below_priority = sum(subgroup_below_pool_success_rate, na.rm = TRUE))
+
+```
+
+
+## Comprehensive Support Schools
+
+As per ESSA, comprehensive support schools are:
+
+> * The lowest-performing five percent of all Title I schools in the State;
+> * Any public high school in the State failing to graduate one-third or more of its students;
+> * *Title I schools with a consistently underperforming subgroup that, on its own, is performing as poorly as all students in the lowest-performing five percent of Title I schools that has failed to improve after implementation of a targeted support and improvement plan.*
+
+
+## Comprehensive Support Schools in Tennessee
+
+In 2015, `r sum(schools_w_subgroups_below_priority$subgroups_below_priority >= 1)` schools had at least one subgroup performing as poorly as all students in the bottom five percent of Title I schools.
+
+``` {r subgroups}
+
+subgroups_below_priority %>%
+    group_by(subgroup) %>%
+    summarise(`Subgroup Below Pool Success Rate` = sum(subgroup_below_pool_success_rate, na.rm = TRUE)) %>%
+    mutate(subgroup = ifelse(subgroup == "Black/Hispanic/Native American", "BHN", subgroup),
+        subgroup = ifelse(subgroup == "Economically Disadvantaged", "ED", subgroup),
+        subgroup = ifelse(subgroup == "English Language Learners with T1/T2", "ELL", subgroup),
+        subgroup = ifelse(subgroup == "Students with Disabilities", "SWD", subgroup)) %>%
+    ggvis(~subgroup, ~`Subgroup Below Pool Success Rate`) %>%
+    layer_bars() %>%
+    add_axis("x", title = "Subgroup", grid = FALSE) %>%
+    add_axis("y", title = "Number of Schools", grid = FALSE) %>%
+    scale_numeric("y", expand = 0) %>%
+    set_options(width = "auto")
+    
+```
+
+
+## Comprehensive Support Schools in Tennessee
+
+Among the `r sum(schools_w_subgroups_below_priority$subgroups_below_priority >= 1)` schools with low-performing subgroups, `r inner_join(priority, schools_w_subgroups_below_priority, by = c("system", "school")) %>% filter(subgroups_below_priority >= 1) %>% nrow()` are priority schools as of 2015-16.
+
+``` {r subgroups_priority}
+
+subgroups_below_priority %>%
+    left_join(priority, by = c("system", "school")) %>%
+    mutate(priority = ifelse(is.na(priority), 0, priority),
+        priority = paste(priority),
+        priority = ifelse(priority == "1", "Yes", "No")) %>%
+    group_by(subgroup, priority) %>%
+    summarise(`Subgroup Below Pool Success Rate` = sum(subgroup_below_pool_success_rate, na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(subgroup = ifelse(subgroup == "Black/Hispanic/Native American", "BHN", subgroup),
+        subgroup = ifelse(subgroup == "Economically Disadvantaged", "ED", subgroup),
+        subgroup = ifelse(subgroup == "English Language Learners with T1/T2", "ELL", subgroup),
+        subgroup = ifelse(subgroup == "Students with Disabilities", "SWD", subgroup)) %>%
+    ggvis(~subgroup, ~`Subgroup Below Pool Success Rate`) %>%
+    layer_bars(fill = ~priority) %>%
+    add_axis("x", title = "Subgroup", grid = FALSE) %>%
+    add_axis("y", title = "Number of Schools", grid = FALSE) %>%
+    add_relative_scales() %>%
+    add_legend("fill", title = "Priority",
+        properties = legend_props(
+           legend = list(
+            x = scaled_value("x_rel", 0.9),
+            y = scaled_value("y_rel", 1)))) %>%
+    scale_numeric("y", expand = 0) %>%
+    set_options(width = "auto")
+
+```
