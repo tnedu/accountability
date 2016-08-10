@@ -1,3 +1,6 @@
+# Data
+*.csv
+
 # Output Files
 *.docx
 *Presentation.html
