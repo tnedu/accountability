@@ -89,7 +89,8 @@ amos <- ach_heat_map %>%
         AMO_target_5 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA),
         year = year + 1) %>%
     filter(year == 2015) %>%
-    select(year, system, system_name, school, school_name, subject, AMO_target, AMO_target_5)
+    select(year, system, system_name, school, school_name, subject, valid_tests, pct_prof_adv, AMO_target, AMO_target_5) %>%
+    rename(valid_tests_prior = valid_tests, pct_prof_adv_prior = pct_prof_adv)
 
 tvaas_subjects <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/School-Level Intra-Year NCE MRM and URM Results (All Students).xlsx") %>%
     filter(Test %in% c("TCAP", "EOC") | (Test == "ACT" & Subject == "Composite")) %>%
@@ -107,4 +108,37 @@ tvaas_subjects <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/Scho
 ach_heat_map <- left_join(ach_heat_map, amos, by = c("year", "system", "system_name", "school", "school_name", "subject")) %>%
     left_join(tvaas_subjects, by = c("year", "system", "school", "subject")) %>%
     filter(year == 2015) %>%
-    mutate(achievement_goal = )
+    mutate(pct_prof_adv = pct_prof_adv/100,
+        upper_bound_ci = 100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_prof_adv + ((qnorm(0.975)^2)/(2*valid_tests)) + 
+            qnorm(0.975) * sqrt((pct_prof_adv * (1 - pct_prof_adv))/valid_tests + (qnorm(0.975)^2)/(4*valid_tests^2))),
+        pct_prof_adv = 100 * pct_prof_adv,
+        eligible = (valid_tests >= 30 & valid_tests_prior >= 30)) %>%
+    group_by(designation_ineligible, subject, eligible) %>%
+    mutate(rank = ifelse(eligible == 1, rank(pct_prof_adv, na.last = FALSE, ties.method = "average"), NA), 
+        rank_prior = ifelse(eligible == 1, rank(pct_prof_adv_prior, na.last = FALSE, ties.method = "average"), NA), 
+        temp = sum(eligible),
+        percentile_rank = round(100 * rank/temp, 1),
+        percentile_rank_prior = round(100 * rank_prior/temp, 1)) %>%
+    ungroup() %>%
+    mutate(amo_targets_goal = ifelse(upper_bound_ci <= pct_prof_adv_prior, 0, NA),
+        amo_targets_goal = ifelse(upper_bound_ci >= pct_prof_adv_prior & upper_bound_ci <= AMO_target, 1, amo_targets_goal),
+        amo_targets_goal = ifelse(upper_bound_ci >= AMO_target, 2, amo_targets_goal),
+        amo_targets_goal = ifelse(pct_prof_adv >= AMO_target & pct_prof_adv <= AMO_target_5, 3, amo_targets_goal),
+        amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_5, 4, amo_targets_goal),
+        relative_performance_goal = ifelse(percentile_rank < (percentile_rank_prior - 10), 0, NA),
+        relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior - 10) & percentile_rank < (percentile_rank_prior - 2), 1, relative_performance_goal),
+        relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior - 2) & percentile_rank <= percentile_rank_prior, 2, relative_performance_goal),
+        relative_performance_goal = ifelse(percentile_rank > percentile_rank_prior & percentile_rank < (percentile_rank_prior + 10), 3, relative_performance_goal),
+        relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior + 10), 4, relative_performance_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 1", 0, NA),
+        tvaas_goal = ifelse(TVAAS_level == "Level 2", 1, tvaas_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 3", 2, tvaas_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 4", 3, tvaas_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 5", 4, tvaas_goal)) %>%
+    rowwise() %>%
+    mutate(average_score = ifelse(eligible == 1, mean(c(amo_targets_goal, relative_performance_goal, tvaas_goal), na.rm = TRUE), NA),
+           best_score = ifelse(eligible == 1, max(c(amo_targets_goal, relative_performance_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
+    select(system, system_name, school, school_name, subject, pool, eligible, amo_targets_goal, relative_performance_goal, tvaas_goal, average_score, best_score)
+
+
+
