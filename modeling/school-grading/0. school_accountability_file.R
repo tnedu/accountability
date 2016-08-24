@@ -1,7 +1,6 @@
 ## Build School Accountability File with Super Subgroup and Science
 
 library(readr)
-library(tidyr)
 library(dplyr)
 
 # Read in grade pools
@@ -42,36 +41,38 @@ school_accountability <- school_base %>%
 
 amos <- school_accountability %>%
     filter(year == 2014) %>%
-    mutate(AMO_target = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16, 1), NA),
-           AMO_target_5 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA),
-           year = year + 1) %>%
-    select(year, system, system_name, school, school_name, subject, subgroup, valid_tests, pct_prof_adv, AMO_target, AMO_target_5) %>%
-    rename(valid_tests_prior = valid_tests, pct_prof_adv_prior = pct_prof_adv)
+    mutate(AMO_target_PA = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16, 1), NA),
+        AMO_target_PA_4 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA),
+        AMO_target_BB = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/8, 1), NA),
+        AMO_target_BB_4 = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/4, 1), NA),
+        year = year + 1) %>%
+    select(year, system, system_name, school, school_name, subject, subgroup, valid_tests, pct_below_bsc, pct_prof_adv, AMO_target_PA, AMO_target_PA_4, AMO_target_BB, AMO_target_BB_4) %>%
+    rename(valid_tests_prior = valid_tests, pct_below_bsc_prior = pct_below_bsc, pct_prof_adv_prior = pct_prof_adv)
 
 tvaas_all <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/School-Level Intra-Year NCE MRM and URM Results (All Students).xlsx") %>%
     filter(Test %in% c("TCAP", "EOC") | (Test == "ACT" & Subject == "Composite")) %>%
     mutate(Subject = ifelse(Subject == "Math" & Grade == "4-5", "3-5 Math", Subject),
-           Subject = ifelse(Subject == "Math" & Grade == "6-8", "6-8 Math", Subject),
-           Subject = ifelse(Subject == "Reading/Language" & Grade == "4-5", "3-5 ELA", Subject),
-           Subject = ifelse(Subject == "Reading/Language" & Grade == "6-8", "6-8 ELA", Subject),
-           Subject = ifelse(Test == "ACT" & Subject == "Composite", "ACT Composite", Subject),
-           Year = as.numeric(Year),
-           `System Number` = as.numeric(`System Number`),
-           `School Number` = as.numeric(`School Number`),
-           subgroup = "All Students") %>%
+        Subject = ifelse(Subject == "Math" & Grade == "6-8", "6-8 Math", Subject),
+        Subject = ifelse(Subject == "Reading/Language" & Grade == "4-5", "3-5 ELA", Subject),
+        Subject = ifelse(Subject == "Reading/Language" & Grade == "6-8", "6-8 ELA", Subject),
+        Subject = ifelse(Test == "ACT" & Subject == "Composite", "ACT Composite", Subject),
+        Year = as.numeric(Year),
+        `System Number` = as.numeric(`System Number`),
+        `School Number` = as.numeric(`School Number`),
+        subgroup = "All Students") %>%
     rename(year = Year, system = `System Number`, school = `School Number`, subject = Subject, TVAAS_level = Level) %>%
     select(year, system, school, subject, subgroup, TVAAS_level)
 
 tvaas_subgroups <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/School-Level Intra-Year NCE MRM and URM Results (Subgroups).xlsx") %>%
     filter(Test %in% c("TCAP", "EOC") | (Test == "ACT" & Subject == "Composite")) %>%
     mutate(Subject = ifelse(Subject == "Math" & Grade == "4-5", "3-5 Math", Subject),
-           Subject = ifelse(Subject == "Math" & Grade == "6-8", "6-8 Math", Subject),
-           Subject = ifelse(Subject == "Reading/Language" & Grade == "4-5", "3-5 ELA", Subject),
-           Subject = ifelse(Subject == "Reading/Language" & Grade == "6-8", "6-8 ELA", Subject),
-           Subject = ifelse(Test == "ACT" & Subject == "Composite", "ACT Composite", Subject),
-           Year = as.numeric(Year),
-           `System Number` = as.numeric(`System Number`),
-           `School Number` = as.numeric(`School Number`)) %>%
+        Subject = ifelse(Subject == "Math" & Grade == "6-8", "6-8 Math", Subject),
+        Subject = ifelse(Subject == "Reading/Language" & Grade == "4-5", "3-5 ELA", Subject),
+        Subject = ifelse(Subject == "Reading/Language" & Grade == "6-8", "6-8 ELA", Subject),
+        Subject = ifelse(Test == "ACT" & Subject == "Composite", "ACT Composite", Subject),
+        Year = as.numeric(Year),
+        `System Number` = as.numeric(`System Number`),
+        `School Number` = as.numeric(`School Number`)) %>%
     rename(year = Year, system = `System Number`, school = `School Number`, subject = Subject, TVAAS_level = Level, subgroup = Subgroup) %>%
     select(year, system, school, subject, subgroup, TVAAS_level)
 
@@ -82,9 +83,13 @@ school_accountability <- school_accountability %>%
     left_join(amos, by = c("year", "system", "system_name", "school", "subgroup", "school_name", "subject")) %>%
     left_join(tvaas_all, by = c("year", "system", "school", "subject", "subgroup")) %>%
     mutate(pct_prof_adv = pct_prof_adv/100,
-        upper_bound_ci = round(100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_prof_adv + ((qnorm(0.975)^2)/(2*valid_tests)) + 
-            qnorm(0.975) * sqrt((pct_prof_adv * (1 - pct_prof_adv))/valid_tests + (qnorm(0.975)^2)/(4*valid_tests^2))), 1),
+        upper_bound_ci_PA = round(100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_prof_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) + 
+            qnorm(0.975) * sqrt((pct_prof_adv * (1 - pct_prof_adv))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
         pct_prof_adv = 100 * pct_prof_adv,
+        pct_below_bsc = pct_below_bsc/100,
+        lower_bound_ci_BB = round(100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_below_bsc + ((qnorm(0.975)^2)/(2 * valid_tests)) - 
+            qnorm(0.975) * sqrt((pct_below_bsc * (1 - pct_below_bsc))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
+        pct_below_bsc = 100 * pct_below_bsc,
         eligible = (valid_tests >= 30 & valid_tests_prior >= 30)) %>%
     group_by(designation_ineligible, subject, subgroup, eligible) %>%
     mutate(rank = ifelse(eligible == 1, rank(pct_prof_adv, na.last = FALSE, ties.method = "average"), NA), 
@@ -93,7 +98,7 @@ school_accountability <- school_accountability %>%
         percentile_rank = round(100 * rank/denom, 1),
         percentile_rank_prior = round(100 * rank_prior/denom, 1)) %>%
     ungroup() %>%
-    select(-(eligible:denom))
+    select(-(n_below_bsc:n_PA), -(eligible:denom))
 
 rm(amos, grade_pools, school_base, tvaas_all, tvaas_subgroups)
 
