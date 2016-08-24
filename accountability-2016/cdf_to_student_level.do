@@ -45,7 +45,7 @@ quietly foreach s in rla math sc {;
 	gen nullify_flag = (testing_status_for_`s' == 1);
 
 	* Drop tests flagged as ineligible and medically exempt;
-	drop if (testing_status_for_`s' == 8 | testing_status_for_`s' == 2);
+	drop if testing_status_for_`s' == 8 | testing_status_for_`s' == 2;
 
 	keep system_number system_name school_number school_name grade unique_student_id last_name first_name middle_initial 
 		race_reported code_a_b_in elsa_taken homebound ell_excluded esl_services_ell esl_services_t1_t2 functionally_delayed 
@@ -71,7 +71,7 @@ quietly foreach s in summer fall spring {;
 	use $`s'_eoc, clear;
 
 	drop absent;
-
+	
 	gen elsa_taken = (mod_format_test_type == 2);
 	gen absent = (ri_status == 4);
 	gen did_not_attempt = (ri_status == 3);
@@ -79,7 +79,7 @@ quietly foreach s in summer fall spring {;
 	gen nullify_flag = (ri_status == 1);
 
 	* Drop tests flagged as void and medically exempt;
-	drop if (ri_status == 5 | ri_status == 2);
+	drop if ri_status == 5 | ri_status == 2;
 
 	keep system_number system_name school_number school_name grade unique_student_id last_name first_name race_reported 
 		code_a_b_in elsa_taken ell_excluded esl_services_ell esl_services_t1_t2 functionally_delayed special_education 
@@ -126,7 +126,7 @@ foreach s in reading math science {;
 	gen homebound = (rubric == 3);
 	gen esl_services_t1_t2 = (t1 == 1) | (t2 == 1);
 	gen nullify_flag = (nullified == 1);
-	drop if (`s'cuts == . & nullified == 0);
+	drop if `s'cuts == . & nullified == 0;
 	drop if void == 1 | med_exempt == 1;
 
 	keep system_number system_name school_number school_name grade unique_student_id last_name first_name race_reported code_a_b 
@@ -215,7 +215,6 @@ order system system_name school school_name test original_subject original_profi
 replace system_name = proper(system_name);
 replace school_name = proper(school_name);
 
-
 * Modifications and dropping excluded records;
 gen proficiency_level = original_proficiency_level;
 order proficiency_level, after(original_proficiency_level);
@@ -284,7 +283,6 @@ replace test = "Achievement" if (original_subject == "English I" | original_subj
 
 replace subject = "Science" if (original_subject == "Biology I" | original_subject == "Chemistry") & grade < 9;
 replace test = "Achievement" if (original_subject == "Biology I" | original_subject == "Chemistry") & grade < 9;
-
 
 /* Handling multiple test records */
 

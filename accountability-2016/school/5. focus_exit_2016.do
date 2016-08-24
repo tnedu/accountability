@@ -74,13 +74,11 @@ destring grade, replace;
 drop if (subject == "US History" | subject == "Graduation Rate") & pool == "K8";
 drop if subject == "US History" & pool == "HS";
 * Change EOC subjects for grade <= 8 students;
-replace subject = "Math" if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry") & grade <= 8;
-replace subject = "Math" if (subject == "Integrated Math I" | subject == "Integrated Math II" | subject == "Integrated Math III") & grade <= 8;
-replace subject = "RLA" if (subject == "English I" | subject == "English II" | subject == "English III") & grade <= 8;
+replace subject = "Math" if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math")) & grade <= 8;
+replace subject = "ELA" if (subject == "English I" | subject == "English II" | subject == "English III") & grade <= 8;
 replace subject = "Science" if (subject == "Biology I" | subject == "Chemistry") & grade <= 8;
 
-drop if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" |
-	subject == "Integrated Math I" | subject == "Integrated Math II" | subject == "Integrated Math III" |
+drop if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math") |
 	subject == "English I" | subject == "English II" | subject == "English III" |
 	subject == "Biology I" | subject == "Chemistry") & pool == "K8";
 
@@ -104,7 +102,7 @@ replace subgroup = "English Language Learners" if subgroup == "English Language 
 drop ell_30 comparison temp;
 
 * Suppress test counts below 30;
-gen eligible = (valid_tests >= 30 & valid_tests !=.);
+gen eligible = (valid_tests >= 30 & valid_tests != .);
 
 replace valid_tests = 0 if eligible == 0;
 replace n_PA = 0 if eligible == 0;
@@ -230,7 +228,7 @@ foreach s in ED BHN SWD ELL {;
 
 	replace `s'_gap_exit = 1 if `s'_gap_identified == 1 & `s'_gap_improving == 1 & gap_improving_`s'2015 == 1;
 	replace `s'_gap_improving = 0 if `s'_gap_identified == 1 & `s'_gap_improving == 1 & gap_improving_`s'2015 == 1;
-	
+
 };
 
 egen gap_identified_count = rowtotal(BHN_gap_identified ED_gap_identified SWD_gap_identified ELL_gap_identified);
@@ -238,7 +236,7 @@ egen gap_exit_count = rowtotal(ED_gap_exit BHN_gap_exit SWD_gap_exit ELL_gap_exi
 egen gap_improving_count = rowtotal(ED_gap_improving BHN_gap_improving SWD_gap_improving ELL_gap_improving);
 
 gen gap_exit = (gap_exit_count == gap_identified_count) if gap_identified_count != 0 & designation_ineligible == 0;
-gen gap_improving = (gap_exit_count + gap_improving_count) == gap_identified_count if gap_exit == 0 & gap_identified_count != 0 & designation_ineligible == 0;
+gen gap_improving = (gap_exit_count + gap_improving_count == gap_identified_count) if gap_exit == 0 & gap_identified_count != 0 & designation_ineligible == 0;
 
 egen focus_pathway_count = rowtotal(gap_pathway subgroup_pathway);
 egen focus_exit_count = rowtotal(subgroup_exit gap_exit);
@@ -253,7 +251,11 @@ compress;
 save "$output/focus_exit_2016.dta", replace;
 export delim using "$output/focus_exit_2016.csv", delim(",") replace;
 
+preserve;
+
 * Output focus non-exiting for reward;
 keep if focus_any_pathway == 1 & focus_exit == 0;
 
 save "$output/focus_schools_not_exiting_2016.dta", replace;
+
+restore;

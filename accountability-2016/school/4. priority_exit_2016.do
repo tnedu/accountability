@@ -55,13 +55,11 @@ destring grade, replace;
 drop if (subject == "US History" | subject == "Graduation Rate") & pool == "K8";
 drop if subject == "US History" & pool == "HS";
 * Change EOC subjects for grade <= 8 students;
-replace subject = "Math" if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry") & grade <= 8;
-replace subject = "Math" if (subject == "Integrated Math I" | subject == "Integrated Math II" | subject == "Integrated Math III") & grade <= 8;
-replace subject = "RLA" if (subject == "English I" | subject == "English II" | subject == "English III") & grade <= 8;
+replace subject = "Math" if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math")) & grade <= 8;
+replace subject = "ELA" if (subject == "English I" | subject == "English II" | subject == "English III") & grade <= 8;
 replace subject = "Science" if (subject == "Biology I" | subject == "Chemistry") & grade <= 8;
 
-drop if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" |
-	subject == "Integrated Math I" | subject == "Integrated Math II" | subject == "Integrated Math III" |
+drop if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math") |
 	subject == "English I" | subject == "English II" | subject == "English III" |
 	subject == "Biology I" | subject == "Chemistry") & pool == "K8";
 
@@ -98,14 +96,12 @@ drop _merge;
 * 15th, 10th percentile of success rate for priority exit/improving;
 * Designation ineligible schools are included in the pool (denominator), but not in the percentile calculation;
 count if pool == "HS";
-local hs_count = r(N);
-local hs_15_perc = ceil(0.15 * `hs_count');
-local hs_10_perc = ceil(0.10 * `hs_count');
+local hs_15_perc = ceil(0.15 * r(N));
+local hs_10_perc = ceil(0.10 * r(N));
 
 count if pool == "K8";
-local k8_count = r(N);
-local k8_15_perc = ceil(0.15 * `k8_count');
-local k8_10_perc = ceil(0.10 * `k8_count');
+local k8_15_perc = ceil(0.15 * r(N));
+local k8_10_perc = ceil(0.10 * r(N));
 
 preserve;
 
@@ -158,7 +154,7 @@ gen tvaas_4_or_5 = (tvaas_level == "Level 4" | tvaas_level == "Level 5") if elig
 collapse (sum) eligible tvaas_4_or_5, by(year system system_name school school_name pool);
 
 * Number of TVAAS 4 and 5s should equal number of eligible subjects each year;
-gen all_4_or_5 = tvaas_4_or_5 == eligible if eligible != 0;
+gen all_4_or_5 = (tvaas_4_or_5 == eligible) if eligible != 0;
 
 * Check that condition is met both years;
 collapse (sum) all_4_or_5, by(system system_name school school_name pool);
@@ -183,8 +179,12 @@ compress;
 
 save "$output/priority_exit_2016.dta", replace;
 export delim using "$output/priority_exit_2016.csv", delim(",") replace;
-exit;
+
+preserve;
+
 * Output priority non-exiting for reward;
 keep if priority == 1 & priority_exit == 0;
 
 save "$output/priority_schools_not_exiting_2016.dta", replace;
+
+restore;

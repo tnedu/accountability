@@ -67,7 +67,6 @@ gen White = (race == "White");
 
 rename (bhn_group economically_disadvantaged special_ed ell ell_t1_t2) (BHN ED SWD ELL ELL_T1_T2);
 replace ELL_T1_T2 = 1 if ELL == 1;
-
 gen Non_ED = (ED == 0);
 gen Non_SWD = (SWD == 0);
 gen Non_ELL = (ELL == 0);
@@ -183,7 +182,7 @@ tempfile base;
 save `base', replace;
 
 * ACT and Grad Rate;
-foreach y in 2015 2016 {;
+foreach y in 2014 2015 2016 {;
 
 	use $act/ACT_school`y'.dta, clear;
 
@@ -219,7 +218,7 @@ foreach y in 2014 2015 2016 {;
 * Append ACT and Grad to Base;
 use `base', clear;
 
-foreach y in 2015 2016 {;
+foreach y in 2014 2015 2016 {;
 
 	append using `act_`y'';
 

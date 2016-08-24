@@ -12,7 +12,7 @@ Do File description:  Student Level to System Base
 
 Edited last by:  Alexander Poon
 
-Date edited last:  03/08/2016
+Date edited last:  8/24/2016
 
 Outstanding issues: 
 ***************************************************************/
@@ -22,7 +22,7 @@ global grad "K:\ORP_accountability\data\2015_graduation_rate";
 global act "K:\ORP_accountability\data\2015_ACT";
 global act_substitution "K:\ORP_accountability\projects\2016_pre_coding\Output/system_act_substitution.dta";
 global SAS_base "K:\ORP_accountability\data\2015_sas_accountability/system_base_2015_20jul2015.csv";
-global names "K:\ORP_accountability\projects\Evan\Heat Maps/system system_name crosswalk.xlsx";
+global names "K:\ORP_accountability\projects\2016_pre_coding\Output\system_names.dta";
 global fall_preview "K:\ORP_accountability\projects\2015_fall_district_preview\Alex\Output/base_with_super_subgroup_sept24.dta";
 
 global output "K:\ORP_accountability\projects\2016_pre_coding\Output";
@@ -206,7 +206,7 @@ tempfile base;
 save `base', replace;
 
 * ACT and Grad Rate;
-foreach y in 2015 2016 {;
+foreach y in 2014 2015 2016 {;
 
 	use $act/ACT_district`y'.dta, clear;
 
@@ -242,7 +242,7 @@ foreach y in 2014 2015 2016 {;
 * Append ACT and Grad to Base;
 use `base', clear;
 
-foreach y in 2015 2016 {;
+foreach y in 2014 2015 2016 {;
 
 	append using `act_`y'';
 
@@ -348,8 +348,7 @@ drop if subject == "Graduation Rate";
 
 replace subject = "ELA" if subject == "RLA";
 
-keep year system subject grade subgroup enrolled tested valid_tests 
-	n_below_bsc n_bsc n_prof n_adv pct_below_bsc pct_bsc pct_prof pct_adv pct_prof_adv;
+keep year system subject grade subgroup enrolled tested valid_tests n_below_bsc n_bsc n_prof n_adv pct_below_bsc pct_bsc pct_prof pct_adv pct_prof_adv;
 
 tempfile super_2014;
 save `super_2014', replace;
@@ -360,18 +359,7 @@ append using `2014';
 append using `super_2014';
 
 * Fill in missing district names;
-preserve;
-
-import excel using "$names", firstrow clear;
-
-keep system system_name;
-
-tempfile names;
-save `names', replace;
-
-restore;
-
-mmerge system using `names', type(n:1);
+mmerge system using $names, type(n:1);
 drop if _merge == 2;
 drop _merge;
 

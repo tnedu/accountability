@@ -263,6 +263,9 @@ replace system_name = "Shelby County" if system_name == "Shelby County (New)";
 
 gsort system system_name school school_name grade subject subgroup -year;
 
+replace enrolled = . if subject == "ACT Composite" & subgroup != "All Students";
+replace tested = . if subject == "ACT Composite" & subgroup != "All Students";
+
 compress;
 
 save "$output/school_numeric_with_super_subgroup_2016.dta", replace;

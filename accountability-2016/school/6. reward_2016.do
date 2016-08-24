@@ -49,12 +49,16 @@ use $pool_immune, clear;
 
 preserve;
 
-keep system school pool one_yr_or_lessAll grad_onlyAll one_yr_or_lessBHN grad_onlyBHN 
-	one_yr_or_lessED grad_onlyED one_yr_or_lessNon_ED grad_onlyNon_ED 
-	one_yr_or_lessELL grad_onlyELL one_yr_or_lessNon_ELL grad_onlyNon_ELL 
-	one_yr_or_lessNon_SWD grad_onlyNon_SWD one_yr_or_lessSWD grad_onlySWD;
+keep system school pool one_yr_or_lessAll grad_onlyAll grad_only`current_yr'All
+	one_yr_or_lessBHN grad_onlyBHN grad_only`current_yr'BHN
+	one_yr_or_lessED grad_onlyED grad_only`current_yr'ED
+	one_yr_or_lessNon_ED grad_onlyNon_ED grad_only`current_yr'Non_ED
+	one_yr_or_lessELL grad_onlyELL grad_only`current_yr'ELL
+	one_yr_or_lessNon_ELL grad_onlyNon_ELL grad_only`current_yr'Non_ELL
+	one_yr_or_lessNon_SWD grad_onlyNon_SWD grad_only`current_yr'Non_SWD
+	one_yr_or_lessSWD grad_onlySWD grad_only`current_yr'SWD;
 
-reshape long one_yr_or_less grad_only, i(system school pool) j(subgroup) string;
+reshape long one_yr_or_less grad_only grad_only`current_yr', i(system school pool) j(subgroup) string;
 
 gen comparison = "BHN vs. All" if subgroup == "BHN" | subgroup == "All";
 replace comparison = "ED vs. Non-ED" if subgroup == "ED" | subgroup == "Non_ED";
@@ -64,7 +68,7 @@ replace comparison = "ELL vs. Non-ELL" if subgroup == "ELL" | subgroup == "Non_E
 replace subgroup = "Target" if subgroup == "BHN" | subgroup == "ED" | subgroup == "ELL" | subgroup == "SWD";
 replace subgroup = "Comparison" if subgroup == "All" | subgroup == "Non_ED" | subgroup == "Non_ELL" | subgroup == "Non_SWD";
 
-reshape wide one_yr_or_less grad_only, i(system school pool comparison) j(subgroup) string;
+reshape wide one_yr_or_less grad_only grad_only`current_yr', i(system school pool comparison) j(subgroup) string;
 
 tempfile one_year_data_grad_only;
 save `one_year_data_grad_only', replace;
@@ -89,11 +93,12 @@ save `pools', replace;
 use $base, clear;
 
 replace valid_tests = grad_cohort if subject == "Graduation Rate";
+replace n_below_bsc = dropout_count if subject == "Graduation Rate";
 replace n_prof = grad_count if subject == "Graduation Rate";
 replace grade = "12" if subject == "Graduation Rate";
 
 mmerge system school using `pools', type(n:1);
-* Schools without pools don't get school designations;
+* Schools without pools don't get a designation;
 keep if _merge == 3;
 drop _merge;
 
@@ -110,13 +115,11 @@ destring grade, replace;
 drop if (subject == "US History" | subject == "Graduation Rate") & pool == "K8";
 drop if subject == "US History" & pool == "HS";
 * Change EOC subjects for grade <= 8 students;
-replace subject = "Math" if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry") & grade <= 8;
-replace subject = "Math" if (subject == "Integrated Math I" | subject == "Integrated Math II" | subject == "Integrated Math III") & grade <= 8;
-replace subject = "RLA" if (subject == "English I" | subject == "English II" | subject == "English III") & grade <= 8;
+replace subject = "Math" if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math")) & grade <= 8;
+replace subject = "ELA" if (subject == "English I" | subject == "English II" | subject == "English III") & grade <= 8;
 replace subject = "Science" if (subject == "Biology I" | subject == "Chemistry") & grade <= 8;
 
-drop if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" |
-	subject == "Integrated Math I" | subject == "Integrated Math II" | subject == "Integrated Math III" |
+drop if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math") |
 	subject == "English I" | subject == "English II" | subject == "English III" |
 	subject == "Biology I" | subject == "Chemistry") & pool == "K8";
 
@@ -148,7 +151,7 @@ replace subgroup = "Non-English Language Learners" if subgroup == "Non-English L
 
 drop ell_30 comparison temp;
 
-* 3-Year success rates;
+* 3-Year success rates for reward performance;
 preserve;
 
 * Collapsing test counts across years and subjects;
@@ -175,16 +178,17 @@ reshape wide valid_tests n_PA pct_PA_3yr, i(system system_name school school_nam
 
 drop n_*;
 
-gen gap_3yr = round((pct_PA_3yrComparison - pct_PA_3yrTarget), 0.1);
+gen gap_3yr = round(pct_PA_3yrComparison - pct_PA_3yrTarget, 0.1);
 
 mmerge system school pool comparison using `one_year_data_grad_only', type(1:1);
 drop _merge;
 
-replace gap_3yr = . if one_yr_or_lessComparison == 1 | grad_onlyComparison == 1 | one_yr_or_lessTarget == 1 | grad_onlyTarget == 1;
+replace gap_3yr = . if one_yr_or_lessComparison == 1 | grad_onlyComparison == 1 | grad_only`current_yr'Comparison == 1 |
+	one_yr_or_lessTarget == 1 | grad_onlyTarget == 1 | grad_only`current_yr'Target == 1 ;
 
 bysort pool comparison: egen pool_median_gap = median(gap_3yr);
 
-gen gap_larger_than_median = gap_3yr > pool_median_gap if gap_3yr !=. & pool_median_gap !=.; 
+gen gap_larger_than_median = (gap_3yr > pool_median_gap) if gap_3yr !=. & pool_median_gap !=.; 
 
 keep system system_name school school_name pool comparison gap_3yr pool_median_gap gap_larger_than_median;
 
@@ -193,14 +197,14 @@ save `three_year_gaps', replace;
 
 restore;
 
-* 1-Year success rates;
+* 1-Year success rates for reward exemption;
 keep if year == `current_yr' | year == `lag_1yr';
 
 * Collapsing test counts across subjects;
 collapse (sum) valid_tests n_PA, by(year system system_name school school_name pool subgroup);
 
 * One-year success rates;
-gen pct_PA = round((100 * n_PA/valid_tests), 0.1);
+gen pct_PA = round(100 * n_PA/valid_tests, 0.1);
 
 preserve;
 
@@ -231,7 +235,7 @@ drop valid_tests* n_* pct_PA*;
 
 reshape wide gap_1yr, i(system system_name school school_name pool comparison) j(year);
 
-gen gap_narrowed = gap_1yr`current_yr' < gap_1yr`lag_1yr' if gap_1yr`current_yr' !=. & gap_1yr`lag_1yr' !=.;
+gen gap_narrowed = (gap_1yr`current_yr' < gap_1yr`lag_1yr') if gap_1yr`current_yr' != . & gap_1yr`lag_1yr' != .;
 
 keep system system_name school school_name pool comparison gap_1yr* gap_narrowed;
 
@@ -262,12 +266,10 @@ gen focus_priority = focus_any_pathway == 1 | priority == 1;
 drop _merge focus_any_pathway priority;
 
 count if pool == "HS";
-local hs_count = r(N);
-local hs_5_perc = ceil(0.05 * `hs_count');
+local hs_5_perc = ceil(0.05 * r(N));
 
 count if pool == "K8";
-local k8_count = r(N);
-local k8_5_perc = ceil(0.05 * `k8_count');
+local k8_5_perc = ceil(0.05 * r(N));
 
 * Reward performance;
 preserve;
@@ -302,8 +304,7 @@ import excel using "$tvaas", firstrow clear;
 rename (DistrictNumber School_Code) (system school);
 destring system school, replace;
 
-keep if Subject == "Overall";
-keep if Test == "TCAP/EOC";
+keep if Subject == "Overall" & Test == "TCAP/EOC";
 
 keep system school Index;
 
@@ -319,14 +320,6 @@ drop _merge;
 * Reward progress;
 gen reward_progress = 0;
 gen reward = reward_performance;
-
-count if pool == "HS";
-local hs_count = r(N);
-local hs_5_perc = ceil(0.05 * `hs_count');
-
-count if pool == "K8";
-local k8_count = r(N);
-local k8_5_perc = ceil(0.05 * `k8_count');
 
 preserve;
 
@@ -346,7 +339,7 @@ while `reward_progress_unique' < `hs_5_perc' {;
 
 };
 
-* Schools tied at the margin should be considered reward;
+* Schools tied at the margin are considered reward;
 egen temp = min(Index) if reward_progress == 1;
 egen cutoff = max(temp);
 replace reward_progress = 1 if Index == cutoff & reward_progress == 0 & reward_exemption == 0 & focus_priority == 0 & designation_ineligible == 0;
@@ -375,7 +368,7 @@ while `reward_progress_unique' < `k8_5_perc' {;
 
 };
 
-* Schools tied at the margin should be considered reward;
+* Schools tied at the margin are considered reward;
 egen temp = min(Index) if reward_progress == 1;
 egen cutoff = max(temp);
 replace reward_progress = 1 if Index == cutoff & reward_progress == 0 & reward_exemption == 0 & focus_priority == 0 & designation_ineligible == 0;

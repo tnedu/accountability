@@ -89,7 +89,7 @@ collapse (sum) enrolled tested valid_tests n_below_bsc n_bsc n_prof n_adv,
 rename grade_band grade;
 
 * If ELL valid test count >= 30, use T1/T2. Otherwise, keep ELL;
-gen ell_30 = (valid_tests >= 30 & valid_tests !=.) if subgroup == "English Language Learners";
+gen ell_30 = (valid_tests >= 30 & valid_tests != .) if subgroup == "English Language Learners";
 gen comparison = "ELL" if subgroup == "English Language Learners" | subgroup == "English Language Learners with T1/T2";
 
 bysort year system subject grade comparison: egen temp = max(ell_30);
@@ -117,11 +117,11 @@ order pct_below_bsc, before(pct_bsc);
 gen pct_prof_adv = round(100 * (n_prof + n_adv)/valid_tests, 0.1);
 
 * Fix % BB/B if there are no n_BB, n_B;
-gen flag_bb = 1 if pct_below_bsc != 0 & pct_below_bsc !=. & n_below_bsc == 0;
+gen flag_bb = 1 if pct_below_bsc != 0 & pct_below_bsc != . & n_below_bsc == 0;
 replace pct_bsc = (100 - pct_prof - pct_adv) if flag_bb == 1;
 replace pct_below_bsc = 0 if flag_bb == 1;
 
-gen flag_bb_b = 1 if (pct_below_bsc != 0 & pct_below_bsc !=.) & (pct_bsc != 0 & pct_bsc !=.)
+gen flag_bb_b = 1 if (pct_below_bsc != 0 & pct_below_bsc != .) & (pct_bsc != 0 & pct_bsc != .)
 	& n_below_bsc == 0 & n_bsc == 0;
 replace pct_prof = (100 - pct_adv) if flag_bb_b == 1;
 replace pct_bsc = 0 if flag_bb_b == 1;
@@ -290,8 +290,6 @@ append using `grad';
 
 * Creating percentile ranks for %BB and %PA;
 replace valid_tests = grad_cohort if subject == "Graduation Rate";
-replace n_below_bsc = dropout_count if subject == "Graduation Rate";
-replace n_prof = grad_count if subject == "Graduation Rate";
 replace pct_below_bsc = dropout_rate if subject == "Graduation Rate";
 replace pct_prof_adv = grad_rate if subject == "Graduation Rate";
 
@@ -317,7 +315,7 @@ quietly forval k = 1(1)`count' {;
 	if pct_prof_adv[`k'] != . {;
 
 		count if pct_prof_adv <= pct_prof_adv[`k'] & subject == subject[`k'] & subgroup == subgroup[`k'] & 
-			grade == grade[`k'] & year == year[`k'] & pct_prof_adv !=. & eligible == 1;
+			grade == grade[`k'] & year == year[`k'] & pct_prof_adv != . & eligible == 1;
 
 		replace pctile_rank_PA = r(N) if [_n] == `k' & eligible == 1;
 
@@ -330,13 +328,12 @@ quietly forval k = 1(1)`count' {;
 	if pct_below_bsc[`k'] != . {;
 
 		count if pct_below_bsc <= pct_below_bsc[`k'] & subject == subject[`k'] & subgroup == subgroup[`k'] &
-			grade == grade[`k'] & year == year[`k'] & pct_below_bsc !=. & eligible == 1;
+			grade == grade[`k'] & year == year[`k'] & pct_below_bsc != . & eligible == 1;
 
 		replace pctile_rank_BB = r(N) if [_n] == `k' & eligible == 1;
 
 	};
 };
-
 
 bysort subject grade year subgroup: egen eligible_count = sum(eligible);
 
@@ -348,8 +345,15 @@ gen PA_percentile = round(100 * pctile_rank_PA/eligible_count, 0.1) if eligible 
 
 drop eligible pctile_rank_* eligible_count;
 
-* Output numeric file;
+replace valid_tests = . if subject == "Graduation Rate";
+replace pct_below_bsc = . if subject == "Graduation Rate";
+replace pct_prof_adv = . if subject == "Graduation Rate";
+
+* Clean and output numeric file;
 gsort system system_name grade subject subgroup -year;
+
+replace enrolled = . if subject == "ACT Composite" & subgroup != "All Students";
+replace tested = . if subject == "ACT Composite" & subgroup != "All Students";
 
 compress;
 

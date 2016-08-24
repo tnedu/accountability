@@ -32,8 +32,9 @@ do "K:\ORP_accountability\projects\2016_pre_coding\Alex\Stata/School/1. student_
 do "K:\ORP_accountability\projects\2016_pre_coding\Alex\Stata/School/2. school_base_to_numeric.do";
 do "K:\ORP_accountability\projects\2016_pre_coding\Alex\Stata/School/3. grade_pools_designation_immune.do";
 do "K:\ORP_accountability\projects\2016_pre_coding\Alex\Stata/School/4. priority_exit_2016.do";
+do "K:\ORP_accountability\projects\2016_pre_coding\Alex\Stata/School/5. focus_exit_2016.do";
+do "K:\ORP_accountability\projects\2016_pre_coding\Alex\Stata/School/6. reward_2016.do";
 
 * State Base and Numeric;
 do "K:\ORP_accountability\projects\2016_pre_coding\Alex\Stata/State/1. student_level_to_state_base.do";
 do "K:\ORP_accountability\projects\2016_pre_coding\Alex\Stata/State/2. state_base_to_numeric.do";
-

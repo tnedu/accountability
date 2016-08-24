@@ -29,11 +29,9 @@ local lag_2yr = `current_yr' - 2;
 
 use $base, clear;
 
-drop if school_name == "";
 drop if subject == "ACT Composite";
 
 replace valid_tests = grad_cohort if subject == "Graduation Rate";
-replace n_prof = grad_count if subject == "Graduation Rate";
 replace grade = "12" if subject == "Graduation Rate";
 
 * Drop systems immune from designations;
@@ -43,9 +41,8 @@ drop if grade == "All Grades" | grade == "Missing Grade";
 destring grade, replace;
 
 * Change EOC subjects for grade <= 8 students;
-replace subject = "Math" if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry") & grade <= 8;
-replace subject = "Math" if (subject == "Integrated Math I" | subject == "Integrated Math II" | subject == "Integrated Math III") & grade <= 8;
-replace subject = "RLA" if (subject == "English I" | subject == "English II" | subject == "English III") & grade <= 8;
+replace subject = "Math" if (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math")) & grade <= 8;
+replace subject = "ELA" if (subject == "English I" | subject == "English II" | subject == "English III") & grade <= 8;
 replace subject = "Science" if (subject == "Biology I" | subject == "Chemistry") & grade <= 8;
 
 * Collapse test counts across replaced subjects;
@@ -53,8 +50,7 @@ collapse (sum) valid_tests, by(year system system_name school school_name subgro
 
 preserve;
 
-/* School Pool Identification */
-
+* School Pool Identification;
 keep if year == `current_yr';
 keep if subgroup == "All Students";
 
@@ -64,11 +60,10 @@ collapse (sum) valid_tests, by(year system system_name school school_name subgro
 gen tests_30 = valid_tests >= 30 & valid_tests !=.;
 
 gen hs_subjects = (tests_30 == 1) & 
-	(subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" |
-	subject == "Integrated Math I" | subject == "Integrated Math II" | subject == "Integrated Math III" |
+	(subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math") |
 	subject == "English I" | subject == "English II" | subject == "English III" |
 	subject == "Biology I" | subject == "Chemistry" | subject == "Graduation Rate");
-gen elem_subjects = (tests_30 == 1) & (subject == "Math" | subject == "RLA" | subject == "Science" | subject == "Social Studies");
+gen elem_subjects = (tests_30 == 1) & (subject == "Math" | subject == "ELA" | subject == "Science" | subject == "Social Studies");
 
 bysort system system_name school school_name: egen dummy_38 = max(elem_subjects);
 bysort system system_name school school_name: egen dummy_hs = max(hs_subjects);
@@ -76,7 +71,6 @@ bysort system system_name school school_name: egen dummy_hs = max(hs_subjects);
 collapse dummy_38 dummy_hs, by(system system_name school school_name);
 
 * Generate pool variable;
-
 gen pool = "HS" if dummy_hs == 1;
 replace pool = "K8" if (dummy_hs == 0 & dummy_38 == 1);
 
@@ -84,7 +78,7 @@ gen K8_pool = pool == "K8";
 gen HS_pool = pool == "HS";
 
 tab pool, missing;
-* 20 schools missing a grade pool;
+* 14 schools missing a grade pool;
 
 keep system system_name school school_name pool;
 
@@ -93,10 +87,9 @@ save `pools', replace;
 
 restore;
 
-/* Designation immunities for schools with one year or less, grad only */
-
+* Designation immunities for schools with one year or less, grad only;
 * If ELL valid test count >= 30, keep T1/T2. Otherwise, keep ELL;
-gen ell_30 = (valid_tests >= 30 & valid_tests !=.) if subgroup == "English Language Learners";
+gen ell_30 = (valid_tests >= 30 & valid_tests != .) if subgroup == "English Language Learners";
 
 gen comparison = "ELL vs. Non-ELL" if subgroup == "English Language Learners" | subgroup == "English Language Learners with T1/T2";
 
@@ -111,18 +104,18 @@ drop if subgroup == "Non-English Language Learners";
 * Collapse test counts across grade;
 collapse (sum) valid_tests, by(year system system_name school school_name subgroup subject);
 
-gen tests_30 = (valid_tests >= 30 & valid_tests !=.);
-gen tests_30_nograd = (valid_tests >= 30 & valid_tests !=.) if subject != "Graduation Rate";
+gen tests_30 = (valid_tests >= 30 & valid_tests != .);
+gen tests_30_nograd = (valid_tests >= 30 & valid_tests != .) if subject != "Graduation Rate";
 
 bysort system system_name school school_name subgroup: egen year_`current_yr' = max(tests_30_nograd) 
-	if year == `current_yr' & valid_tests >= 30 & valid_tests !=.;
+	if year == `current_yr' & valid_tests >= 30 & valid_tests != .;
 bysort system system_name school school_name subgroup: egen year_`lag_yr' = max(tests_30_nograd) 
-	if year == `lag_yr' & valid_tests >= 30 & valid_tests !=.;
+	if year == `lag_yr' & valid_tests >= 30 & valid_tests != .;
 bysort system system_name school school_name subgroup: egen year_`lag_2yr' = max(tests_30_nograd) 
-	if year == `lag_2yr' & valid_tests >= 30 & valid_tests !=.;
+	if year == `lag_2yr' & valid_tests >= 30 & valid_tests != .;
 
 egen temp = tag(year system system_name school school_name subgroup year) 
-	if valid_tests >= 30 & valid_tests !=. & subject != "Graduation Rate";
+	if valid_tests >= 30 & valid_tests != . & subject != "Graduation Rate";
 bysort system system_name school school_name subgroup: egen num_years = sum(temp);
 
 drop temp tests_30_nograd;
@@ -173,14 +166,14 @@ order pool, after(school_name);
 tempfile pools_immune;
 save `pools_immune', replace;
 
+* Merge on Title 1 status (Using 2015 data);
 preserve;
 
-* Merge on Title 1 status (Using 2015 data);
 import excel using "$title_1", sheet("K-12 Title I Schools") firstrow clear;
 
 drop if A ==.;
-gen system = regexs(0) if (regexm(SchoolID, "^[0-9][0-9][0-9]"));
-gen school = regexs(0) if (regexm(SchoolID, "[0-9][0-9][0-9][0-9]$"));
+gen system = regexs(0) if regexm(SchoolID, "^[0-9][0-9][0-9]");
+gen school = regexs(0) if regexm(SchoolID, "[0-9][0-9][0-9][0-9]$");
 
 drop SchoolID;
 rename (LEAName SchoolName Service) (system_name school_name Title_1);
@@ -204,9 +197,9 @@ drop _merge;
 replace Title_1 = 0 if Title_1 ==.;
 order Title_1, after(pool);
 
+* Closed schools (Using 2015 data);
 preserve;
 
-* Closed schools (Using 2015 data);
 import excel using "$closed", firstrow clear;
 
 rename (DISTRICT_NUMBER SCHOOL_NUMBER) (system school);
@@ -227,15 +220,15 @@ drop _merge;
 
 replace closed = 0 if closed ==.;
 
+* CTE/Alternative/Adult schools (Using 2015 data);
 preserve;
 
-* CTE/Alternative/Adult schools (Using 2015 data);
 import excel using $cte_alt_adult, firstrow clear;
 
 rename (DISTRICT_NUMBER SCHOOL_NUMBER) (system school);
 destring system school, replace;
 
-drop if system ==. & school==.;
+drop if system  == . & school == .;
 
 gen cte_alt_adult = 1;
 keep system school cte_alt_adult;
@@ -251,9 +244,9 @@ drop _merge;
 
 replace cte_alt_adult = 0 if cte_alt_adult ==.;
 
+* Sped schools (Using 2015 data);
 preserve;
 
-* Sped schools (Using 2015 data);
 import excel using $sped, firstrow clear;
 
 rename (DISTRICT_NUMBER SCHOOL_NUMBER) (system school);

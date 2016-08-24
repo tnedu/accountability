@@ -195,7 +195,7 @@ foreach y in 2015 2016 {;
 	
 };
 
-foreach y in 2014 2015 2016 {;
+foreach y in 2015 2016 {;
 
 	use $grad/state_grad_rate`y'.dta, clear;
 
@@ -222,7 +222,7 @@ foreach y in 2015 2016 {;
 
 };
 
-foreach y in 2014 2015 2016 {;
+foreach y in 2015 2016 {;
 
 	append using `grad_`y'';
 	
