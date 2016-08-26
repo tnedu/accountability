@@ -10,7 +10,7 @@
 .Rapp.history
 
 # Session Data files
-.RData
+*.RData
 
 # Example code in package build process
 *-Ex.R
@@ -36,6 +36,9 @@ vignettes/*.pdf
 /cache/
 
 # Temporary files created by R markdown
+*__packages
+*.rdb
+*.rdx
 *.utf8.md
 *.knit.md
 *.docx
