@@ -8,7 +8,7 @@ school_accountability <- read_csv("data/school_accountability_file.csv")
 # Minimum Performance Goal
 performance_goal <- school_accountability %>%
     mutate(eligible = (valid_tests >= 30 & valid_tests_prior >= 30),
-        achievement_key = ifelse(eligible, ifelse(upper_bound_ci_PA >= pct_prof_adv_prior, "Met", "Missed"), NA),
+        achievement_key = ifelse(eligible, ifelse(upper_bound_ci_PA > pct_prof_adv_prior, "Met", "Missed"), NA),
         tvaas_key = ifelse(eligible, ifelse(!is.na(TVAAS_level), ifelse(TVAAS_level %in% c("Level 3", "Level 4", "Level 5"), "Met", "Missed"), NA), NA),
         below_bsc_reduction = ifelse(!is.na(pct_below_bsc) & !is.na(pct_below_bsc_prior), round(100 * (pct_below_bsc_prior - pct_below_bsc)/pct_below_bsc_prior, 1), NA),
         gap_closure_bb = ifelse(subgroup == "Super Subgroup", ifelse(eligible, ifelse(below_bsc_reduction >= 25, "Met", "Missed"), NA), NA),
@@ -41,7 +41,7 @@ minimum_performance_goal <- full_join(performance_goal_all, performance_goal_sup
     mutate(minimum_performance_goal = ifelse(achievement_key == "Missed" | tvaas_key == "Missed" | gap_closure_key == "Missed", "Missed", "Met"),
         minimum_performance_goal = ifelse(is.na(minimum_performance_goal), "Met", minimum_performance_goal),
         minimum_performance_goal = ifelse(is.na(achievement_key) & is.na(tvaas_key) & is.na(gap_closure_key), NA, minimum_performance_goal),
-        minimum_performance_goal = ifelse(designation_ineligible == 1, NA, minimum_performance_goal))
+        minimum_performance_goal = ifelse(designation_ineligible, NA, minimum_performance_goal))
 
 rm(performance_goal, performance_goal_all, performance_goal_super)
 
@@ -65,7 +65,7 @@ ach_heat_map <- school_accountability %>%
         tvaas_goal = ifelse(TVAAS_level == "Level 4", 3, tvaas_goal),
         tvaas_goal = ifelse(TVAAS_level == "Level 5", 4, tvaas_goal)) %>%
     rowwise() %>%
-    mutate(average_score = ifelse(eligible == TRUE, mean(c(amo_targets_goal, relative_performance_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
+    mutate(average_score = ifelse(eligible, mean(c(amo_targets_goal, relative_performance_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
     ungroup() %>%
     select(system, system_name, school, school_name, subject, pool, eligible, amo_targets_goal, relative_performance_goal, tvaas_goal, average_score)
 
@@ -89,7 +89,7 @@ subgroup_heat_maps <- school_accountability %>%
        bb_reduction_goal = ifelse(pct_below_bsc <= AMO_target_BB & pct_below_bsc > AMO_target_BB_4, 3, bb_reduction_goal),
        bb_reduction_goal = ifelse(pct_below_bsc <= AMO_target_BB_4, 4, bb_reduction_goal)) %>%
     rowwise() %>%
-    mutate(average_score = ifelse(eligible == TRUE, mean(c(amo_targets_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
+    mutate(average_score = ifelse(eligible, mean(c(amo_targets_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
     ungroup() %>%
     select(system, system_name, school, school_name, subgroup, pool, subject, eligible, amo_targets_goal, tvaas_goal, bb_reduction_goal, average_score)
 
@@ -123,6 +123,7 @@ final_determinations <- minimum_performance_goal %>%
         final_determination = ifelse(is.na(final_determination), ifelse(overall_average < 2, "Progressing", final_determination), final_determination),
         final_determination = ifelse(is.na(final_determination), ifelse(overall_average >= 2 & overall_average < 3, "Achieving", final_determination), final_determination),
         final_determination = ifelse(is.na(final_determination), ifelse(overall_average >= 3, "Exemplary", final_determination), final_determination),
-        final_determination = ifelse(designation_ineligible == 1, NA, final_determination))
+        final_determination = ifelse(designation_ineligible, NA, final_determination))
 
+# Output file
 write_csv(final_determinations, path = "data/district_rolldown_determinations.csv", na = "")

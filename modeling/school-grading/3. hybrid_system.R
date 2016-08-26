@@ -98,7 +98,7 @@ ach_heat_map <- school_accountability %>%
         tvaas_goal = ifelse(TVAAS_level == "Level 4", 3, tvaas_goal),
         tvaas_goal = ifelse(TVAAS_level == "Level 5", 4, tvaas_goal)) %>%
     rowwise() %>%
-    mutate(average_score = ifelse(eligible == TRUE, mean(c(amo_targets_goal, relative_performance_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
+    mutate(average_score = ifelse(eligible, mean(c(amo_targets_goal, relative_performance_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
     ungroup() %>%
     select(system, system_name, school, school_name, subject, pool, eligible, amo_targets_goal, relative_performance_goal, tvaas_goal, average_score)
 
@@ -122,7 +122,7 @@ subgroup_heat_maps <- school_accountability %>%
         bb_reduction_goal = ifelse(pct_below_bsc <= AMO_target_BB & pct_below_bsc > AMO_target_BB_4, 3, bb_reduction_goal),
         bb_reduction_goal = ifelse(pct_below_bsc <= AMO_target_BB_4, 4, bb_reduction_goal)) %>%
     rowwise() %>%
-    mutate(average_score = ifelse(eligible == TRUE, mean(c(amo_targets_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
+    mutate(average_score = ifelse(eligible, mean(c(amo_targets_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
     ungroup() %>%
     select(system, system_name, school, school_name, subgroup, pool, subject, eligible, amo_targets_goal, tvaas_goal, bb_reduction_goal, average_score)
 
@@ -161,5 +161,5 @@ final_determinations <- full_join(ach_scores, gap_scores, by = c("system", "syst
         grade = ifelse(priority, "F", grade),
         grade = ifelse(designation_ineligible, NA, grade))
 
-# Output files
+# Output file
 write_csv(final_determinations, path = "data/hybrid_system_grades.csv", na = "")

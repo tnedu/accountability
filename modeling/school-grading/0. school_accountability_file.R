@@ -26,9 +26,11 @@ school_accountability <- school_base %>%
         subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject), 
         subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject),
-        n_adv = ifelse(is.na(n_adv), 0, n_adv),
-        n_PA = n_prof + n_adv,
-        subject = ifelse(grade %in% c(3, 4, 5), paste("3-5", subject), subject),
+        n_adv = ifelse(is.na(n_adv), 0, n_adv)) %>%
+    rowwise() %>%
+    mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(subject = ifelse(grade %in% c(3, 4, 5), paste("3-5", subject), subject),
         subject = ifelse(grade %in% c(6, 7, 8), paste("6-8", subject), subject),
         subject = ifelse(subject %in% c("Algebra I", "Algebra II"), "HS Math", subject),
         subject = ifelse(subject %in% c("English I", "English II", "English III"), "HS English", subject),
@@ -102,4 +104,5 @@ school_accountability <- school_accountability %>%
 
 rm(amos, grade_pools, school_base, tvaas_all, tvaas_subgroups)
 
+# Output file
 write_csv(school_accountability, path = "data/school_accountability_file.csv", na = "")

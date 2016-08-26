@@ -116,7 +116,8 @@ AF_grades_final <- AF_grades_final %>%
         final_grade = ifelse(score >= 3 & score < 4, "B", final_grade),
         final_grade = ifelse(score >= 2 & score < 3, "C", final_grade),
         final_grade = ifelse(score >= 1 & score < 2, "D", final_grade),
-        final_grade = ifelse(score == 1, "F", final_grade))
+        final_grade = ifelse(score == 1, "F", final_grade),
+        final_grade = ifelse(designation_ineligible, NA, final_grade))
 
 # Output files
 write_csv(AF_grades_metrics, path = "data/AF_grades_metrics_by_subgroup.csv", na = "")

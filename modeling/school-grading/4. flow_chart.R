@@ -121,7 +121,7 @@ grades <- percentiles %>%
         grade = ifelse(is.na(grade), ifelse(all_pctile_top_45, "C", NA), grade),
         grade = ifelse(is.na(grade), ifelse(all_met_one_third_amos, "C", NA), grade),
         grade = ifelse(is.na(grade), "D", grade),
-        grade = ifelse(designation_ineligible == 1, NA, grade))
+        grade = ifelse(designation_ineligible, NA, grade))
 
-# Output files
+# Output file
 write_csv(grades, path = "data/flow_chart_grades.csv", na = "")
