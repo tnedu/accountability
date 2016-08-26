@@ -74,21 +74,16 @@ AF_grades_metrics <- school_success_rates %>%
     left_join(TVAAS, by = c("system", "school", "subgroup")) %>%
     left_join(grad, by = c("system", "system_name", "school", "school_name", "subgroup")) %>%
     left_join(ACT, by = c("system", "system_name", "school", "school_name", "subgroup")) %>%
-    mutate(grade_abs_achievement = ifelse(success_rate >= 90, "A", NA),
-        grade_abs_achievement = ifelse(success_rate >= 80 & success_rate < 90, "B", grade_abs_achievement),
-        grade_abs_achievement = ifelse(success_rate >= 70 & success_rate < 80, "C", grade_abs_achievement),
-        grade_abs_achievement = ifelse(success_rate >= 50 & success_rate < 70, "D", grade_abs_achievement),
-        grade_abs_achievement = ifelse(success_rate < 50, "F", grade_abs_achievement),
+    mutate(grade_relative_achievement = ifelse(pctile_rank >= 80, "A", NA),
+        grade_relative_achievement = ifelse(pctile_rank >= 60 & pctile_rank < 80, "B", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank >= 40 & pctile_rank < 60, "C", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank >= 20 & pctile_rank < 40, "D", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank < 20, "F", grade_relative_achievement),
         grade_tvaas = ifelse(tvaas_composite == 5, "A", NA),
         grade_tvaas = ifelse(tvaas_composite == 4, "B", grade_tvaas),
         grade_tvaas = ifelse(tvaas_composite == 3, "C", grade_tvaas),
         grade_tvaas = ifelse(tvaas_composite == 2, "D", grade_tvaas),
         grade_tvaas = ifelse(tvaas_composite == 1, "F", grade_tvaas),
-        grade_relative_rank = ifelse(pctile_rank >= 80, "A", NA),
-        grade_relative_rank = ifelse(pctile_rank >= 60 & pctile_rank < 80, "B", grade_relative_rank),
-        grade_relative_rank = ifelse(pctile_rank >= 40 & pctile_rank < 60, "C", grade_relative_rank),
-        grade_relative_rank = ifelse(pctile_rank >= 20 & pctile_rank < 40, "D", grade_relative_rank),
-        grade_relative_rank = ifelse(pctile_rank < 20, "F", grade_relative_rank),
         grade_grad = ifelse(grad_rate >= 95, "A", NA),
         grade_grad = ifelse(grad_rate >= 90 & grad_rate < 95, "B", grade_grad),
         grade_grad = ifelse(grad_rate >= 80 & grad_rate < 90, "C", grade_grad),
@@ -110,9 +105,9 @@ AF_grades_final[AF_grades_final == "D"] <- "2"
 AF_grades_final[AF_grades_final == "F"] <- "1"
 
 AF_grades_final <- AF_grades_final %>%
-    mutate_each_(funs(as.numeric(.)), vars = c("grade_abs_achievement", "grade_tvaas", "grade_relative_rank", "grade_grad", "grade_ACT")) %>%
+    mutate_each_(funs(as.numeric(.)), vars = c("grade_relative_achievement", "grade_tvaas", "grade_grad", "grade_ACT")) %>%
     rowwise() %>%
-    mutate(subgroup_average = mean(c(grade_abs_achievement, grade_tvaas, grade_relative_rank, grade_grad, grade_ACT), na.rm = TRUE)) %>%
+    mutate(subgroup_average = mean(c(grade_relative_achievement, grade_tvaas, grade_grad, grade_ACT), na.rm = TRUE)) %>%
     ungroup() %>%
     group_by(system, system_name, school, school_name, designation_ineligible, pool) %>%
     summarise(score = mean(subgroup_average, na.rm = TRUE)) %>%
