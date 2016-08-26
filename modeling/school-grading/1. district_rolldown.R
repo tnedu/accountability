@@ -10,8 +10,7 @@ performance_goal <- school_accountability %>%
     mutate(eligible = (valid_tests >= 30 & valid_tests_prior >= 30),
         achievement_key = ifelse(eligible, ifelse(upper_bound_ci_PA > pct_prof_adv_prior, "Met", "Missed"), NA),
         tvaas_key = ifelse(eligible, ifelse(!is.na(TVAAS_level), ifelse(TVAAS_level %in% c("Level 3", "Level 4", "Level 5"), "Met", "Missed"), NA), NA),
-        below_bsc_reduction = ifelse(!is.na(pct_below_bsc) & !is.na(pct_below_bsc_prior), round(100 * (pct_below_bsc_prior - pct_below_bsc)/pct_below_bsc_prior, 1), NA),
-        gap_closure_bb = ifelse(subgroup == "Super Subgroup", ifelse(eligible, ifelse(below_bsc_reduction >= 25, "Met", "Missed"), NA), NA),
+        gap_closure_bb = ifelse(subgroup == "Super Subgroup", ifelse(eligible, ifelse(lower_bound_ci_BB < pct_below_bsc_prior, "Met", "Missed"), NA), NA),
         gap_closure_tvaas = ifelse(subgroup == "Super Subgroup", ifelse(eligible, ifelse(!is.na(TVAAS_level), ifelse(TVAAS_level %in% c("Level 3", "Level 4", "Level 5"), "Met", "Missed"), NA), NA), NA))
 
 performance_goal_all <- performance_goal %>%
