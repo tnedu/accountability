@@ -4,8 +4,11 @@ library(readr)
 library(dplyr)
 
 # Read in grade pools
-grade_pools <- readstata13::read.dta13("K:/ORP_accountability/projects/2015_school_coding/Output/grade_pools_immune_ap.dta") %>%
+grade_pools <- readstata13::read.dta13("K:/ORP_accountability/projects/2016_pre_coding/Output/grade_pools_designation_immune_2016.dta") %>%
     select(system, school, designation_ineligible, pool)
+
+hs <- ceiling(0.05 * sum(grade_pools$pool == "HS"))
+k8 <- ceiling(0.05 * sum(grade_pools$pool == "K8"))
 
 # School base + merge on grade pools
 school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_base_with_super_subgroup_2016.csv") %>%
@@ -22,7 +25,7 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
         subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject)) %>%
     rowwise() %>%
-        mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
+    mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
     ungroup() %>%
     inner_join(grade_pools, by = c("system", "school")) %>%
     filter(!(pool == "K8" & subject %in% c("Algebra I", "Algebra II", "Biology I", "Chemistry", "English I", "English II", "English III", "Graduation Rate")))
@@ -46,7 +49,7 @@ priority_schools <- school_base %>%
     summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate(valid_tests = ifelse(valid_tests < 30, 0, valid_tests),
-        n_PA = ifelse(valid_tests < 30, 0, n_PA)) %>%
+           n_PA = ifelse(valid_tests < 30, 0, n_PA)) %>%
     group_by(system, system_name, school, school_name, pool, subgroup, designation_ineligible) %>%
     summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
     ungroup() %>%
@@ -54,24 +57,13 @@ priority_schools <- school_base %>%
     left_join(tvaas_school2015, by = c("system", "school")) %>%
     left_join(tvaas_school2014, by = c("system", "school")) %>%
     mutate(priority_sh = tvaas2015 %in% c(4, 5) & tvaas2014 %in% c(4, 5)) %>%
-    mutate(priority = FALSE)
-
-hs <- ceiling(0.05 * sum(priority_schools$pool == "HS"))
-k8 <- ceiling(0.05 * sum(priority_schools$pool == "K8"))
-
-# Priority high schools
-priority_schools <- priority_schools %>%
-    arrange(pool, designation_ineligible, priority_sh, success_rate_3yr)
-
-priority_schools[1:hs, ]$priority <- TRUE
-
-# Priority K8 schools
-priority_schools <- priority_schools %>%
-    arrange(desc(pool), designation_ineligible, priority_sh, success_rate_3yr)
-
-priority_schools[1:k8, ]$priority <- TRUE
-
-priority_schools <- priority_schools %>%
+    group_by(pool, designation_ineligible, priority_sh) %>%
+    mutate(rank = rank(success_rate_3yr, na.last = "keep", ties.method = "min")) %>%
+    ungroup() %>%
+    arrange(pool, designation_ineligible, priority_sh, success_rate_3yr, rank) %>%
+    mutate(priority = ifelse(rank <= hs & pool == "HS" & designation_ineligible == 0 & priority_sh == FALSE, TRUE, FALSE)) %>%
+    arrange(desc(pool), designation_ineligible, priority_sh, success_rate_3yr, rank) %>%
+    mutate(priority = ifelse(rank <= k8 & pool == "K8" & designation_ineligible == 0 & priority_sh == FALSE, TRUE, priority)) %>%
     filter(priority == TRUE) %>%
     select(system, school, priority)
 
@@ -90,21 +82,21 @@ school_accountability <- read_csv("data/school_accountability_file.csv")
 ach_heat_map <- school_accountability %>%
     filter(subgroup == "All Students") %>%
     mutate(eligible = (valid_tests >= 30 & valid_tests_prior >= 30),
-           amo_targets_goal = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, 0, NA),
-           amo_targets_goal = ifelse(upper_bound_ci_PA >= pct_prof_adv_prior & upper_bound_ci_PA <= AMO_target_PA, 1, amo_targets_goal),
-           amo_targets_goal = ifelse(upper_bound_ci_PA >= AMO_target_PA, 2, amo_targets_goal),
-           amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA & pct_prof_adv <= AMO_target_PA_4, 3, amo_targets_goal),
-           amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA_4, 4, amo_targets_goal),
-           relative_performance_goal = ifelse(percentile_rank < (percentile_rank_prior - 10), 0, NA),
-           relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior - 10) & percentile_rank < (percentile_rank_prior - 2), 1, relative_performance_goal),
-           relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior - 2) & percentile_rank <= percentile_rank_prior, 2, relative_performance_goal),
-           relative_performance_goal = ifelse(percentile_rank > percentile_rank_prior & percentile_rank < (percentile_rank_prior + 10), 3, relative_performance_goal),
-           relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior + 10), 4, relative_performance_goal),
-           tvaas_goal = ifelse(TVAAS_level == "Level 1", 0, NA),
-           tvaas_goal = ifelse(TVAAS_level == "Level 2", 1, tvaas_goal),
-           tvaas_goal = ifelse(TVAAS_level == "Level 3", 2, tvaas_goal),
-           tvaas_goal = ifelse(TVAAS_level == "Level 4", 3, tvaas_goal),
-           tvaas_goal = ifelse(TVAAS_level == "Level 5", 4, tvaas_goal)) %>%
+        amo_targets_goal = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, 0, NA),
+        amo_targets_goal = ifelse(upper_bound_ci_PA >= pct_prof_adv_prior & upper_bound_ci_PA <= AMO_target_PA, 1, amo_targets_goal),
+        amo_targets_goal = ifelse(upper_bound_ci_PA >= AMO_target_PA, 2, amo_targets_goal),
+        amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA & pct_prof_adv <= AMO_target_PA_4, 3, amo_targets_goal),
+        amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA_4, 4, amo_targets_goal),
+        relative_performance_goal = ifelse(percentile_rank < (percentile_rank_prior - 10), 0, NA),
+        relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior - 10) & percentile_rank < (percentile_rank_prior - 2), 1, relative_performance_goal),
+        relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior - 2) & percentile_rank <= percentile_rank_prior, 2, relative_performance_goal),
+        relative_performance_goal = ifelse(percentile_rank > percentile_rank_prior & percentile_rank < (percentile_rank_prior + 10), 3, relative_performance_goal),
+        relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior + 10), 4, relative_performance_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 1", 0, NA),
+        tvaas_goal = ifelse(TVAAS_level == "Level 2", 1, tvaas_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 3", 2, tvaas_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 4", 3, tvaas_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 5", 4, tvaas_goal)) %>%
     rowwise() %>%
     mutate(average_score = ifelse(eligible == TRUE, mean(c(amo_targets_goal, relative_performance_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
     ungroup() %>%
@@ -114,21 +106,21 @@ ach_heat_map <- school_accountability %>%
 subgroup_heat_maps <- school_accountability %>%
     filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged", "Students with Disabilities", "English Language Learners with T1/T2")) %>%
     mutate(eligible = (valid_tests >= 30 & valid_tests_prior >= 30),
-           amo_targets_goal = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, 0, NA),
-           amo_targets_goal = ifelse(upper_bound_ci_PA >= pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, 1, amo_targets_goal),
-           amo_targets_goal = ifelse(upper_bound_ci_PA >= AMO_target_PA, 2, amo_targets_goal),
-           amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA & pct_prof_adv < AMO_target_PA_4, 3, amo_targets_goal),
-           amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA_4, 4, amo_targets_goal),
-           tvaas_goal = ifelse(TVAAS_level == "Level 1", 0, NA),
-           tvaas_goal = ifelse(TVAAS_level == "Level 2", 1, tvaas_goal),
-           tvaas_goal = ifelse(TVAAS_level == "Level 3", 2, tvaas_goal),
-           tvaas_goal = ifelse(TVAAS_level == "Level 4", 3, tvaas_goal),
-           tvaas_goal = ifelse(TVAAS_level == "Level 5", 4, tvaas_goal),
-           bb_reduction_goal = ifelse(lower_bound_ci_BB >= pct_below_bsc_prior, 0, NA),
-           bb_reduction_goal = ifelse(lower_bound_ci_BB < pct_below_bsc_prior & lower_bound_ci_BB > AMO_target_BB, 1, bb_reduction_goal),
-           bb_reduction_goal = ifelse(lower_bound_ci_BB <= AMO_target_BB, 2, bb_reduction_goal),
-           bb_reduction_goal = ifelse(pct_below_bsc <= AMO_target_BB & pct_below_bsc > AMO_target_BB_4, 3, bb_reduction_goal),
-           bb_reduction_goal = ifelse(pct_below_bsc <= AMO_target_BB_4, 4, bb_reduction_goal)) %>%
+        amo_targets_goal = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, 0, NA),
+        amo_targets_goal = ifelse(upper_bound_ci_PA >= pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, 1, amo_targets_goal),
+        amo_targets_goal = ifelse(upper_bound_ci_PA >= AMO_target_PA, 2, amo_targets_goal),
+        amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA & pct_prof_adv < AMO_target_PA_4, 3, amo_targets_goal),
+        amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA_4, 4, amo_targets_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 1", 0, NA),
+        tvaas_goal = ifelse(TVAAS_level == "Level 2", 1, tvaas_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 3", 2, tvaas_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 4", 3, tvaas_goal),
+        tvaas_goal = ifelse(TVAAS_level == "Level 5", 4, tvaas_goal),
+        bb_reduction_goal = ifelse(lower_bound_ci_BB >= pct_below_bsc_prior, 0, NA),
+        bb_reduction_goal = ifelse(lower_bound_ci_BB < pct_below_bsc_prior & lower_bound_ci_BB > AMO_target_BB, 1, bb_reduction_goal),
+        bb_reduction_goal = ifelse(lower_bound_ci_BB <= AMO_target_BB, 2, bb_reduction_goal),
+        bb_reduction_goal = ifelse(pct_below_bsc <= AMO_target_BB & pct_below_bsc > AMO_target_BB_4, 3, bb_reduction_goal),
+        bb_reduction_goal = ifelse(pct_below_bsc <= AMO_target_BB_4, 4, bb_reduction_goal)) %>%
     rowwise() %>%
     mutate(average_score = ifelse(eligible == TRUE, mean(c(amo_targets_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
     ungroup() %>%

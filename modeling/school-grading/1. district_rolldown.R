@@ -125,4 +125,4 @@ final_determinations <- minimum_performance_goal %>%
         final_determination = ifelse(is.na(final_determination), ifelse(overall_average >= 3, "Exemplary", final_determination), final_determination),
         final_determination = ifelse(designation_ineligible == 1, NA, final_determination))
 
-write_csv(final_determinations, path = "data/final_determinations.csv", na = "")
+write_csv(final_determinations, path = "data/district_rolldown_determinations.csv", na = "")
