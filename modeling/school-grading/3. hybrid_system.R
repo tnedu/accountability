@@ -49,7 +49,7 @@ priority_schools <- school_base %>%
     summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate(valid_tests = ifelse(valid_tests < 30, 0, valid_tests),
-           n_PA = ifelse(valid_tests < 30, 0, n_PA)) %>%
+        n_PA = ifelse(valid_tests < 30, 0, n_PA)) %>%
     group_by(system, system_name, school, school_name, pool, subgroup, designation_ineligible) %>%
     summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
     ungroup() %>%
@@ -160,3 +160,6 @@ final_determinations <- full_join(ach_scores, gap_scores, by = c("system", "syst
         grade = ifelse(reward, "A", grade),
         grade = ifelse(priority, "F", grade),
         grade = ifelse(designation_ineligible, NA, grade))
+
+# Output files
+write_csv(final_determinations, path = "data/hybrid_system_grades.csv", na = "")
