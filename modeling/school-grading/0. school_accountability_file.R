@@ -1,4 +1,4 @@
-## Build School Accountability File with Super Subgroup and Science
+## School Accountability File with Super Subgroup and Science
 
 library(readr)
 library(dplyr)
@@ -15,7 +15,8 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
     mutate(grade = ifelse(subject == "Graduation Rate", "12", grade),
         grade = ifelse(subject == "ACT Composite", "11", grade)) %>%
     filter(!(grade == "All Grades" | grade == "Missing Grade")) %>%
-    mutate(n_prof = ifelse(subject == "Graduation Rate", grad_count, n_prof),
+    mutate(n_below_bsc = ifelse(subject == "Graduation Rate", dropout_count, n_below_bsc),
+        n_prof = ifelse(subject == "Graduation Rate", grad_count, n_prof),
         valid_tests = ifelse(subject == "Graduation Rate", grad_cohort, valid_tests),
         n_prof = ifelse(subject == "ACT Composite", n_21_and_above, n_prof),
         n_below_bsc = ifelse(subject == "ACT Composite", n_below_19, n_below_bsc)) %>%
@@ -52,7 +53,8 @@ amos <- school_accountability %>%
     rename(valid_tests_prior = valid_tests, pct_below_bsc_prior = pct_below_bsc, pct_prof_adv_prior = pct_prof_adv)
 
 tvaas_all <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/School-Level Intra-Year NCE MRM and URM Results (All Students).xlsx") %>%
-    filter(Test %in% c("TCAP", "EOC") | (Test == "ACT" & Subject == "Composite")) %>%
+#    filter(Test %in% c("TCAP", "EOC") | (Test == "ACT" & Subject == "Composite")) %>%
+    filter(Test %in% c("TCAP", "EOC")) %>%
     mutate(Subject = ifelse(Subject == "Math" & Grade == "4-5", "3-5 Math", Subject),
         Subject = ifelse(Subject == "Math" & Grade == "6-8", "6-8 Math", Subject),
         Subject = ifelse(Subject == "Reading/Language" & Grade == "4-5", "3-5 ELA", Subject),
@@ -66,13 +68,15 @@ tvaas_all <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/School-Le
     select(year, system, school, subject, subgroup, TVAAS_level)
 
 tvaas_subgroups <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/School-Level Intra-Year NCE MRM and URM Results (Subgroups).xlsx") %>%
-    filter(Test %in% c("TCAP", "EOC") | (Test == "ACT" & Subject == "Composite")) %>%
+#   filter(Test %in% c("TCAP", "EOC") | (Test == "ACT" & Subject == "Composite")) %>%
+    filter(Test %in% c("TCAP", "EOC")) %>%
     mutate(Subject = ifelse(Subject == "Math" & Grade == "4-5", "3-5 Math", Subject),
         Subject = ifelse(Subject == "Math" & Grade == "6-8", "6-8 Math", Subject),
         Subject = ifelse(Subject == "Reading/Language" & Grade == "4-5", "3-5 ELA", Subject),
         Subject = ifelse(Subject == "Reading/Language" & Grade == "6-8", "6-8 ELA", Subject),
         Subject = ifelse(Test == "ACT" & Subject == "Composite", "ACT Composite", Subject),
         Year = as.numeric(Year),
+        Subgroup = ifelse(Subgroup == "Students With Disabilities", "Students with Disabilities", Subgroup),
         `System Number` = as.numeric(`System Number`),
         `School Number` = as.numeric(`School Number`)) %>%
     rename(year = Year, system = `System Number`, school = `School Number`, subject = Subject, TVAAS_level = Level, subgroup = Subgroup) %>%
@@ -82,14 +86,14 @@ tvaas_all <- bind_rows(tvaas_all, tvaas_subgroups)
 
 school_accountability <- school_accountability %>%
     filter(year == 2015) %>%
-    left_join(amos, by = c("year", "system", "system_name", "school", "subgroup", "school_name", "subject")) %>%
+    left_join(amos, by = c("year", "system", "system_name", "school", "school_name", "subgroup", "subject")) %>%
     left_join(tvaas_all, by = c("year", "system", "school", "subject", "subgroup")) %>%
     mutate(pct_prof_adv = pct_prof_adv/100,
-        upper_bound_ci_PA = round(100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_prof_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) + 
+        upper_bound_ci_PA = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_prof_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) + 
             qnorm(0.975) * sqrt((pct_prof_adv * (1 - pct_prof_adv))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
         pct_prof_adv = 100 * pct_prof_adv,
         pct_below_bsc = pct_below_bsc/100,
-        lower_bound_ci_BB = round(100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_below_bsc + ((qnorm(0.975)^2)/(2 * valid_tests)) - 
+        lower_bound_ci_BB = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_below_bsc + ((qnorm(0.975)^2)/(2 * valid_tests)) - 
             qnorm(0.975) * sqrt((pct_below_bsc * (1 - pct_below_bsc))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
         pct_below_bsc = 100 * pct_below_bsc,
         eligible = (valid_tests >= 30 & valid_tests_prior >= 30)) %>%

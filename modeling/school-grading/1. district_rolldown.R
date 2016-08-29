@@ -10,8 +10,7 @@ performance_goal <- school_accountability %>%
     mutate(eligible = (valid_tests >= 30 & valid_tests_prior >= 30),
         achievement_key = ifelse(eligible, ifelse(upper_bound_ci_PA > pct_prof_adv_prior, "Met", "Missed"), NA),
         tvaas_key = ifelse(eligible, ifelse(!is.na(TVAAS_level), ifelse(TVAAS_level %in% c("Level 3", "Level 4", "Level 5"), "Met", "Missed"), NA), NA),
-        gap_closure_bb = ifelse(subgroup == "Super Subgroup", ifelse(eligible, ifelse(lower_bound_ci_BB < pct_below_bsc_prior, "Met", "Missed"), NA), NA),
-        gap_closure_tvaas = ifelse(subgroup == "Super Subgroup", ifelse(eligible, ifelse(!is.na(TVAAS_level), ifelse(TVAAS_level %in% c("Level 3", "Level 4", "Level 5"), "Met", "Missed"), NA), NA), NA))
+        gap_closure_key = ifelse(subgroup == "Super Subgroup", ifelse(eligible, ifelse(lower_bound_ci_BB < pct_below_bsc_prior, "Met", "Missed"), NA), NA))
 
 performance_goal_all <- performance_goal %>%
     filter(subgroup == "All Students") %>%
@@ -19,10 +18,7 @@ performance_goal_all <- performance_goal %>%
 
 performance_goal_super <- performance_goal %>%
     filter(subgroup == "Super Subgroup") %>%
-    select(system, system_name, school, school_name, subject, designation_ineligible, pool, gap_closure_bb, gap_closure_tvaas) %>%
-    mutate(gap_closure_either = ifelse((gap_closure_bb == "Met" | gap_closure_tvaas == "Met"), "Met", "Missed"),
-        gap_closure_either = ifelse(gap_closure_bb == "Missed" & is.na(gap_closure_tvaas), "Missed", gap_closure_either),
-        gap_closure_either = ifelse(is.na(gap_closure_bb) & gap_closure_tvaas == "Missed", "Missed", gap_closure_either))
+    select(system, system_name, school, school_name, subject, designation_ineligible, pool, gap_closure_key)
 
 minimum_performance_goal <- full_join(performance_goal_all, performance_goal_super,
         by = c("system", "system_name", "school", "school_name", "subject", "designation_ineligible", "pool")) %>%
@@ -31,8 +27,8 @@ minimum_performance_goal <- full_join(performance_goal_all, performance_goal_sup
         achievement_eligible = sum(!is.na(achievement_key)),
         tvaas_met = sum(tvaas_key == "Met", na.rm = TRUE),
         tvaas_eligible = sum(!is.na(tvaas_key)),
-        gap_met = sum(gap_closure_either == "Met", na.rm = TRUE),
-        gap_eligible = sum(!is.na(gap_closure_either))) %>%
+        gap_met = sum(gap_closure_key == "Met", na.rm = TRUE),
+        gap_eligible = sum(!is.na(gap_closure_key))) %>%
     mutate(achievement_key = ifelse(achievement_eligible != 0, ifelse(achievement_met/achievement_eligible >= 0.25, "Met", "Missed"), NA),
         tvaas_key = ifelse(tvaas_eligible != 0, ifelse(tvaas_met/tvaas_eligible >= 0.25, "Met", "Missed"), NA),
         gap_closure_key = ifelse(gap_eligible != 0, ifelse(gap_met/gap_eligible >= 0.25, "Met", "Missed"), NA)) %>%
@@ -42,14 +38,12 @@ minimum_performance_goal <- full_join(performance_goal_all, performance_goal_sup
         minimum_performance_goal = ifelse(is.na(achievement_key) & is.na(tvaas_key) & is.na(gap_closure_key), NA, minimum_performance_goal),
         minimum_performance_goal = ifelse(designation_ineligible, NA, minimum_performance_goal))
 
-rm(performance_goal, performance_goal_all, performance_goal_super)
-
 # Achievement Heat Map
 ach_heat_map <- school_accountability %>%
     filter(subgroup == "All Students") %>%
     mutate(eligible = (valid_tests >= 30 & valid_tests_prior >= 30),
         amo_targets_goal = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, 0, NA),
-        amo_targets_goal = ifelse(upper_bound_ci_PA >= pct_prof_adv_prior & upper_bound_ci_PA <= AMO_target_PA, 1, amo_targets_goal),
+        amo_targets_goal = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA <= AMO_target_PA, 1, amo_targets_goal),
         amo_targets_goal = ifelse(upper_bound_ci_PA >= AMO_target_PA, 2, amo_targets_goal),
         amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA & pct_prof_adv <= AMO_target_PA_4, 3, amo_targets_goal),
         amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA_4, 4, amo_targets_goal),
@@ -57,6 +51,7 @@ ach_heat_map <- school_accountability %>%
         relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior - 10) & percentile_rank < (percentile_rank_prior - 2), 1, relative_performance_goal),
         relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior - 2) & percentile_rank <= percentile_rank_prior, 2, relative_performance_goal),
         relative_performance_goal = ifelse(percentile_rank > percentile_rank_prior & percentile_rank < (percentile_rank_prior + 10), 3, relative_performance_goal),
+        relative_performance_goal = ifelse(percentile_rank >= 95 & percentile_rank_prior >= 95, 3, relative_performance_goal),
         relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior + 10), 4, relative_performance_goal),
         tvaas_goal = ifelse(TVAAS_level == "Level 1", 0, NA),
         tvaas_goal = ifelse(TVAAS_level == "Level 2", 1, tvaas_goal),
@@ -72,23 +67,23 @@ ach_heat_map <- school_accountability %>%
 subgroup_heat_maps <- school_accountability %>%
     filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged", "Students with Disabilities", "English Language Learners with T1/T2")) %>%
     mutate(eligible = (valid_tests >= 30 & valid_tests_prior >= 30),
-       amo_targets_goal = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, 0, NA),
-       amo_targets_goal = ifelse(upper_bound_ci_PA >= pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, 1, amo_targets_goal),
-       amo_targets_goal = ifelse(upper_bound_ci_PA >= AMO_target_PA, 2, amo_targets_goal),
-       amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA & pct_prof_adv < AMO_target_PA_4, 3, amo_targets_goal),
-       amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA_4, 4, amo_targets_goal),
-       tvaas_goal = ifelse(TVAAS_level == "Level 1", 0, NA),
-       tvaas_goal = ifelse(TVAAS_level == "Level 2", 1, tvaas_goal),
-       tvaas_goal = ifelse(TVAAS_level == "Level 3", 2, tvaas_goal),
-       tvaas_goal = ifelse(TVAAS_level == "Level 4", 3, tvaas_goal),
-       tvaas_goal = ifelse(TVAAS_level == "Level 5", 4, tvaas_goal),
-       bb_reduction_goal = ifelse(lower_bound_ci_BB >= pct_below_bsc_prior, 0, NA),
-       bb_reduction_goal = ifelse(lower_bound_ci_BB < pct_below_bsc_prior & lower_bound_ci_BB > AMO_target_BB, 1, bb_reduction_goal),
-       bb_reduction_goal = ifelse(lower_bound_ci_BB <= AMO_target_BB, 2, bb_reduction_goal),
-       bb_reduction_goal = ifelse(pct_below_bsc <= AMO_target_BB & pct_below_bsc > AMO_target_BB_4, 3, bb_reduction_goal),
-       bb_reduction_goal = ifelse(pct_below_bsc <= AMO_target_BB_4, 4, bb_reduction_goal)) %>%
+       amo_targets_goal = ifelse(eligible, ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, 0, NA), NA),
+       amo_targets_goal = ifelse(eligible, ifelse(upper_bound_ci_PA >= pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, 1, amo_targets_goal), NA),
+       amo_targets_goal = ifelse(eligible, ifelse(upper_bound_ci_PA >= AMO_target_PA, 2, amo_targets_goal), NA),
+       amo_targets_goal = ifelse(eligible, ifelse(pct_prof_adv >= AMO_target_PA & pct_prof_adv < AMO_target_PA_4, 3, amo_targets_goal), NA),
+       amo_targets_goal = ifelse(eligible, ifelse(pct_prof_adv >= AMO_target_PA_4, 4, amo_targets_goal), NA),
+       tvaas_goal = ifelse(eligible, ifelse(TVAAS_level == "Level 1", 0, NA), NA),
+       tvaas_goal = ifelse(eligible, ifelse(TVAAS_level == "Level 2", 1, tvaas_goal), NA),
+       tvaas_goal = ifelse(eligible, ifelse(TVAAS_level == "Level 3", 2, tvaas_goal), NA),
+       tvaas_goal = ifelse(eligible, ifelse(TVAAS_level == "Level 4", 3, tvaas_goal), NA),
+       tvaas_goal = ifelse(eligible, ifelse(TVAAS_level == "Level 5", 4, tvaas_goal), NA),
+       bb_reduction_goal = ifelse(eligible, ifelse(lower_bound_ci_BB >= pct_below_bsc_prior, 0, NA), NA),
+       bb_reduction_goal = ifelse(eligible, ifelse(lower_bound_ci_BB < pct_below_bsc_prior & lower_bound_ci_BB > AMO_target_BB, 1, bb_reduction_goal), NA),
+       bb_reduction_goal = ifelse(eligible, ifelse(lower_bound_ci_BB <= AMO_target_BB, 2, bb_reduction_goal), NA),
+       bb_reduction_goal = ifelse(eligible, ifelse(pct_below_bsc <= AMO_target_BB & pct_below_bsc > AMO_target_BB_4, 3, bb_reduction_goal), NA),
+       bb_reduction_goal = ifelse(eligible, ifelse(pct_below_bsc <= AMO_target_BB_4, 4, bb_reduction_goal), NA)) %>% 
     rowwise() %>%
-    mutate(average_score = ifelse(eligible, mean(c(amo_targets_goal, tvaas_goal), na.rm = TRUE), NA)) %>%
+    mutate(average_score = ifelse(eligible, mean(c(amo_targets_goal, tvaas_goal, bb_reduction_goal), na.rm = TRUE), NA)) %>%
     ungroup() %>%
     select(system, system_name, school, school_name, subgroup, pool, subject, eligible, amo_targets_goal, tvaas_goal, bb_reduction_goal, average_score)
 
