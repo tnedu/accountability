@@ -13,10 +13,8 @@ school_success_rates <- read_csv("K:/ORP_accountability/projects/2016_pre_coding
     filter(year == 2015) %>%
     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
         "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
-    mutate(grade = ifelse(subject == "Graduation Rate", "12", grade),
-        grade = ifelse(subject == "ACT Composite", "11", grade)) %>%
+    filter(!(subject == "Graduation Rate" | subject == "ACT Composite")) %>%
     filter(!(grade == "All Grades" | grade == "Missing Grade")) %>%
-    filter(!(subject == "Graduation Rate" | grade == "ACT Composite")) %>%
     inner_join(grade_pools, by = c("system", "school")) %>%
     mutate(grade = as.numeric(grade),
         subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject), 
@@ -35,11 +33,10 @@ school_success_rates <- read_csv("K:/ORP_accountability/projects/2016_pre_coding
     ungroup() %>%
     mutate(success_rate = ifelse(valid_tests >= 30, round(100 * n_PA/valid_tests, 1), NA)) %>%
     select(-(valid_tests:n_PA)) %>%
-    group_by(subgroup, designation_ineligible) %>%
+    group_by(subgroup, designation_ineligible, pool) %>%
     mutate(rank = ifelse(designation_ineligible == 0, rank(success_rate, na.last = "keep", ties.method = "min"), NA),
         denom = ifelse(designation_ineligible == 0, sum(!is.na(success_rate), na.rm = TRUE), NA),
-        pctile_rank = round(100 * rank/denom, 1)) %>%
-    select(-denom, -rank)
+        pctile_rank = round(100 * rank/denom, 1))
 
 # Graduation Rate
 grad <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_base_with_super_subgroup_2016.csv") %>%
@@ -54,20 +51,19 @@ grad <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_b
 ACT <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_base_with_super_subgroup_2016.csv") %>%
     filter(year == 2015) %>%
     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
-       "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
+        "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
     filter(subject == "ACT Composite") %>%
     rename(act_21_and_above = pct_21_and_above) %>%
     mutate(act_21_and_above = ifelse(valid_tests < 30, NA, act_21_and_above)) %>%
     select(system, system_name, school, school_name, subgroup, act_21_and_above)
     
-
 # TVAAS
-TVAAS <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/SAS-NIET School-Wide.xlsx") %>%
-    rename(system = `District Number`, school = `School Number`, tvaas_composite = `School-Wide: Composite`) %>%
+TVAAS <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2014-15/URM School Value-Added and Composites.xlsx") %>%
+    rename(system = `District Number`, school = `School_Code`, tvaas_composite = `District vs State Avg`) %>%
     mutate_each_(funs(as.numeric(.)), vars = c("system", "school")) %>%
+    filter(Test == "TCAP/EOC" & Subject == "Overall") %>%
     mutate(subgroup = "All Students") %>%
-    select(system, school, subgroup, tvaas_composite) %>%
-    filter(!is.na(system) & !is.na(school))
+    select(system, school, subgroup, tvaas_composite)
 
 # A-F Grades
 AF_grades_metrics <- school_success_rates %>%
@@ -79,11 +75,11 @@ AF_grades_metrics <- school_success_rates %>%
         grade_relative_achievement = ifelse(pctile_rank >= 40 & pctile_rank < 60, "C", grade_relative_achievement),
         grade_relative_achievement = ifelse(pctile_rank >= 20 & pctile_rank < 40, "D", grade_relative_achievement),
         grade_relative_achievement = ifelse(pctile_rank < 20, "F", grade_relative_achievement),
-        grade_tvaas = ifelse(tvaas_composite == 5, "A", NA),
-        grade_tvaas = ifelse(tvaas_composite == 4, "B", grade_tvaas),
-        grade_tvaas = ifelse(tvaas_composite == 3, "C", grade_tvaas),
-        grade_tvaas = ifelse(tvaas_composite == 2, "D", grade_tvaas),
-        grade_tvaas = ifelse(tvaas_composite == 1, "F", grade_tvaas),
+        grade_tvaas = ifelse(tvaas_composite == "Level 5", "A", NA),
+        grade_tvaas = ifelse(tvaas_composite == "Level 4", "B", grade_tvaas),
+        grade_tvaas = ifelse(tvaas_composite == "Level 3", "C", grade_tvaas),
+        grade_tvaas = ifelse(tvaas_composite == "Level 2", "D", grade_tvaas),
+        grade_tvaas = ifelse(tvaas_composite == "Level 1", "F", grade_tvaas),
         grade_grad = ifelse(grad_rate >= 95, "A", NA),
         grade_grad = ifelse(grad_rate >= 90 & grad_rate < 95, "B", grade_grad),
         grade_grad = ifelse(grad_rate >= 80 & grad_rate < 90, "C", grade_grad),
@@ -112,10 +108,10 @@ AF_grades_final <- AF_grades_final %>%
     group_by(system, system_name, school, school_name, designation_ineligible, pool) %>%
     summarise(score = mean(subgroup_average, na.rm = TRUE)) %>%
     ungroup() %>%
-    mutate(final_grade = ifelse(score >= 4, "A", NA),
-        final_grade = ifelse(score >= 3 & score < 4, "B", final_grade),
-        final_grade = ifelse(score >= 2 & score < 3, "C", final_grade),
-        final_grade = ifelse(score >= 1 & score < 2, "D", final_grade),
+    mutate(final_grade = ifelse(score > 4, "A", NA),
+        final_grade = ifelse(score > 3 & score <= 4, "B", final_grade),
+        final_grade = ifelse(score > 2 & score <= 3, "C", final_grade),
+        final_grade = ifelse(score > 1 & score <= 2, "D", final_grade),
         final_grade = ifelse(score == 1, "F", final_grade),
         final_grade = ifelse(designation_ineligible, NA, final_grade))
 
