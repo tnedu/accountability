@@ -1,5 +1,6 @@
 # Data
 *.csv
+*.xlsx
 
 # Output Files
 *.docx
