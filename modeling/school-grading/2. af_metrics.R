@@ -36,7 +36,8 @@ school_success_rates <- read_csv("K:/ORP_accountability/projects/2016_pre_coding
     group_by(subgroup, designation_ineligible, pool) %>%
     mutate(rank = ifelse(designation_ineligible == 0, rank(success_rate, na.last = "keep", ties.method = "min"), NA),
         denom = ifelse(designation_ineligible == 0, sum(!is.na(success_rate), na.rm = TRUE), NA),
-        pctile_rank = round(100 * rank/denom, 1))
+        pctile_rank = round(100 * rank/denom, 1)) %>%
+    select(-denom, -rank)
 
 # Graduation Rate
 grad <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_base_with_super_subgroup_2016.csv") %>%
