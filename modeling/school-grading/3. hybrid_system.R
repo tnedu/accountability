@@ -31,20 +31,22 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
     filter(!(pool == "K8" & subject %in% c("Algebra I", "Algebra II", "Biology I", "Chemistry", "English I", "English II", "English III", "Graduation Rate")))
 
 # School TVAAS for priority safe harbors
-tvaas_school2015 <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/SAS-NIET School-Wide.xlsx") %>%
-    filter(!is.na(`District Number`)) %>%
-    rename(system = `District Number`, school = `School Number`, tvaas2015 = `School-Wide: Composite`) %>%
-    select(system, school, tvaas2015) %>%
-    mutate_each_(funs(as.numeric(.)), vars = c("system", "school"))
+tvaas_2015 <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2014-15/URM School Value-Added and Composites.xlsx") %>%
+    rename(system = `District Number`, school = `School_Code`, tvaas2015 = `District vs State Avg`) %>%
+    mutate_each_(funs(as.numeric(.)), vars = c("system", "school")) %>%
+    filter(Test == "TCAP/EOC" & Subject == "Overall") %>%
+    select(system, school, Index, tvaas2015)
 
-tvaas_school2014 <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2013-14/SAS-NIET School-Wide.xls") %>%
-    rename(system = `District Number`, school = `School Number`, tvaas2014 = `School-Wide: Composite`) %>%
-    select(system, school, tvaas2014) %>%
-    mutate_each_(funs(as.numeric(.)), vars = c("system", "school"))
-
+tvaas_2014 <- read_csv("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2013-14/URM School Value-Added and Composites.csv") %>%
+    rename(system = `District Number`, school = `School_Code`, tvaas2014 = `District vs State Avg`, year = Year) %>%
+    mutate_each_(funs(as.numeric(.)), vars = c("system", "school")) %>%
+    filter(Test == "TCAP/EOC" & Subject == "Overall" & year == "One-Year Trend") %>%
+    select(system, school, tvaas2014)
+    
 # Priority schools
 priority_schools <- school_base %>%
     filter(subgroup == "All Students") %>%
+    filter(year != 2016) %>%
     group_by(year, system, system_name, school, school_name, pool, subgroup, subject, designation_ineligible) %>%
     summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
     ungroup() %>%
@@ -54,9 +56,10 @@ priority_schools <- school_base %>%
     summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate(success_rate_3yr = round(100 * n_PA/valid_tests, 1)) %>%
-    left_join(tvaas_school2015, by = c("system", "school")) %>%
-    left_join(tvaas_school2014, by = c("system", "school")) %>%
-    mutate(priority_sh = tvaas2015 %in% c(4, 5) & tvaas2014 %in% c(4, 5)) %>%
+    left_join(tvaas_2015, by = c("system", "school")) %>%
+    select(-Index) %>%
+    left_join(tvaas_2014, by = c("system", "school")) %>%
+    mutate(priority_sh = tvaas2015 %in% c("Level 4", "Level 5") & tvaas2014 %in% c("Level 4", "Level 5")) %>%
     group_by(pool, designation_ineligible, priority_sh) %>%
     mutate(rank = rank(success_rate_3yr, na.last = "keep", ties.method = "min")) %>%
     ungroup() %>%
@@ -64,19 +67,44 @@ priority_schools <- school_base %>%
     mutate(priority = ifelse(rank <= hs & pool == "HS" & designation_ineligible == 0 & priority_sh == FALSE, TRUE, FALSE)) %>%
     arrange(desc(pool), designation_ineligible, priority_sh, success_rate_3yr, rank) %>%
     mutate(priority = ifelse(rank <= k8 & pool == "K8" & designation_ineligible == 0 & priority_sh == FALSE, TRUE, priority)) %>%
-    filter(priority == TRUE) %>%
+    filter(priority) %>%
     select(system, school, priority)
 
-rm(k8, hs, tvaas_school2014, tvaas_school2015)
-
-# 2015 Reward schools
-reward_schools <- readstata13::read.dta13("K:/ORP_accountability/projects/2015_school_coding/Output/reward_2015_ap.dta") %>%
-    filter(reward == 1) %>%
-    select(system, school, reward) %>%
-    mutate(reward = as.logical(reward))
+# Reward schools
+reward_schools <- school_base %>%
+    filter(year == 2015) %>%
+    filter(subgroup == "All Students") %>%
+    group_by(year, system, system_name, school, school_name, pool, subgroup, subject, designation_ineligible) %>%
+    summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(valid_tests = ifelse(valid_tests < 30, 0, valid_tests),
+           n_PA = ifelse(valid_tests < 30, 0, n_PA)) %>%
+    group_by(system, system_name, school, school_name, pool, subgroup, designation_ineligible) %>%
+    summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(success_rate_1yr = round(100 * n_PA/valid_tests, 1)) %>%
+    left_join(priority_schools, by = c("system", "school")) %>%
+    left_join(tvaas_2015, by = c("system", "school")) %>%
+    mutate(reward_exemption = tvaas2015 %in% c("Level 1", "Level 2")) %>%
+    group_by(pool, designation_ineligible, priority, reward_exemption) %>%
+    mutate(rank = rank(-success_rate_1yr, na.last = "keep", ties.method = "min")) %>%
+    ungroup() %>%
+    arrange(pool, designation_ineligible, reward_exemption, desc(success_rate_1yr), rank) %>%
+    mutate(reward_performance = ifelse(rank <= hs & pool == "HS" & designation_ineligible == 0 & is.na(priority) & reward_exemption == FALSE, TRUE, FALSE)) %>%
+    arrange(desc(pool), designation_ineligible, reward_exemption, desc(success_rate_1yr), rank) %>%
+    mutate(reward_performance = ifelse(rank <= k8 & pool == "K8" & designation_ineligible == 0 & is.na(priority) & reward_exemption == FALSE, TRUE, reward_performance)) %>%
+    group_by(pool, designation_ineligible, priority, reward_exemption, reward_performance) %>%
+    mutate(rank = rank(-Index, na.last = "keep", ties.method = "min")) %>%
+    ungroup() %>%
+    arrange(pool, designation_ineligible, reward_exemption, reward_performance, desc(Index), rank) %>%
+    mutate(reward_progress = ifelse(rank <= hs & pool == "HS" & designation_ineligible == 0 & is.na(priority) & reward_exemption == FALSE, TRUE, FALSE)) %>%
+    arrange(desc(pool), designation_ineligible, reward_exemption, reward_performance, desc(Index), rank) %>%
+    mutate(reward_progress = ifelse(rank <= k8 & pool == "K8" & designation_ineligible == 0 & is.na(priority) & reward_exemption == FALSE, TRUE, reward_progress)) %>%
+    mutate(reward = reward_progress | reward_performance) %>%
+    filter(reward) %>%
+    select(system, school, reward)
 
 # Achievement heat map
-
 school_accountability <- read_csv("data/school_accountability_file.csv")
 
 ach_heat_map <- school_accountability %>%
@@ -146,9 +174,9 @@ gap_scores <- subgroup_heat_maps %>%
 
 # Final Determinations
 final_determinations <- full_join(ach_scores, gap_scores, by = c("system", "system_name", "school", "school_name", "pool")) %>%
-    left_join(grade_pools, by = c("system", "school", "pool")) %>%
-    left_join(priority_schools, by = c("system", "school")) %>%
-    left_join(reward_schools, by = c("system", "school")) %>%
+    full_join(grade_pools, by = c("system", "school", "pool")) %>%
+    full_join(priority_schools, by = c("system", "school")) %>%
+    full_join(reward_schools, by = c("system", "school")) %>%
     rowwise() %>%
     mutate(overall_average = mean(c(achievement_score, gap_score), na.rm = TRUE)) %>%
     ungroup() %>%
