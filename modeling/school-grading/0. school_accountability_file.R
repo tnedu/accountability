@@ -27,20 +27,29 @@ school_accountability <- school_base %>%
         subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject), 
         subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject),
-        n_adv = ifelse(is.na(n_adv), 0, n_adv)) %>%
-    rowwise() %>%
-    mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
-    ungroup() %>%
-    mutate(subject = ifelse(grade %in% c(3, 4, 5), paste("3-5", subject), subject),
+        n_bsc = ifelse(is.na(n_bsc), 0, n_bsc),
+        n_adv = ifelse(is.na(n_adv), 0, n_adv),
+        subject = ifelse(grade %in% c(3, 4, 5), paste("3-5", subject), subject),
         subject = ifelse(grade %in% c(6, 7, 8), paste("6-8", subject), subject),
         subject = ifelse(subject %in% c("Algebra I", "Algebra II"), "HS Math", subject),
         subject = ifelse(subject %in% c("English I", "English II", "English III"), "HS English", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry"), "HS Science", subject)) %>%
     group_by(year, system, system_name, school, school_name, subgroup, subject, designation_ineligible, pool) %>%
-    summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_below_bsc = sum(n_below_bsc, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
+    summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_below_bsc = sum(n_below_bsc, na.rm = TRUE), 
+        n_bsc = sum(n_bsc, na.rm = TRUE), n_prof = sum(n_prof, na.rm = TRUE), n_adv = sum(n_adv, na.rm = TRUE)) %>%
     ungroup() %>%
-    mutate(pct_below_bsc = ifelse(valid_tests != 0, round(100 * n_below_bsc/valid_tests, 1), NA),
-        pct_prof_adv = ifelse(valid_tests != 0, round(100 * n_PA/valid_tests, 1), NA))
+    rowwise() %>%
+    mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(pct_bsc = ifelse(valid_tests != 0, round(100 * n_bsc/valid_tests, 1), NA),
+        pct_prof = ifelse(valid_tests != 0, round(100 * n_prof/valid_tests, 1), NA),
+        pct_adv = ifelse(valid_tests != 0, round(100 * n_adv/valid_tests, 1), NA),
+        pct_below_bsc = ifelse(subject != "Graduation Rate" & subject != "ACT Composite" & valid_tests != 0, round(100 - pct_bsc - pct_prof - pct_adv, 1), NA),
+        pct_below_bsc = ifelse(subject == "Graduation Rate" & valid_tests != 0, round(100 * n_below_bsc/valid_tests, 1), pct_below_bsc),
+        pct_below_bsc = ifelse(subject == "ACT Composite" & valid_tests != 0, round(100 * n_below_bsc/valid_tests, 1), pct_below_bsc),
+        pct_prof_adv = ifelse(valid_tests != 0, round(100 * n_PA/valid_tests, 1), NA),
+        pct_below_bsc = ifelse(n_below_bsc == 0 & pct_below_bsc != 0, 0, pct_below_bsc)) %>%
+    select(-(pct_bsc:pct_adv))
 
 amos <- school_accountability %>%
     filter(year == 2014) %>%
@@ -53,7 +62,6 @@ amos <- school_accountability %>%
     rename(valid_tests_prior = valid_tests, pct_below_bsc_prior = pct_below_bsc, pct_prof_adv_prior = pct_prof_adv)
 
 tvaas_all <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/School-Level Intra-Year NCE MRM and URM Results (All Students).xlsx") %>%
-#    filter(Test %in% c("TCAP", "EOC") | (Test == "ACT" & Subject == "Composite")) %>%
     filter(Test %in% c("TCAP", "EOC")) %>%
     mutate(Subject = ifelse(Subject == "Math" & Grade == "4-5", "3-5 Math", Subject),
         Subject = ifelse(Subject == "Math" & Grade == "6-8", "6-8 Math", Subject),
@@ -68,7 +76,6 @@ tvaas_all <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/School-Le
     select(year, system, school, subject, subgroup, TVAAS_level)
 
 tvaas_subgroups <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/School-Level Intra-Year NCE MRM and URM Results (Subgroups).xlsx") %>%
-#   filter(Test %in% c("TCAP", "EOC") | (Test == "ACT" & Subject == "Composite")) %>%
     filter(Test %in% c("TCAP", "EOC")) %>%
     mutate(Subject = ifelse(Subject == "Math" & Grade == "4-5", "3-5 Math", Subject),
         Subject = ifelse(Subject == "Math" & Grade == "6-8", "6-8 Math", Subject),
