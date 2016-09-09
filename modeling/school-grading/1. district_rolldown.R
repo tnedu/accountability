@@ -43,9 +43,9 @@ ach_heat_map <- school_accountability %>%
     filter(subgroup == "All Students") %>%
     mutate(eligible = (valid_tests >= 30 & valid_tests_prior >= 30),
         amo_targets_goal = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, 0, NA),
-        amo_targets_goal = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA <= AMO_target_PA, 1, amo_targets_goal),
-        amo_targets_goal = ifelse(upper_bound_ci_PA >= AMO_target_PA, 2, amo_targets_goal),
-        amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA & pct_prof_adv <= AMO_target_PA_4, 3, amo_targets_goal),
+        amo_targets_goal = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, 1, amo_targets_goal),
+        amo_targets_goal = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, 2, amo_targets_goal),
+        amo_targets_goal = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, 3, amo_targets_goal),
         amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA_4, 4, amo_targets_goal),
         relative_performance_goal = ifelse(percentile_rank < (percentile_rank_prior - 10), 0, NA),
         relative_performance_goal = ifelse(percentile_rank >= (percentile_rank_prior - 10) & percentile_rank < (percentile_rank_prior - 2), 1, relative_performance_goal),
@@ -68,9 +68,9 @@ subgroup_heat_maps <- school_accountability %>%
     filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged", "Students with Disabilities", "English Language Learners with T1/T2")) %>%
     mutate(eligible = (valid_tests >= 30 & valid_tests_prior >= 30),
        amo_targets_goal = ifelse(eligible, ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, 0, NA), NA),
-       amo_targets_goal = ifelse(eligible, ifelse(upper_bound_ci_PA >= pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, 1, amo_targets_goal), NA),
-       amo_targets_goal = ifelse(eligible, ifelse(upper_bound_ci_PA >= AMO_target_PA, 2, amo_targets_goal), NA),
-       amo_targets_goal = ifelse(eligible, ifelse(pct_prof_adv >= AMO_target_PA & pct_prof_adv < AMO_target_PA_4, 3, amo_targets_goal), NA),
+       amo_targets_goal = ifelse(eligible, ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, 1, amo_targets_goal), NA),
+       amo_targets_goal = ifelse(eligible, ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, 2, amo_targets_goal), NA),
+       amo_targets_goal = ifelse(eligible, ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, 3, amo_targets_goal), NA),
        amo_targets_goal = ifelse(eligible, ifelse(pct_prof_adv >= AMO_target_PA_4, 4, amo_targets_goal), NA),
        tvaas_goal = ifelse(eligible, ifelse(TVAAS_level == "Level 1", 0, NA), NA),
        tvaas_goal = ifelse(eligible, ifelse(TVAAS_level == "Level 2", 1, tvaas_goal), NA),
@@ -79,8 +79,8 @@ subgroup_heat_maps <- school_accountability %>%
        tvaas_goal = ifelse(eligible, ifelse(TVAAS_level == "Level 5", 4, tvaas_goal), NA),
        bb_reduction_goal = ifelse(eligible, ifelse(lower_bound_ci_BB >= pct_below_bsc_prior, 0, NA), NA),
        bb_reduction_goal = ifelse(eligible, ifelse(lower_bound_ci_BB < pct_below_bsc_prior & lower_bound_ci_BB > AMO_target_BB, 1, bb_reduction_goal), NA),
-       bb_reduction_goal = ifelse(eligible, ifelse(lower_bound_ci_BB <= AMO_target_BB, 2, bb_reduction_goal), NA),
-       bb_reduction_goal = ifelse(eligible, ifelse(pct_below_bsc <= AMO_target_BB & pct_below_bsc > AMO_target_BB_4, 3, bb_reduction_goal), NA),
+       bb_reduction_goal = ifelse(eligible, ifelse(lower_bound_ci_BB <= AMO_target_BB & pct_below_bsc >= AMO_target_BB, 2, bb_reduction_goal), NA),
+       bb_reduction_goal = ifelse(eligible, ifelse(pct_below_bsc < AMO_target_BB & pct_below_bsc > AMO_target_BB_4, 3, bb_reduction_goal), NA),
        bb_reduction_goal = ifelse(eligible, ifelse(pct_below_bsc <= AMO_target_BB_4, 4, bb_reduction_goal), NA)) %>% 
     rowwise() %>%
     mutate(average_score = ifelse(eligible, mean(c(amo_targets_goal, tvaas_goal, bb_reduction_goal), na.rm = TRUE), NA)) %>%
