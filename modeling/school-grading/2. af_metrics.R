@@ -95,11 +95,11 @@ AF_grades_metrics <- school_success_rates %>%
 # Final Summative Grades
 AF_grades_final <- AF_grades_metrics
 
-AF_grades_final[AF_grades_final == "A"] <- "5"
-AF_grades_final[AF_grades_final == "B"] <- "4"
-AF_grades_final[AF_grades_final == "C"] <- "3"
-AF_grades_final[AF_grades_final == "D"] <- "2"
-AF_grades_final[AF_grades_final == "F"] <- "1"
+AF_grades_final[AF_grades_final == "A"] <- "4"
+AF_grades_final[AF_grades_final == "B"] <- "3"
+AF_grades_final[AF_grades_final == "C"] <- "2"
+AF_grades_final[AF_grades_final == "D"] <- "1"
+AF_grades_final[AF_grades_final == "F"] <- "0"
 
 AF_grades_final <- AF_grades_final %>%
     mutate_each_(funs(as.numeric(.)), vars = c("grade_relative_achievement", "grade_tvaas", "grade_grad", "grade_ACT")) %>%
@@ -109,11 +109,11 @@ AF_grades_final <- AF_grades_final %>%
     group_by(system, system_name, school, school_name, designation_ineligible, pool) %>%
     summarise(score = mean(subgroup_average, na.rm = TRUE)) %>%
     ungroup() %>%
-    mutate(final_grade = ifelse(score > 4, "A", NA),
-        final_grade = ifelse(score > 3 & score <= 4, "B", final_grade),
-        final_grade = ifelse(score > 2 & score <= 3, "C", final_grade),
-        final_grade = ifelse(score > 1 & score <= 2, "D", final_grade),
-        final_grade = ifelse(score == 1, "F", final_grade),
+    mutate(final_grade = ifelse(score > 3, "A", NA),
+        final_grade = ifelse(score > 2 & score <= 3, "B", final_grade),
+        final_grade = ifelse(score > 1 & score <= 2, "C", final_grade),
+        final_grade = ifelse(score > 0 & score <= 1, "D", final_grade),
+        final_grade = ifelse(score == 0, "F", final_grade),
         final_grade = ifelse(designation_ineligible, NA, final_grade))
 
 # Output files
