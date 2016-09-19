@@ -28,23 +28,56 @@ school_success_rates <- read_csv("K:/ORP_accountability/projects/2016_pre_coding
     ungroup() %>%
     mutate(n_PA = ifelse(valid_tests < 30, 0, n_PA),
         valid_tests = ifelse(valid_tests < 30, 0, valid_tests)) %>%
-    group_by(year, system, system_name, school, school_name, subgroup, designation_ineligible, pool) %>%
+    group_by(system, system_name, school, school_name, subgroup, designation_ineligible, pool) %>%
     summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_PA = sum(n_PA, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate(success_rate = ifelse(valid_tests >= 30, round(100 * n_PA/valid_tests, 1), NA)) %>%
     select(-(valid_tests:n_PA)) %>%
     group_by(subgroup, designation_ineligible, pool) %>%
-    mutate(rank = ifelse(designation_ineligible == 0, rank(success_rate, na.last = "keep", ties.method = "min"), NA),
+    mutate(rank_PA = ifelse(designation_ineligible == 0, rank(success_rate, na.last = "keep", ties.method = "min"), NA),
         denom = ifelse(designation_ineligible == 0, sum(!is.na(success_rate), na.rm = TRUE), NA),
-        pctile_rank = round(100 * rank/denom, 1)) %>%
-    select(-denom, -rank)
+        pctile_rank_PA = round(100 * rank_PA/denom, 1)) %>%
+    select(-denom, -rank_PA)
+
+BB_reduction <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_base_with_super_subgroup_2016.csv") %>%
+    filter(year %in% c(2014, 2015)) %>%
+    filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
+        "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
+    filter(!(subject == "Graduation Rate" | subject == "ACT Composite")) %>%
+    filter(!(grade == "All Grades" | grade == "Missing Grade")) %>%
+    inner_join(grade_pools, by = c("system", "school")) %>%
+    mutate(grade = as.numeric(grade),
+        subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject), 
+        subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
+        subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject)) %>%
+    group_by(year, system, system_name, school, school_name, subgroup, subject, designation_ineligible, pool) %>%
+    summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_below_bsc = sum(n_below_bsc, na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(n_below_bsc = ifelse(valid_tests < 30, 0, n_below_bsc),
+        valid_tests = ifelse(valid_tests < 30, 0, valid_tests)) %>%
+    group_by(year, system, system_name, school, school_name, subgroup, designation_ineligible, pool) %>%
+    summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_below_bsc = sum(n_below_bsc, na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(BB_rate = ifelse(valid_tests >= 30, round(100 * n_below_bsc/valid_tests, 1), NA)) %>%
+    select(-(valid_tests:n_below_bsc)) %>%
+    mutate(temp = ifelse(year == 2014, "Pct_BB2014", NA),
+        temp = ifelse(year == 2015, "Pct_BB2015", temp)) %>%
+    select(-year) %>%
+    spread(temp, BB_rate) %>%
+    mutate(BB_rate_reduction = round(Pct_BB2014 - Pct_BB2015, 1)) %>%
+    group_by(subgroup, designation_ineligible, pool) %>%
+    mutate(rank_BB = ifelse(designation_ineligible == 0, rank(BB_rate_reduction, na.last = "keep", ties.method = "min"), NA),
+        denom = ifelse(designation_ineligible == 0, sum(!is.na(BB_rate_reduction), na.rm = TRUE), NA),
+        pctile_rank_BB_reduction = round(100 * rank_BB/denom, 1)) %>%
+    ungroup() %>%
+    select(system, school, subgroup, pctile_rank_BB_reduction)
 
 # Graduation Rate
 grad <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_base_with_super_subgroup_2016.csv") %>%
     filter(year == 2015) %>%
+    filter(subject == "Graduation Rate") %>%
     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
         "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
-    filter(subject == "Graduation Rate") %>%
     mutate(grad_rate = ifelse(grad_cohort < 30, NA, grad_rate)) %>%
     select(system, system_name, school, school_name, subgroup, grad_rate)
 
@@ -57,7 +90,7 @@ ACT <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_ba
     rename(act_21_and_above = pct_21_and_above) %>%
     mutate(act_21_and_above = ifelse(valid_tests < 30, NA, act_21_and_above)) %>%
     select(system, system_name, school, school_name, subgroup, act_21_and_above)
-    
+
 # TVAAS
 TVAAS <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2014-15/URM School Value-Added and Composites.xlsx") %>%
     rename(system = `District Number`, school = `School_Code`, tvaas_composite = `District vs State Avg`) %>%
@@ -68,14 +101,20 @@ TVAAS <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_Evaluation
 
 # A-F Grades
 AF_grades_metrics <- school_success_rates %>%
+    left_join(BB_reduction, by = c("system", "school", "subgroup")) %>%
     left_join(TVAAS, by = c("system", "school", "subgroup")) %>%
     left_join(grad, by = c("system", "system_name", "school", "school_name", "subgroup")) %>%
     left_join(ACT, by = c("system", "system_name", "school", "school_name", "subgroup")) %>%
-    mutate(grade_relative_achievement = ifelse(pctile_rank >= 80, "A", NA),
-        grade_relative_achievement = ifelse(pctile_rank >= 60 & pctile_rank < 80, "B", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank >= 40 & pctile_rank < 60, "C", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank >= 20 & pctile_rank < 40, "D", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank < 20, "F", grade_relative_achievement),
+    mutate(grade_relative_achievement = ifelse(pctile_rank_PA >= 80, "A", NA),
+        grade_relative_achievement = ifelse(pctile_rank_PA >= 60 & pctile_rank_PA < 80, "B", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank_PA >= 40 & pctile_rank_PA < 60, "C", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank_PA >= 20 & pctile_rank_PA < 40, "D", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank_PA < 20, "F", grade_relative_achievement),
+        grade_below_bsc = ifelse(pctile_rank_BB_reduction >= 80, "A", NA),
+        grade_below_bsc = ifelse(pctile_rank_BB_reduction >= 60 & pctile_rank_BB_reduction < 80, "B", grade_below_bsc),
+        grade_below_bsc = ifelse(pctile_rank_BB_reduction >= 40 & pctile_rank_BB_reduction < 60, "C", grade_below_bsc),
+        grade_below_bsc = ifelse(pctile_rank_BB_reduction >= 20 & pctile_rank_BB_reduction <= 40, "D", grade_below_bsc),
+        grade_below_bsc = ifelse(pctile_rank_BB_reduction < 20, "F", grade_below_bsc),
         grade_tvaas = ifelse(tvaas_composite == "Level 5", "A", NA),
         grade_tvaas = ifelse(tvaas_composite == "Level 4", "B", grade_tvaas),
         grade_tvaas = ifelse(tvaas_composite == "Level 3", "C", grade_tvaas),
@@ -101,13 +140,13 @@ AF_grades_final[AF_grades_final == "C"] <- "2"
 AF_grades_final[AF_grades_final == "D"] <- "1"
 AF_grades_final[AF_grades_final == "F"] <- "0"
 
-AF_grades_final <- AF_grades_final %>%
-    mutate_each_(funs(as.numeric(.)), vars = c("grade_relative_achievement", "grade_tvaas", "grade_grad", "grade_ACT")) %>%
+AF_grades_final %<>%
+    mutate_each_(funs(as.numeric(.)), vars = c("grade_relative_achievement", "grade_below_bsc", "grade_tvaas", "grade_grad", "grade_ACT")) %>%
     rowwise() %>%
-    mutate(subgroup_average = mean(c(grade_relative_achievement, grade_tvaas, grade_grad, grade_ACT), na.rm = TRUE)) %>%
+    mutate(subgroup_average = mean(c(grade_relative_achievement, grade_below_bsc, grade_tvaas, grade_grad, grade_ACT), na.rm = TRUE)) %>%
     ungroup() %>%
     group_by(system, system_name, school, school_name, designation_ineligible, pool) %>%
-    summarise(score = mean(subgroup_average, na.rm = TRUE)) %>%
+    summarise(score = round(mean(subgroup_average, na.rm = TRUE), 2)) %>%
     ungroup() %>%
     mutate(final_grade = ifelse(score > 3, "A", NA),
         final_grade = ifelse(score > 2 & score <= 3, "B", final_grade),
