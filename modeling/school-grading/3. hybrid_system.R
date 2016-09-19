@@ -142,20 +142,15 @@ subgroup_heat_maps <- school_accountability %>%
         amo_targets_goal = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, 2, amo_targets_goal),
         amo_targets_goal = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, 3, amo_targets_goal),
         amo_targets_goal = ifelse(pct_prof_adv >= AMO_target_PA_4, 4, amo_targets_goal),
-        tvaas_goal = ifelse(TVAAS_level == "Level 1", 0, NA),
-        tvaas_goal = ifelse(TVAAS_level == "Level 2", 1, tvaas_goal),
-        tvaas_goal = ifelse(TVAAS_level == "Level 3", 2, tvaas_goal),
-        tvaas_goal = ifelse(TVAAS_level == "Level 4", 3, tvaas_goal),
-        tvaas_goal = ifelse(TVAAS_level == "Level 5", 4, tvaas_goal),
         bb_reduction_goal = ifelse(lower_bound_ci_BB >= pct_below_bsc_prior, 0, NA),
         bb_reduction_goal = ifelse(lower_bound_ci_BB < pct_below_bsc_prior & lower_bound_ci_BB > AMO_target_BB, 1, bb_reduction_goal),
         bb_reduction_goal = ifelse(lower_bound_ci_BB <= AMO_target_BB & pct_below_bsc >= AMO_target_BB, 2, bb_reduction_goal),
         bb_reduction_goal = ifelse(pct_below_bsc < AMO_target_BB & pct_below_bsc > AMO_target_BB_4, 3, bb_reduction_goal),
         bb_reduction_goal = ifelse(pct_below_bsc <= AMO_target_BB_4, 4, bb_reduction_goal)) %>%
     rowwise() %>%
-    mutate(average_score = ifelse(eligible, round(mean(c(amo_targets_goal, tvaas_goal, bb_reduction_goal), na.rm = TRUE), 2), NA)) %>%
+    mutate(average_score = ifelse(eligible, round(mean(c(amo_targets_goal, bb_reduction_goal), na.rm = TRUE), 2), NA)) %>%
     ungroup() %>%
-    select(system, system_name, school, school_name, subgroup, pool, subject, eligible, amo_targets_goal, tvaas_goal, bb_reduction_goal, average_score)
+    select(system, system_name, school, school_name, subgroup, pool, subject, eligible, amo_targets_goal, bb_reduction_goal, average_score)
 
 # Achievement Scores
 ach_scores <- ach_heat_map %>%
