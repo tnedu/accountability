@@ -16,13 +16,9 @@ success_rates_3yr <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Ou
     filter(year != 2016) %>%
     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
         "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
-    mutate(grade = ifelse(subject == "Graduation Rate", "12", grade),
-        grade = ifelse(subject == "ACT Composite", "11", grade)) %>%
+    filter(subject != "Graduation Rate" & subject != "ACT Composite") %>%
     filter(!(grade == "All Grades" | grade == "Missing Grade")) %>%
-    mutate(n_prof = ifelse(subject == "Graduation Rate", grad_count, n_prof),
-        valid_tests = ifelse(subject == "Graduation Rate", grad_cohort, valid_tests),
-        n_prof = ifelse(subject == "ACT Composite", n_21_and_above, n_prof),
-        grade = as.numeric(grade),
+    mutate(grade = as.numeric(grade),
         subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject), 
         subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject)) %>%
@@ -177,7 +173,7 @@ AF_grades_metrics <- school_success_rates %>%
         grade_below_bsc = ifelse(pctile_rank_BB_reduction >= 80, "A", NA),
         grade_below_bsc = ifelse(pctile_rank_BB_reduction >= 60 & pctile_rank_BB_reduction < 80, "B", grade_below_bsc),
         grade_below_bsc = ifelse(pctile_rank_BB_reduction >= 40 & pctile_rank_BB_reduction < 60, "C", grade_below_bsc),
-        grade_below_bsc = ifelse(pctile_rank_BB_reduction >= 20 & pctile_rank_BB_reduction <= 40, "D", grade_below_bsc),
+        grade_below_bsc = ifelse(pctile_rank_BB_reduction >= 20 & pctile_rank_BB_reduction < 40, "D", grade_below_bsc),
         grade_below_bsc = ifelse(pctile_rank_BB_reduction < 20, "F", grade_below_bsc),
         grade_tvaas = ifelse(tvaas_composite == "Level 5", "A", NA),
         grade_tvaas = ifelse(tvaas_composite == "Level 4", "B", grade_tvaas),
