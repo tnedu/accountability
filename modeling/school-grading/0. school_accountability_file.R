@@ -22,6 +22,40 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
         n_below_bsc = ifelse(subject == "ACT Composite", n_below_19, n_below_bsc)) %>%
     inner_join(grade_pools, by = c("system", "school"))
 
+# One year success rates without ACT/Grad Rate
+success_rates_1yr <- school_base %>%
+    filter(!(subject == "Graduation Rate" | subject == "ACT Composite")) %>%
+    filter(!(grade == "All Grades" | grade == "Missing Grade")) %>%
+    mutate(grade = as.numeric(grade),
+        subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject), 
+        subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
+        subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject)) %>%
+    rowwise() %>%
+    mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
+    ungroup() %>%
+    filter(!(pool == "K8" & subject %in% c("Algebra I", "Algebra II", "Biology I", "Chemistry", "English I", "English II", "English III", "Graduation Rate"))) %>%
+    group_by(year, system, system_name, school, school_name, pool, subgroup, subject, designation_ineligible) %>%
+    summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_below_bsc = sum(n_below_bsc, na.rm = TRUE), 
+        n_bsc = sum(n_bsc, na.rm = TRUE), n_prof = sum(n_prof, na.rm = TRUE), n_adv = sum(n_adv, na.rm = TRUE)) %>%
+    ungroup() %>%
+    rowwise() %>%
+    mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
+    ungroup() %>%
+    group_by(year, system, system_name, school, school_name, pool, subgroup, designation_ineligible) %>%
+    summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_below_bsc = sum(n_below_bsc, na.rm = TRUE), 
+        n_bsc = sum(n_bsc, na.rm = TRUE), n_prof = sum(n_prof, na.rm = TRUE), n_adv = sum(n_adv, na.rm = TRUE),
+        n_PA = sum(n_PA, na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(subject = "Success Rate",
+        pct_bsc = ifelse(valid_tests != 0, round(100 * n_bsc/valid_tests, 1), NA),
+        pct_prof = ifelse(valid_tests != 0, round(100 * n_prof/valid_tests, 1), NA),
+        pct_adv = ifelse(valid_tests != 0, round(100 * n_adv/valid_tests, 1), NA),
+        pct_below_bsc = ifelse(valid_tests != 0, round(100 - pct_bsc - pct_prof - pct_adv, 1), NA),
+        pct_prof_adv = ifelse(valid_tests != 0, round(100 * n_PA/valid_tests, 1), NA),
+        pct_below_bsc = ifelse(n_below_bsc == 0 & pct_below_bsc != 0, 0, pct_below_bsc)) %>%
+    select(-(pct_bsc:pct_adv))
+
+# School accountability subjects
 school_accountability <- school_base %>%
     mutate(grade = as.numeric(grade),
         subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject), 
@@ -48,7 +82,8 @@ school_accountability <- school_base %>%
         pct_below_bsc = ifelse(subject == "ACT Composite" & valid_tests != 0, round(100 * n_below_bsc/valid_tests, 1), pct_below_bsc),
         pct_prof_adv = ifelse(valid_tests != 0, round(100 * n_PA/valid_tests, 1), NA),
         pct_below_bsc = ifelse(n_below_bsc == 0 & pct_below_bsc != 0, 0, pct_below_bsc)) %>%
-    select(-(pct_bsc:pct_adv))
+    select(-(pct_bsc:pct_adv)) %>%
+    bind_rows(success_rates_1yr)
 
 amos <- school_accountability %>%
     filter(year == 2014) %>%
@@ -105,12 +140,14 @@ school_accountability %<>%
     mutate(rank = ifelse(eligible, rank(pct_prof_adv, na.last = FALSE, ties.method = "average"), NA), 
         rank_prior = ifelse(eligible, rank(pct_prof_adv_prior, na.last = FALSE, ties.method = "average"), NA), 
         denom = sum(eligible),
-        percentile_rank = round(100 * rank/denom, 1),
-        percentile_rank_prior = round(100 * rank_prior/denom, 1)) %>%
+        pctile_rank = round(100 * rank/denom, 1),
+        pctile_rank_prior = round(100 * rank_prior/denom, 1)) %>%
     ungroup() %>%
-    select(-(n_bsc:n_adv), -(eligible:denom))
+    select(-(eligible:denom)) %>%
+    select(year, system, system_name, school, school_name, subject, subgroup, pool, designation_ineligible, valid_tests:pctile_rank_prior) %>%
+    arrange(system, system_name, school, school_name, subject, subgroup)
 
-rm(amos, grade_pools, school_base, tvaas, tvaas_act, tvaas_all)
+rm(success_rates_1yr, amos, grade_pools, school_base, tvaas, tvaas_act, tvaas_all)
 
 # Output file
 write_csv(school_accountability, path = "data/school_accountability_file.csv", na = "")
