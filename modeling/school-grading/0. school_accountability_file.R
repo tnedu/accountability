@@ -3,7 +3,7 @@
 library(readr)
 library(dplyr)
 
-# Read in grade pools
+# Grade pools
 grade_pools <- readstata13::read.dta13("K:/ORP_accountability/projects/2016_pre_coding/Output/grade_pools_designation_immune_2016.dta") %>%
     select(system, school, designation_ineligible, pool)
 
@@ -19,17 +19,17 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
         n_prof = ifelse(subject == "Graduation Rate", grad_count, n_prof),
         valid_tests = ifelse(subject == "Graduation Rate", grad_cohort, valid_tests),
         n_prof = ifelse(subject == "ACT Composite", n_21_and_above, n_prof),
-        n_below_bsc = ifelse(subject == "ACT Composite", n_below_19, n_below_bsc)) %>%
+        n_below_bsc = ifelse(subject == "ACT Composite", n_below_19, n_below_bsc),
+        grade = as.numeric(grade),
+        subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject), 
+        subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
+        subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject)) %>%
     inner_join(grade_pools, by = c("system", "school"))
 
 # One year success rates without ACT/Grad Rate
 success_rates_1yr <- school_base %>%
     filter(!(subject == "Graduation Rate" | subject == "ACT Composite")) %>%
     filter(!(grade == "All Grades" | grade == "Missing Grade")) %>%
-    mutate(grade = as.numeric(grade),
-        subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject), 
-        subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
-        subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject)) %>%
     rowwise() %>%
     mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
     ungroup() %>%
@@ -57,13 +57,7 @@ success_rates_1yr <- school_base %>%
 
 # School accountability subjects
 school_accountability <- school_base %>%
-    mutate(grade = as.numeric(grade),
-        subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject), 
-        subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
-        subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject),
-        n_bsc = ifelse(is.na(n_bsc), 0, n_bsc),
-        n_adv = ifelse(is.na(n_adv), 0, n_adv),
-        subject = ifelse(grade %in% c(3, 4, 5, 6, 7, 8), paste("3-8", subject), subject),
+    mutate(subject = ifelse(grade %in% c(3, 4, 5, 6, 7, 8), paste("3-8", subject), subject),
         subject = ifelse(subject %in% c("Algebra I", "Algebra II"), "HS Math", subject),
         subject = ifelse(subject %in% c("English I", "English II", "English III"), "HS English", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry"), "HS Science", subject)) %>%
@@ -95,7 +89,24 @@ amos <- school_accountability %>%
     select(year, system, system_name, school, school_name, subject, subgroup, valid_tests, pct_below_bsc, pct_prof_adv, AMO_target_PA, AMO_target_PA_4, AMO_target_BB, AMO_target_BB_4) %>%
     rename(valid_tests_prior = valid_tests, pct_below_bsc_prior = pct_below_bsc, pct_prof_adv_prior = pct_prof_adv)
 
-tvaas <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2014-15/URM School Value-Added and Composites.xlsx") %>%
+# School Composite TVAAS
+tvaas_2014 <- read_csv("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2013-14/URM School Value-Added and Composites.csv") %>%
+    rename(system = `District Number`, school = `School_Code`, TVAAS_level_lag = `District vs State Avg`, year = Year) %>%
+    mutate_each_(funs(as.numeric(.)), vars = c("system", "school")) %>%
+    filter(Test == "TCAP/EOC" & Subject == "Overall" & year == "One-Year Trend") %>%
+    select(system, school, TVAAS_level_lag)
+
+tvaas_2015 <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2014-15/URM School Value-Added and Composites.xlsx") %>%
+    rename(system = `District Number`, school = `School_Code`, TVAAS_level = `District vs State Avg`) %>%
+    mutate_each_(funs(as.numeric(.)), vars = c("system", "school")) %>%
+    filter(Test == "TCAP/EOC" & Subject == "Overall") %>%
+    left_join(tvaas_2014, by = c("system", "school")) %>%
+    mutate(subject = "Success Rate", 
+        subgroup = "All Students") %>%
+    select(system, school, subject, subgroup, TVAAS_level, TVAAS_level_lag)
+
+# Subject Specific TVAAS
+tvaas_subjects <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2014-15/URM School Value-Added and Composites.xlsx") %>%
     filter(Test %in% c("TCAP", "EOC") & Subject %in% c("Numeracy", "Literacy", "Science")) %>%
     filter(Year == "One-Year Trend") %>%
     mutate(Subject = ifelse(Test == "TCAP" & Subject == "Numeracy", "3-8 Math", Subject),
@@ -106,27 +117,25 @@ tvaas <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_Evaluation
         Subject = ifelse(Test == "EOC" & Subject == "Science", "HS Science", Subject),
         `District Number` = as.numeric(`District Number`),
         School_Code = as.numeric(School_Code),
-        Year = "2015",
-        Year = as.numeric(Year),
         subgroup = "All Students") %>%
-    rename(year = Year, system = `District Number`, school = School_Code, subject = Subject, TVAAS_level = `District vs State Avg`) %>%
-    select(year, system, school, subject, subgroup, TVAAS_level)
+    rename(system = `District Number`, school = School_Code, subject = Subject, TVAAS_level = `District vs State Avg`) %>%
+    select(system, school, subject, subgroup, TVAAS_level)
 
+# ACT TVAAS
 tvaas_act <- read_csv("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2014-15/School_ACT.csv") %>%
-    filter(Year == 2014) %>%
-    filter(Subject == "Composite") %>%
+    filter(Year == "2014" & Subject == "Composite") %>%
     mutate(Year = as.numeric(Year) + 1,
         Subject = "ACT Composite",
         subgroup = "All Students") %>%
-    rename(year = Year, system = `District Number`, school = `School Number`, subject = Subject, TVAAS_level = `School vs State Avg`) %>%
-    select(year, system, school, subject, subgroup, TVAAS_level)
+    rename(system = `District Number`, school = `School Number`, subject = Subject, TVAAS_level = `School vs State Avg`) %>%
+    select(system, school, subject, subgroup, TVAAS_level)
 
-tvaas_all <- bind_rows(tvaas, tvaas_act)
+tvaas_all <- bind_rows(tvaas_2015, tvaas_subjects, tvaas_act)
 
 school_accountability %<>% 
     filter(year == 2015) %>%
     left_join(amos, by = c("year", "system", "system_name", "school", "school_name", "subgroup", "subject")) %>%
-    left_join(tvaas_all, by = c("year", "system", "school", "subject", "subgroup")) %>%
+    left_join(tvaas_all, by = c("system", "school", "subject", "subgroup")) %>%
     mutate(pct_prof_adv = pct_prof_adv/100,
         upper_bound_ci_PA = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_prof_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) + 
             qnorm(0.975) * sqrt((pct_prof_adv * (1 - pct_prof_adv))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
@@ -137,17 +146,17 @@ school_accountability %<>%
         pct_below_bsc = 100 * pct_below_bsc,
         eligible = (valid_tests >= 30 & valid_tests_prior >= 30)) %>%
     group_by(designation_ineligible, subject, subgroup, eligible) %>%
-    mutate(rank = ifelse(eligible, rank(pct_prof_adv, na.last = FALSE, ties.method = "average"), NA), 
-        rank_prior = ifelse(eligible, rank(pct_prof_adv_prior, na.last = FALSE, ties.method = "average"), NA), 
+    mutate(rank_PA = ifelse(eligible, rank(pct_prof_adv, na.last = FALSE, ties.method = "average"), NA), 
+        rank_PA_prior = ifelse(eligible, rank(pct_prof_adv_prior, na.last = FALSE, ties.method = "average"), NA), 
         denom = sum(eligible),
-        pctile_rank = round(100 * rank/denom, 1),
-        pctile_rank_prior = round(100 * rank_prior/denom, 1)) %>%
+        pctile_rank_PA = round(100 * rank_PA/denom, 1),
+        pctile_rank_PA_prior = round(100 * rank_PA_prior/denom, 1)) %>%
     ungroup() %>%
     select(-(eligible:denom)) %>%
-    select(year, system, system_name, school, school_name, subject, subgroup, pool, designation_ineligible, valid_tests:pctile_rank_prior) %>%
+    select(year, system, system_name, school, school_name, subject, subgroup, pool, designation_ineligible, valid_tests:pctile_rank_PA_prior) %>%
     arrange(system, system_name, school, school_name, subject, subgroup)
 
-rm(success_rates_1yr, amos, grade_pools, school_base, tvaas, tvaas_act, tvaas_all)
+rm(success_rates_1yr, amos, grade_pools, school_base, tvaas_subjects, tvaas_2014, tvaas_2015, tvaas_act, tvaas_all)
 
 # Output file
 write_csv(school_accountability, path = "data/school_accountability_file.csv", na = "")
