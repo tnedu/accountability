@@ -53,7 +53,7 @@ success_rates_1yr <- school_base %>%
         pct_below_bsc = ifelse(valid_tests != 0, round(100 - pct_bsc - pct_prof - pct_adv, 1), NA),
         pct_prof_adv = ifelse(valid_tests != 0, round(100 * n_PA/valid_tests, 1), NA),
         pct_below_bsc = ifelse(n_below_bsc == 0 & pct_below_bsc != 0, 0, pct_below_bsc)) %>%
-    select(-(pct_bsc:pct_adv))
+    select(-pct_bsc, -pct_prof)
 
 # School accountability subjects
 school_accountability <- school_base %>%
@@ -76,18 +76,21 @@ school_accountability <- school_base %>%
         pct_below_bsc = ifelse(subject == "ACT Composite" & valid_tests != 0, round(100 * n_below_bsc/valid_tests, 1), pct_below_bsc),
         pct_prof_adv = ifelse(valid_tests != 0, round(100 * n_PA/valid_tests, 1), NA),
         pct_below_bsc = ifelse(n_below_bsc == 0 & pct_below_bsc != 0, 0, pct_below_bsc)) %>%
-    select(-(pct_bsc:pct_adv)) %>%
+    select(-pct_bsc, -pct_prof) %>%
     bind_rows(success_rates_1yr)
 
 amos <- school_accountability %>%
     filter(year == 2014) %>%
     mutate(AMO_target_PA = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16, 1), NA),
         AMO_target_PA_4 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA),
+        AMO_target_adv = ifelse(valid_tests >= 30, round(pct_adv + (100 - pct_adv)/16, 1), NA),
+        AMO_target_adv_4 = ifelse(valid_tests >= 30, round(pct_adv + (100 - pct_adv)/8, 1), NA),
         AMO_target_BB = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/8, 1), NA),
         AMO_target_BB_4 = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/4, 1), NA),
         year = year + 1) %>%
-    select(year, system, system_name, school, school_name, subject, subgroup, valid_tests, pct_below_bsc, pct_prof_adv, AMO_target_PA, AMO_target_PA_4, AMO_target_BB, AMO_target_BB_4) %>%
-    rename(valid_tests_prior = valid_tests, pct_below_bsc_prior = pct_below_bsc, pct_prof_adv_prior = pct_prof_adv)
+    select(year, system, system_name, school, school_name, subject, subgroup, valid_tests, pct_below_bsc, pct_adv, pct_prof_adv, 
+        AMO_target_PA, AMO_target_PA_4, AMO_target_adv, AMO_target_adv_4, AMO_target_BB, AMO_target_BB_4) %>%
+    rename(valid_tests_prior = valid_tests, pct_below_bsc_prior = pct_below_bsc, pct_adv_prior = pct_adv, pct_prof_adv_prior = pct_prof_adv)
 
 # School Composite TVAAS
 tvaas_2014 <- read_csv("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2013-14/URM School Value-Added and Composites.csv") %>%
@@ -132,7 +135,7 @@ tvaas_act <- read_csv("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS
 
 tvaas_all <- bind_rows(tvaas_2015, tvaas_subjects, tvaas_act)
 
-school_accountability %<>% 
+school_accountability %<>%
     filter(year == 2015) %>%
     left_join(amos, by = c("year", "system", "system_name", "school", "school_name", "subgroup", "subject")) %>%
     left_join(tvaas_all, by = c("system", "school", "subject", "subgroup")) %>%
@@ -140,6 +143,10 @@ school_accountability %<>%
         upper_bound_ci_PA = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_prof_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) + 
             qnorm(0.975) * sqrt((pct_prof_adv * (1 - pct_prof_adv))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
         pct_prof_adv = 100 * pct_prof_adv,
+        pct_adv = pct_adv/100,
+        upper_bound_ci_adv = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) + 
+            qnorm(0.975) * sqrt((pct_adv * (1 - pct_adv))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
+        pct_adv = 100 * pct_adv,
         pct_below_bsc = pct_below_bsc/100,
         lower_bound_ci_BB = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_below_bsc + ((qnorm(0.975)^2)/(2 * valid_tests)) - 
             qnorm(0.975) * sqrt((pct_below_bsc * (1 - pct_below_bsc))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),

@@ -65,6 +65,11 @@ all_students <- school_accountability %>%
         grade_relative_achievement = ifelse(pctile_rank_PA >= 40 & pctile_rank_PA < 60, "C", grade_relative_achievement),
         grade_relative_achievement = ifelse(pctile_rank_PA >= 20 & pctile_rank_PA < 40, "D", grade_relative_achievement),
         grade_relative_achievement = ifelse(pctile_rank_PA < 20, "F", grade_relative_achievement),
+        grade_continuous_improvement = ifelse(pct_adv >= AMO_target_adv_4, "A", NA),
+        grade_continuous_improvement = ifelse(pct_adv > AMO_target_adv & pct_adv < AMO_target_adv_4, "B", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(upper_bound_ci_adv >= AMO_target_adv & pct_adv <= AMO_target_adv, "C", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(upper_bound_ci_adv > pct_prof_adv_prior & upper_bound_ci_adv < AMO_target_PA, "D", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(upper_bound_ci_adv <= pct_adv_prior, "F", grade_continuous_improvement),
         grade_achievement_amo = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", NA),
         grade_achievement_amo = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, "B", grade_achievement_amo),
         grade_achievement_amo = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, "C", grade_achievement_amo),
@@ -75,7 +80,8 @@ all_students <- school_accountability %>%
         grade_tvaas = ifelse(TVAAS_level == "Level 3", "C", grade_tvaas),
         grade_tvaas = ifelse(TVAAS_level == "Level 2", "D", grade_tvaas),
         grade_tvaas = ifelse(TVAAS_level == "Level 1", "F", grade_tvaas)) %>%
-    select(system, system_name, school, school_name, subgroup, pool, designation_ineligible, grade_relative_achievement, grade_achievement_amo, grade_tvaas)
+    select(system, system_name, school, school_name, subgroup, pool, designation_ineligible, 
+        grade_relative_achievement, grade_continuous_improvement, grade_achievement_amo, grade_tvaas)
 
 # Subgroup Heat Map
 subgroups <- school_accountability %>%
@@ -85,6 +91,11 @@ subgroups <- school_accountability %>%
         grade_relative_achievement = ifelse(pctile_rank_PA >= 40 & pctile_rank_PA < 60, "C", grade_relative_achievement),
         grade_relative_achievement = ifelse(pctile_rank_PA >= 20 & pctile_rank_PA < 40, "D", grade_relative_achievement),
         grade_relative_achievement = ifelse(pctile_rank_PA < 20, "F", grade_relative_achievement),
+        grade_continuous_improvement = ifelse(pct_adv >= AMO_target_adv_4, "A", NA),
+        grade_continuous_improvement = ifelse(pct_adv > AMO_target_adv & pct_adv < AMO_target_adv_4, "B", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(upper_bound_ci_adv >= AMO_target_adv & pct_adv <= AMO_target_adv, "C", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(upper_bound_ci_adv > pct_prof_adv_prior & upper_bound_ci_adv < AMO_target_PA, "D", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(upper_bound_ci_adv <= pct_adv_prior, "F", grade_continuous_improvement),
         grade_achievement_amo = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", NA),
         grade_achievement_amo = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, "B", grade_achievement_amo),
         grade_achievement_amo = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, "C", grade_achievement_amo),
@@ -95,7 +106,8 @@ subgroups <- school_accountability %>%
         grade_BB_reduction = ifelse(lower_bound_ci_BB <= AMO_target_BB & pct_below_bsc >= AMO_target_BB, "C", grade_BB_reduction),
         grade_BB_reduction = ifelse(lower_bound_ci_BB < pct_below_bsc_prior & lower_bound_ci_BB > AMO_target_BB, "D", grade_BB_reduction),
         grade_BB_reduction = ifelse(lower_bound_ci_BB >= pct_below_bsc_prior, "F", grade_BB_reduction)) %>%
-    select(system, system_name, school, school_name, subgroup, pool, designation_ineligible, grade_relative_achievement, grade_achievement_amo, grade_BB_reduction)
+    select(system, system_name, school, school_name, subgroup, pool, designation_ineligible,
+        grade_relative_achievement, grade_continuous_improvement, grade_achievement_amo, grade_BB_reduction)
 
 # Full Heat Map
 full_heat_map <- all_students %>%
@@ -107,4 +119,4 @@ full_heat_map <- all_students %>%
         grade_ACT = min(c(grade_ACT_absolute, grade_ACT_target), na.rm = TRUE),
         grade_grad = min(c(grade_grad_absolute, grade_grad_target), na.rm = TRUE)) %>%
     ungroup() %>%
-    select(system:designation_ineligible, grade_achievement, grade_tvaas, grade_BB_reduction, grade_ACT, grade_grad)
+    select(system:designation_ineligible, grade_achievement, grade_continuous_improvement, grade_tvaas, grade_BB_reduction, grade_ACT, grade_grad)
