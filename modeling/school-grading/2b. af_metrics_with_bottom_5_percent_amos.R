@@ -1,6 +1,7 @@
 ## School Accountability Model 2b: F Assigned to Bottom 5%; A-D Grades Assigned to Metrics with AMOs
 
 library(readr)
+library(magrittr)
 library(tidyr)
 library(dplyr)
 
@@ -12,6 +13,43 @@ hs <- school_accountability %>%
 k8 <- school_accountability %>%
     filter(subject == "Success Rate" & subgroup == "All Students" & pool == "K8") %>%
     nrow()
+
+# Absenteeism Grade
+absenteeism14 <- readxl::read_excel("K:/Research and Policy/data/data_attendance/IT Files - Enrollment and Demographic/School Level Results 2014 inc counts.xlsx") %>%
+    filter(`Grade Level` == "All") %>%
+    rename(system = `District Number`, school = `School Number`, enrolled = `Number of students in grade`) %>%
+    mutate(`10%-20% Absent` = as.numeric(`10%-20% Absent`),
+        `+20% Absent` = as.numeric(`+20% Absent`),
+        pct_chronically_absent_prior = `10%-20% Absent` + `+20% Absent`,
+        AMO_target = ifelse(enrolled >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/16), NA),
+        AMO_target_4 = ifelse(enrolled >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/8), NA)) %>%
+    mutate(system = ifelse(system == 792 & (school %in% c(1, 6, 5, 195)), 793, system),
+        system = ifelse(system == 792 & school %in% c(3, 20, 30, 90, 150, 155, 7, 33, 95, 170, 25), 794, system),
+        system = ifelse(system == 792 & school %in% c(8, 55, 60, 63, 65, 168, 183, 190), 795, system),
+        system = ifelse(system == 792 & school %in% c(111, 109, 100, 70, 160), 796, system),
+        system = ifelse(system == 792 & school == 116, 797, system),
+        system = ifelse(system == 792 & school %in% c(130, 133, 123, 78), 798, system)) %>%
+    select(system, school, pct_chronically_absent_prior, AMO_target, AMO_target_4)
+
+absenteeism <- readxl::read_excel("K:/Research and Policy/data/data_attendance/IT Files - Enrollment and Demographic/School Level Results 2015 inc counts.xlsx") %>%
+    filter(`Grade Level` == "All") %>%
+    rename(system = `District Number`, school = `School Number`, enrolled = `Number of students in grade`) %>%
+    mutate(`10%-20% Absent` = as.numeric(`10%-20% Absent`),
+        `+20% Absent` = as.numeric(`+20% Absent`),
+        pct_chronically_absent = `10%-20% Absent` + `+20% Absent`) %>%
+    select(system, school, enrolled, pct_chronically_absent) %>%
+    left_join(absenteeism14, by = c("system", "school")) %>%
+    mutate(pct_chronically_absent = pct_chronically_absent/100,
+        lower_bound_ci = round(100 * (enrolled/(enrolled + qnorm(0.975)^2)) * (pct_chronically_absent + ((qnorm(0.975)^2)/(2 * enrolled)) - 
+            qnorm(0.975) * sqrt((pct_chronically_absent * (1 - pct_chronically_absent))/enrolled + (qnorm(0.975)^2)/(4 * enrolled^2))), 1),
+        pct_chronically_absent = 100 * pct_chronically_absent,
+        grade_absenteeism_reduction = ifelse(pct_chronically_absent <= AMO_target_4, "A", NA),
+        grade_absenteeism_reduction = ifelse(pct_chronically_absent < AMO_target & pct_chronically_absent > AMO_target_4, "B", grade_absenteeism_reduction),
+        grade_absenteeism_reduction = ifelse(lower_bound_ci <= AMO_target & pct_chronically_absent >= AMO_target, "C", grade_absenteeism_reduction),
+        grade_absenteeism_reduction = ifelse(lower_bound_ci < pct_chronically_absent_prior & lower_bound_ci > AMO_target, "D", grade_absenteeism_reduction),
+        grade_absenteeism_reduction = ifelse(lower_bound_ci >= pct_chronically_absent_prior, "F", grade_absenteeism_reduction),
+        subgroup = "All Students") %>%
+    select(system, school, subgroup, grade_absenteeism_reduction)
 
 # F schools
 F_schools <- school_accountability %>%
@@ -114,9 +152,23 @@ full_heat_map <- all_students %>%
     bind_rows(subgroups) %>%
     left_join(ACT, by = c("system", "school", "subgroup")) %>%
     left_join(grad, by = c("system", "school", "subgroup")) %>%
+    left_join(absenteeism, by = c("system", "school", "subgroup")) %>%
     rowwise() %>%
     mutate(grade_achievement = min(c(grade_relative_achievement, grade_achievement_amo), na.rm = TRUE),
         grade_ACT = min(c(grade_ACT_absolute, grade_ACT_target), na.rm = TRUE),
         grade_grad = min(c(grade_grad_absolute, grade_grad_target), na.rm = TRUE)) %>%
     ungroup() %>%
-    select(system:designation_ineligible, grade_achievement, grade_continuous_improvement, grade_tvaas, grade_BB_reduction, grade_ACT, grade_grad)
+    select(system:designation_ineligible, grade_achievement, grade_continuous_improvement, grade_tvaas, grade_BB_reduction, 
+        grade_ACT, grade_grad, grade_absenteeism_reduction)
+
+AF_grades_final <- full_heat_map
+
+AF_grades_final[AF_grades_final == "A"] <- "4"
+AF_grades_final[AF_grades_final == "B"] <- "3"
+AF_grades_final[AF_grades_final == "C"] <- "2"
+AF_grades_final[AF_grades_final == "D"] <- "1"
+AF_grades_final[AF_grades_final == "F"] <- "0"
+
+AF_grades_final %<>%
+    mutate_each_(funs(as.numeric(.)), vars = c("grade_achievement", "grade_continuous_improvement", "grade_tvaas",
+        "grade_BB_reduction", "grade_grad", "grade_ACT", "grade_absenteeism_reduction"))
