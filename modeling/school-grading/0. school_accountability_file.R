@@ -83,8 +83,8 @@ amos <- school_accountability %>%
     filter(year == 2014) %>%
     mutate(AMO_target_PA = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16, 1), NA),
         AMO_target_PA_4 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA),
-        AMO_target_adv = ifelse(valid_tests >= 30, round(pct_adv + (100 - pct_adv)/16, 1), NA),
-        AMO_target_adv_4 = ifelse(valid_tests >= 30, round(pct_adv + (100 - pct_adv)/8, 1), NA),
+        AMO_target_adv = ifelse(valid_tests >= 30, round(pct_adv + (100 - pct_adv)/32, 1), NA),
+        AMO_target_adv_4 = ifelse(valid_tests >= 30, round(pct_adv + (100 - pct_adv)/16, 1), NA),
         AMO_target_BB = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/8, 1), NA),
         AMO_target_BB_4 = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/4, 1), NA),
         year = year + 1) %>%
