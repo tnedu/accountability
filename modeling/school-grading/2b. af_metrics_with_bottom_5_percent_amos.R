@@ -1,7 +1,6 @@
 ## School Accountability Model 2b: F Assigned to Bottom 5%; A-D Grades Assigned to Metrics with AMOs
 
 library(readr)
-library(magrittr)
 library(tidyr)
 library(dplyr)
 
@@ -73,11 +72,13 @@ ACT <- school_accountability %>%
         grade_ACT_absolute = ifelse(pct_prof_adv >= 30 & pct_prof_adv < 40, "C", grade_ACT_absolute),
         grade_ACT_absolute = ifelse(pct_prof_adv >= 15 & pct_prof_adv < 30, "D", grade_ACT_absolute),
         grade_ACT_absolute = ifelse(pct_prof_adv < 15, "F", grade_ACT_absolute),
+        grade_ACT_absolute = ifelse(valid_tests < 30, NA, grade_ACT_absolute),
         grade_ACT_target = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", NA),
         grade_ACT_target = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, "B", grade_ACT_target),
         grade_ACT_target = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, "C", grade_ACT_target),
         grade_ACT_target = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, "D", grade_ACT_target),
-        grade_ACT_target = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_ACT_target)) %>%
+        grade_ACT_target = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_ACT_target),
+        grade_ACT_target = ifelse(valid_tests < 30, NA, grade_ACT_target)) %>%
     select(system, school, subgroup, grade_ACT_absolute, grade_ACT_target)
 
 # Grad Heat Map
@@ -88,11 +89,13 @@ grad <- school_accountability %>%
         grade_grad_absolute = ifelse(pct_prof_adv >= 80 & pct_prof_adv < 90, "C", grade_grad_absolute),
         grade_grad_absolute = ifelse(pct_prof_adv >= 67 & pct_prof_adv < 80, "D", grade_grad_absolute),
         grade_grad_absolute = ifelse(pct_prof_adv < 67, "F", grade_grad_absolute),
+        grade_grad_absolute = ifelse(valid_tests < 30, NA, grade_grad_absolute),
         grade_grad_target = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", NA),
         grade_grad_target = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, "B", grade_grad_target),
         grade_grad_target = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, "C", grade_grad_target),
         grade_grad_target = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, "D", grade_grad_target),
-        grade_grad_target = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_grad_target)) %>%
+        grade_grad_target = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_grad_target),
+        grade_grad_target = ifelse(valid_tests < 30, NA, grade_grad_target)) %>%
     select(system, school, subgroup, grade_grad_absolute, grade_grad_target)
 
 # All Students Heat Map
@@ -106,13 +109,15 @@ all_students <- school_accountability %>%
         grade_continuous_improvement = ifelse(pct_adv >= AMO_target_adv_4, "A", NA),
         grade_continuous_improvement = ifelse(pct_adv > AMO_target_adv & pct_adv < AMO_target_adv_4, "B", grade_continuous_improvement),
         grade_continuous_improvement = ifelse(upper_bound_ci_adv >= AMO_target_adv & pct_adv <= AMO_target_adv, "C", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(upper_bound_ci_adv > pct_prof_adv_prior & upper_bound_ci_adv < AMO_target_PA, "D", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(upper_bound_ci_adv > pct_adv_prior & upper_bound_ci_adv < AMO_target_adv, "D", grade_continuous_improvement),
         grade_continuous_improvement = ifelse(upper_bound_ci_adv <= pct_adv_prior, "F", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(valid_tests < 30, NA, grade_continuous_improvement),
         grade_achievement_amo = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", NA),
         grade_achievement_amo = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, "B", grade_achievement_amo),
         grade_achievement_amo = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, "C", grade_achievement_amo),
         grade_achievement_amo = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, "D", grade_achievement_amo),
         grade_achievement_amo = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_achievement_amo),
+        grade_achievement_amo = ifelse(valid_tests < 30, NA, grade_achievement_amo),
         grade_tvaas = ifelse(TVAAS_level == "Level 5", "A", NA),
         grade_tvaas = ifelse(TVAAS_level == "Level 4", "B", grade_tvaas),
         grade_tvaas = ifelse(TVAAS_level == "Level 3", "C", grade_tvaas),
@@ -129,21 +134,24 @@ subgroups <- school_accountability %>%
         grade_relative_achievement = ifelse(pctile_rank_PA >= 40 & pctile_rank_PA < 60, "C", grade_relative_achievement),
         grade_relative_achievement = ifelse(pctile_rank_PA >= 20 & pctile_rank_PA < 40, "D", grade_relative_achievement),
         grade_relative_achievement = ifelse(pctile_rank_PA < 20, "F", grade_relative_achievement),
-        grade_continuous_improvement = ifelse(pct_adv >= AMO_target_adv_4, "A", NA),
-        grade_continuous_improvement = ifelse(pct_adv > AMO_target_adv & pct_adv < AMO_target_adv_4, "B", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(upper_bound_ci_adv >= AMO_target_adv & pct_adv <= AMO_target_adv, "C", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(upper_bound_ci_adv > pct_prof_adv_prior & upper_bound_ci_adv < AMO_target_PA, "D", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(upper_bound_ci_adv <= pct_adv_prior, "F", grade_continuous_improvement),
         grade_achievement_amo = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", NA),
         grade_achievement_amo = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, "B", grade_achievement_amo),
         grade_achievement_amo = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, "C", grade_achievement_amo),
         grade_achievement_amo = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, "D", grade_achievement_amo),
-        grade_achievement_amo = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_achievement_amo),  
+        grade_achievement_amo = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_achievement_amo),
+        grade_achievement_amo = ifelse(valid_tests < 30, NA, grade_achievement_amo),
+        grade_continuous_improvement = ifelse(pct_adv >= AMO_target_adv_4, "A", NA),
+        grade_continuous_improvement = ifelse(pct_adv > AMO_target_adv & pct_adv < AMO_target_adv_4, "B", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(upper_bound_ci_adv >= AMO_target_adv & pct_adv <= AMO_target_adv, "C", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(upper_bound_ci_adv > pct_adv_prior & upper_bound_ci_adv < AMO_target_PA, "D", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(upper_bound_ci_adv <= pct_adv_prior, "F", grade_continuous_improvement),
+        grade_continuous_improvement = ifelse(valid_tests < 30, NA, grade_continuous_improvement),
         grade_BB_reduction = ifelse(pct_below_bsc <= AMO_target_BB_4, "A", NA),
         grade_BB_reduction = ifelse(pct_below_bsc < AMO_target_BB & pct_below_bsc > AMO_target_BB_4, "B", grade_BB_reduction),
         grade_BB_reduction = ifelse(lower_bound_ci_BB <= AMO_target_BB & pct_below_bsc >= AMO_target_BB, "C", grade_BB_reduction),
         grade_BB_reduction = ifelse(lower_bound_ci_BB < pct_below_bsc_prior & lower_bound_ci_BB > AMO_target_BB, "D", grade_BB_reduction),
-        grade_BB_reduction = ifelse(lower_bound_ci_BB >= pct_below_bsc_prior, "F", grade_BB_reduction)) %>%
+        grade_BB_reduction = ifelse(lower_bound_ci_BB >= pct_below_bsc_prior, "F", grade_BB_reduction),
+        grade_BB_reduction = ifelse(valid_tests < 30, NA, grade_BB_reduction)) %>%
     select(system, system_name, school, school_name, subgroup, pool, designation_ineligible,
         grade_relative_achievement, grade_continuous_improvement, grade_achievement_amo, grade_BB_reduction)
 
@@ -161,14 +169,65 @@ full_heat_map <- all_students %>%
     select(system:designation_ineligible, grade_achievement, grade_continuous_improvement, grade_tvaas, grade_BB_reduction, 
         grade_ACT, grade_grad, grade_absenteeism_reduction)
 
-AF_grades_final <- full_heat_map
+AF_grades_metrics <- full_heat_map
 
-AF_grades_final[AF_grades_final == "A"] <- "4"
-AF_grades_final[AF_grades_final == "B"] <- "3"
-AF_grades_final[AF_grades_final == "C"] <- "2"
-AF_grades_final[AF_grades_final == "D"] <- "1"
-AF_grades_final[AF_grades_final == "F"] <- "0"
+AF_grades_metrics[AF_grades_metrics == "A"] <- "4"
+AF_grades_metrics[AF_grades_metrics == "B"] <- "3"
+AF_grades_metrics[AF_grades_metrics == "C"] <- "2"
+AF_grades_metrics[AF_grades_metrics == "D"] <- "1"
+AF_grades_metrics[AF_grades_metrics == "F"] <- "0"
 
-AF_grades_final %<>%
+AF_grades_metrics %<>%
     mutate_each_(funs(as.numeric(.)), vars = c("grade_achievement", "grade_continuous_improvement", "grade_tvaas",
-        "grade_BB_reduction", "grade_grad", "grade_ACT", "grade_absenteeism_reduction"))
+        "grade_BB_reduction", "grade_grad", "grade_ACT", "grade_absenteeism_reduction")) %>%
+    mutate(weight_achievement = ifelse(!is.na(grade_achievement) & pool == "K8", 0.25, NA),
+        weight_achievement = ifelse(!is.na(grade_achievement) & pool == "HS", 0.2, weight_achievement),
+        weight_growth = ifelse(!is.na(grade_tvaas) & pool == "K8", 0.35, NA),
+        weight_growth = ifelse(!is.na(grade_tvaas) & pool == "HS", 0.3, weight_growth),
+        weight_growth = ifelse(!is.na(grade_BB_reduction) & pool == "K8", 0.35, weight_growth),
+        weight_growth = ifelse(!is.na(grade_BB_reduction) & pool == "HS", 0.3, weight_growth),
+        weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & pool == "K8", 0.2, NA),
+        weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & pool == "HS", 0.1, weight_opportunity),
+        weight_continuous_improvement = ifelse(!is.na(grade_continuous_improvement) & pool == "K8", 0.1, NA),
+        weight_continuous_improvement = ifelse(!is.na(grade_continuous_improvement) & pool == "HS", 0.1, weight_continuous_improvement),
+        weight_ACT = ifelse(!is.na(grade_ACT) & pool == "HS", 0.1, NA),
+        weight_grad = ifelse(!is.na(grade_grad) & pool == "HS", 0.1, NA),
+        weight_ELPA = NA) %>%
+    rowwise() %>%
+    mutate(total_weight = ifelse(pool == "K8", sum(c(weight_achievement, weight_growth, weight_opportunity, weight_continuous_improvement, weight_ELPA), na.rm = TRUE), NA),
+        total_weight = ifelse(pool == "HS", sum(c(weight_achievement, weight_growth, weight_opportunity, weight_continuous_improvement, weight_ACT, weight_grad, weight_ELPA), na.rm = TRUE), total_weight),
+        subgroup_average = sum(c(weight_achievement * grade_achievement, 
+            weight_growth * grade_tvaas,
+            weight_growth * grade_BB_reduction,
+            weight_opportunity * grade_absenteeism_reduction, 
+            weight_continuous_improvement * grade_continuous_improvement,
+            weight_ACT * grade_ACT,
+            weight_grad * grade_grad), na.rm = TRUE)/total_weight) %>%
+    ungroup()
+
+all_students_grades_final <- AF_grades_metrics %>%
+    filter(subgroup == "All Students") %>%
+    select(system, system_name, school, school_name, pool, designation_ineligible, subgroup_average) %>%
+    rename(achievement_average = subgroup_average)
+
+subgroup_grades_final <- AF_grades_metrics %>%
+    filter(subgroup != "All Students") %>%
+    group_by(system, system_name, school, school_name) %>%
+    summarise(subgroup_average = mean(subgroup_average, na.rm = TRUE)) %>%
+    rename(gap_closure_average = subgroup_average)
+    
+AF_grades_final <- all_students_grades_final %>%
+    full_join(subgroup_grades_final, by = c("system", "system_name", "school", "school_name")) %>%
+    left_join(F_schools, by = c("system", "school")) %>%
+    rowwise() %>%
+    mutate(overall_average = mean(c(achievement_average, gap_closure_average), na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(final_grade = ifelse(is.na(final_grade) & overall_average > 3, "A", final_grade),
+        final_grade = ifelse(is.na(final_grade) & overall_average > 2 & overall_average <= 3, "B", final_grade),
+        final_grade = ifelse(is.na(final_grade) & overall_average > 1 & overall_average <= 2, "C", final_grade),
+        final_grade = ifelse(is.na(final_grade) & overall_average >= 0 & overall_average <= 1, "D", final_grade),
+        final_grade = ifelse(designation_ineligible, NA, final_grade))
+
+# Output files
+write_csv(AF_grades_metrics, path = "data/AF_bottom_five_amos_metrics.csv", na = "")
+write_csv(AF_grades_final, path = "data/AF_bottom_five_amos_final_grades.csv", na = "")
