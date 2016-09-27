@@ -1,4 +1,4 @@
-## School Accountability Model 2b: F Assigned to Bottom 5%; A-D Grades Assigned to Metrics with AMOs
+## Dashboard Model: F Assigned to Bottom 5%; A-D Grades Assigned to Metrics with AMOs
 
 library(readr)
 library(tidyr)
@@ -207,11 +207,18 @@ AF_grades_metrics %<>%
 
 all_students_grades_final <- AF_grades_metrics %>%
     filter(subgroup == "All Students") %>%
-    select(system, system_name, school, school_name, pool, designation_ineligible, subgroup_average) %>%
+    select(system, system_name, school, school_name, pool, designation_ineligible, grade_grad, subgroup_average) %>%
     rename(achievement_average = subgroup_average)
 
+# Drop Super Subgroup observation if other subgroups are present
 subgroup_grades_final <- AF_grades_metrics %>%
     filter(subgroup != "All Students") %>%
+    mutate(temp = ifelse(!is.na(subgroup_average), 1, NA)) %>%
+    group_by(system, system_name, school, school_name) %>%
+    mutate(subgroups_count = sum(temp, na.rm = TRUE)) %>%
+    ungroup() %>%
+    filter(!(subgroup == "Super Subgroup" & subgroups_count > 1)) %>%
+    select(-temp, -subgroups_count) %>%
     group_by(system, system_name, school, school_name) %>%
     summarise(subgroup_average = mean(subgroup_average, na.rm = TRUE)) %>%
     rename(gap_closure_average = subgroup_average)
@@ -219,6 +226,7 @@ subgroup_grades_final <- AF_grades_metrics %>%
 AF_grades_final <- all_students_grades_final %>%
     full_join(subgroup_grades_final, by = c("system", "system_name", "school", "school_name")) %>%
     left_join(F_schools, by = c("system", "school")) %>%
+    mutate(final_grade = ifelse(is.na(final_grade) & grade_grad == 0, "F", final_grade)) %>%
     rowwise() %>%
     mutate(overall_average = mean(c(achievement_average, gap_closure_average), na.rm = TRUE)) %>%
     ungroup() %>%
