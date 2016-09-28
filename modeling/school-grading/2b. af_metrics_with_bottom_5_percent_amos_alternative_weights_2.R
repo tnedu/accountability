@@ -143,7 +143,7 @@ subgroups <- school_accountability %>%
         grade_maximizing_success = ifelse(pct_adv >= AMO_target_adv_4, "A", NA),
         grade_maximizing_success = ifelse(pct_adv > AMO_target_adv & pct_adv < AMO_target_adv_4, "B", grade_maximizing_success),
         grade_maximizing_success = ifelse(upper_bound_ci_adv >= AMO_target_adv & pct_adv <= AMO_target_adv, "C", grade_maximizing_success),
-        grade_maximizing_success = ifelse(upper_bound_ci_adv > pct_adv_prior & upper_bound_ci_adv < AMO_target_PA, "D", grade_maximizing_success),
+        grade_maximizing_success = ifelse(upper_bound_ci_adv > pct_adv_prior & upper_bound_ci_adv < AMO_target_adv, "D", grade_maximizing_success),
         grade_maximizing_success = ifelse(upper_bound_ci_adv <= pct_adv_prior, "F", grade_maximizing_success),
         grade_maximizing_success = ifelse(valid_tests < 30, NA, grade_maximizing_success),
         grade_BB_reduction = ifelse(pct_below_bsc <= AMO_target_BB_4, "A", NA),
