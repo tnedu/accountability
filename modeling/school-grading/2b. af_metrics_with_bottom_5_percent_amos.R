@@ -106,12 +106,12 @@ all_students <- school_accountability %>%
         grade_relative_achievement = ifelse(pctile_rank_PA >= 40 & pctile_rank_PA < 60, "C", grade_relative_achievement),
         grade_relative_achievement = ifelse(pctile_rank_PA >= 20 & pctile_rank_PA < 40, "D", grade_relative_achievement),
         grade_relative_achievement = ifelse(pctile_rank_PA < 20, "F", grade_relative_achievement),
-        grade_continuous_improvement = ifelse(pct_adv >= AMO_target_adv_4, "A", NA),
-        grade_continuous_improvement = ifelse(pct_adv > AMO_target_adv & pct_adv < AMO_target_adv_4, "B", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(upper_bound_ci_adv >= AMO_target_adv & pct_adv <= AMO_target_adv, "C", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(upper_bound_ci_adv > pct_adv_prior & upper_bound_ci_adv < AMO_target_adv, "D", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(upper_bound_ci_adv <= pct_adv_prior, "F", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(valid_tests < 30, NA, grade_continuous_improvement),
+        grade_maximizing_success = ifelse(pct_adv >= AMO_target_adv_4, "A", NA),
+        grade_maximizing_success = ifelse(pct_adv > AMO_target_adv & pct_adv < AMO_target_adv_4, "B", grade_maximizing_success),
+        grade_maximizing_success = ifelse(upper_bound_ci_adv >= AMO_target_adv & pct_adv <= AMO_target_adv, "C", grade_maximizing_success),
+        grade_maximizing_success = ifelse(upper_bound_ci_adv > pct_adv_prior & upper_bound_ci_adv < AMO_target_adv, "D", grade_maximizing_success),
+        grade_maximizing_success = ifelse(upper_bound_ci_adv <= pct_adv_prior, "F", grade_maximizing_success),
+        grade_maximizing_success = ifelse(valid_tests < 30, NA, grade_maximizing_success),
         grade_achievement_amo = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", NA),
         grade_achievement_amo = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, "B", grade_achievement_amo),
         grade_achievement_amo = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, "C", grade_achievement_amo),
@@ -124,7 +124,7 @@ all_students <- school_accountability %>%
         grade_tvaas = ifelse(TVAAS_level == "Level 2", "D", grade_tvaas),
         grade_tvaas = ifelse(TVAAS_level == "Level 1", "F", grade_tvaas)) %>%
     select(system, system_name, school, school_name, subgroup, pool, designation_ineligible, 
-        grade_relative_achievement, grade_continuous_improvement, grade_achievement_amo, grade_tvaas)
+        grade_relative_achievement, grade_maximizing_success, grade_achievement_amo, grade_tvaas)
 
 # Subgroup Heat Map
 subgroups <- school_accountability %>%
@@ -140,12 +140,12 @@ subgroups <- school_accountability %>%
         grade_achievement_amo = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, "D", grade_achievement_amo),
         grade_achievement_amo = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_achievement_amo),
         grade_achievement_amo = ifelse(valid_tests < 30, NA, grade_achievement_amo),
-        grade_continuous_improvement = ifelse(pct_adv >= AMO_target_adv_4, "A", NA),
-        grade_continuous_improvement = ifelse(pct_adv > AMO_target_adv & pct_adv < AMO_target_adv_4, "B", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(upper_bound_ci_adv >= AMO_target_adv & pct_adv <= AMO_target_adv, "C", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(upper_bound_ci_adv > pct_adv_prior & upper_bound_ci_adv < AMO_target_PA, "D", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(upper_bound_ci_adv <= pct_adv_prior, "F", grade_continuous_improvement),
-        grade_continuous_improvement = ifelse(valid_tests < 30, NA, grade_continuous_improvement),
+        grade_maximizing_success = ifelse(pct_adv >= AMO_target_adv_4, "A", NA),
+        grade_maximizing_success = ifelse(pct_adv > AMO_target_adv & pct_adv < AMO_target_adv_4, "B", grade_maximizing_success),
+        grade_maximizing_success = ifelse(upper_bound_ci_adv >= AMO_target_adv & pct_adv <= AMO_target_adv, "C", grade_maximizing_success),
+        grade_maximizing_success = ifelse(upper_bound_ci_adv > pct_adv_prior & upper_bound_ci_adv < AMO_target_PA, "D", grade_maximizing_success),
+        grade_maximizing_success = ifelse(upper_bound_ci_adv <= pct_adv_prior, "F", grade_maximizing_success),
+        grade_maximizing_success = ifelse(valid_tests < 30, NA, grade_maximizing_success),
         grade_BB_reduction = ifelse(pct_below_bsc <= AMO_target_BB_4, "A", NA),
         grade_BB_reduction = ifelse(pct_below_bsc < AMO_target_BB & pct_below_bsc > AMO_target_BB_4, "B", grade_BB_reduction),
         grade_BB_reduction = ifelse(lower_bound_ci_BB <= AMO_target_BB & pct_below_bsc >= AMO_target_BB, "C", grade_BB_reduction),
@@ -153,7 +153,7 @@ subgroups <- school_accountability %>%
         grade_BB_reduction = ifelse(lower_bound_ci_BB >= pct_below_bsc_prior, "F", grade_BB_reduction),
         grade_BB_reduction = ifelse(valid_tests < 30, NA, grade_BB_reduction)) %>%
     select(system, system_name, school, school_name, subgroup, pool, designation_ineligible,
-        grade_relative_achievement, grade_continuous_improvement, grade_achievement_amo, grade_BB_reduction)
+        grade_relative_achievement, grade_maximizing_success, grade_achievement_amo, grade_BB_reduction)
 
 # Full Heat Map
 full_heat_map <- all_students %>%
@@ -166,7 +166,7 @@ full_heat_map <- all_students %>%
         grade_ACT = min(c(grade_ACT_absolute, grade_ACT_target), na.rm = TRUE),
         grade_grad = min(c(grade_grad_absolute, grade_grad_target), na.rm = TRUE)) %>%
     ungroup() %>%
-    select(system:designation_ineligible, grade_achievement, grade_continuous_improvement, grade_tvaas, grade_BB_reduction, 
+    select(system:designation_ineligible, grade_achievement, grade_maximizing_success, grade_tvaas, grade_BB_reduction, 
         grade_ACT, grade_grad, grade_absenteeism_reduction)
 
 AF_grades_metrics <- full_heat_map
@@ -178,29 +178,38 @@ AF_grades_metrics[AF_grades_metrics == "D"] <- "1"
 AF_grades_metrics[AF_grades_metrics == "F"] <- "0"
 
 AF_grades_metrics %<>%
-    mutate_each_(funs(as.numeric(.)), vars = c("grade_achievement", "grade_continuous_improvement", "grade_tvaas",
+    mutate_each_(funs(as.numeric(.)), vars = c("grade_achievement", "grade_maximizing_success", "grade_tvaas",
         "grade_BB_reduction", "grade_grad", "grade_ACT", "grade_absenteeism_reduction")) %>%
-    mutate(weight_achievement = ifelse(!is.na(grade_achievement) & pool == "K8", 0.25, NA),
-        weight_achievement = ifelse(!is.na(grade_achievement) & pool == "HS", 0.2, weight_achievement),
-        weight_growth = ifelse(!is.na(grade_tvaas) & pool == "K8", 0.35, NA),
-        weight_growth = ifelse(!is.na(grade_tvaas) & pool == "HS", 0.3, weight_growth),
-        weight_growth = ifelse(!is.na(grade_BB_reduction) & pool == "K8", 0.35, weight_growth),
-        weight_growth = ifelse(!is.na(grade_BB_reduction) & pool == "HS", 0.3, weight_growth),
-        weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & pool == "K8", 0.2, NA),
-        weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & pool == "HS", 0.1, weight_opportunity),
-        weight_continuous_improvement = ifelse(!is.na(grade_continuous_improvement) & pool == "K8", 0.1, NA),
-        weight_continuous_improvement = ifelse(!is.na(grade_continuous_improvement) & pool == "HS", 0.1, weight_continuous_improvement),
-        weight_ACT = ifelse(!is.na(grade_ACT) & pool == "HS", 0.1, NA),
-        weight_grad = ifelse(!is.na(grade_grad) & pool == "HS", 0.1, NA),
+    mutate(
+        # All Students Weights
+        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup == "All Students" & pool == "K8", 0.3, NA),
+        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup == "All Students" & pool == "HS", 0.3, weight_achievement),
+        weight_growth = ifelse(!is.na(grade_tvaas) & subgroup == "All Students" & pool == "K8", 0.4, NA),
+        weight_growth = ifelse(!is.na(grade_tvaas) & subgroup == "All Students" & pool == "HS", 0.3, weight_growth),
+        weight_maximizing_success = ifelse(!is.na(grade_maximizing_success) & subgroup == "All Students", 0.1, NA),
+        weight_ACT = ifelse(!is.na(grade_ACT) & subgroup == "All Students" & pool == "HS", 0.1, NA),
+        weight_grad = ifelse(!is.na(grade_grad) & subgroup == "All Students" & pool == "HS", 0.1, NA),
+        weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & subgroup == "All Students" & pool == "K8", 0.2, NA),
+        weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & subgroup == "All Students" & pool == "HS", 0.1, weight_opportunity),
+        # Subgroup Weights
+        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup != "All Students" & pool == "K8", 0.3, weight_achievement),
+        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup != "All Students" & pool == "HS", 0.3, weight_achievement),
+        weight_growth = ifelse(!is.na(grade_BB_reduction) & subgroup != "All Students" & pool == "K8", 0.3, weight_growth),
+        weight_growth = ifelse(!is.na(grade_BB_reduction) & subgroup != "All Students" & pool == "HS", 0.2, weight_growth),
+        weight_maximizing_success = ifelse(!is.na(grade_maximizing_success) & subgroup != "All Students", 0.1, weight_maximizing_success),
+        weight_ACT = ifelse(!is.na(grade_ACT) & subgroup != "All Students" & pool == "HS", 0.1, weight_ACT),
+        weight_grad = ifelse(!is.na(grade_grad) & subgroup != "All Students" & pool == "HS", 0.1, weight_grad),
+        weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & subgroup != "All Students" & pool == "K8", 0.2, weight_opportunity),
+        weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & subgroup != "All Students" & pool == "HS", 0.1, weight_opportunity),
         weight_ELPA = NA) %>%
     rowwise() %>%
-    mutate(total_weight = ifelse(pool == "K8", sum(c(weight_achievement, weight_growth, weight_opportunity, weight_continuous_improvement, weight_ELPA), na.rm = TRUE), NA),
-        total_weight = ifelse(pool == "HS", sum(c(weight_achievement, weight_growth, weight_opportunity, weight_continuous_improvement, weight_ACT, weight_grad, weight_ELPA), na.rm = TRUE), total_weight),
+    mutate(total_weight = ifelse(pool == "K8", sum(c(weight_achievement, weight_growth, weight_opportunity, weight_maximizing_success, weight_ELPA), na.rm = TRUE), NA),
+        total_weight = ifelse(pool == "HS", sum(c(weight_achievement, weight_growth, weight_opportunity, weight_maximizing_success, weight_ACT, weight_grad, weight_ELPA), na.rm = TRUE), total_weight),
         subgroup_average = sum(c(weight_achievement * grade_achievement, 
             weight_growth * grade_tvaas,
             weight_growth * grade_BB_reduction,
             weight_opportunity * grade_absenteeism_reduction, 
-            weight_continuous_improvement * grade_continuous_improvement,
+            weight_maximizing_success * grade_maximizing_success,
             weight_ACT * grade_ACT,
             weight_grad * grade_grad), na.rm = TRUE)/total_weight) %>%
     ungroup()
