@@ -164,11 +164,10 @@ full_heat_map <- all_students %>%
     rowwise() %>%
     mutate(grade_achievement = min(c(grade_relative_achievement, grade_achievement_amo), na.rm = TRUE),
         grade_ACT = min(c(grade_ACT_absolute, grade_ACT_target), na.rm = TRUE),
-        grade_grad = min(c(grade_grad_absolute, grade_grad_target), na.rm = TRUE),
-        grade_postsecondary_readiness = mean(c(grade_ACT, grade_grad), na.rm = TRUE)) %>%
+        grade_grad = min(c(grade_grad_absolute, grade_grad_target), na.rm = TRUE)) %>%
     ungroup() %>%
     select(system:designation_ineligible, grade_achievement, grade_maximizing_success, grade_tvaas, grade_BB_reduction, 
-        grade_grad, grade_postsecondary_readiness, grade_absenteeism_reduction)
+        grade_grad, grade_ACT, grade_absenteeism_reduction)
 
 AF_grades_metrics <- full_heat_map
 
@@ -180,7 +179,10 @@ AF_grades_metrics[AF_grades_metrics == "F"] <- "0"
 
 AF_grades_metrics %<>%
     mutate_each_(funs(as.numeric(.)), vars = c("grade_achievement", "grade_maximizing_success", "grade_tvaas",
-        "grade_BB_reduction", "grade_postsecondary_readiness", "grade_absenteeism_reduction")) %>%
+        "grade_BB_reduction", "grade_grad", "grade_ACT", "grade_absenteeism_reduction")) %>%
+    rowwise() %>%
+    mutate(grade_postsecondary_readiness = ifelse(pool == "HS", mean(c(grade_ACT, grade_grad), na.rm = TRUE), NA)) %>%
+    ungroup() %>%
     mutate(
         # All Students Weights
         weight_achievement = ifelse(!is.na(grade_achievement) & subgroup == "All Students", 0.5, NA),
@@ -191,7 +193,7 @@ AF_grades_metrics %<>%
         weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & subgroup == "All Students" & pool == "HS", 0.1, weight_opportunity),
         # Subgroup Weights
         weight_achievement = ifelse(!is.na(grade_achievement) & subgroup != "All Students", 0.4, weight_achievement),
-        weight_growth = ifelse(!is.na(grade_BB_reduction) & subgroup != "All Students" & pool == "K8", 0.2, weight_growth),
+        weight_growth = ifelse(!is.na(grade_BB_reduction) & subgroup != "All Students", 0.2, weight_growth),
         weight_maximizing_success = ifelse(!is.na(grade_maximizing_success) & subgroup != "All Students", 0.05, weight_maximizing_success),
         weight_postsecondary_readiness = ifelse(!is.na(grade_postsecondary_readiness) & subgroup == "All Students" & pool == "HS", 0.15, grade_postsecondary_readiness),
         weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & subgroup != "All Students" & pool == "K8", 0.25, weight_opportunity),
