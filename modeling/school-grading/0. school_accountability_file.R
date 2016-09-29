@@ -38,6 +38,11 @@ success_rates_1yr <- school_base %>%
     summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_below_bsc = sum(n_below_bsc, na.rm = TRUE), 
         n_bsc = sum(n_bsc, na.rm = TRUE), n_prof = sum(n_prof, na.rm = TRUE), n_adv = sum(n_adv, na.rm = TRUE)) %>%
     ungroup() %>%
+    mutate(valid_tests = ifelse(valid_tests < 30, 0, valid_tests),
+        n_below_bsc = ifelse(valid_tests < 30, 0, n_below_bsc),
+        n_bsc = ifelse(valid_tests < 30, 0, n_bsc),
+        n_prof = ifelse(valid_tests < 30, 0, n_prof),
+        n_adv = ifelse(valid_tests < 30, 0, n_adv)) %>%
     rowwise() %>%
     mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
     ungroup() %>%
