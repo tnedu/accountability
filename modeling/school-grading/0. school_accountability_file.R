@@ -159,7 +159,6 @@ school_accountability %<>%
         pctile_rank_PA = round(100 * rank_PA/denom, 1),
         pctile_rank_PA_prior = round(100 * rank_PA_prior/denom, 1)) %>%
     ungroup() %>%
-    select(-(eligible:denom)) %>%
     select(year, system, system_name, school, school_name, subject, subgroup, pool, designation_ineligible, valid_tests:pctile_rank_PA_prior) %>%
     arrange(system, system_name, school, school_name, subject, subgroup)
 

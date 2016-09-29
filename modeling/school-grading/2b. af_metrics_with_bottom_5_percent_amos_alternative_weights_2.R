@@ -1,10 +1,8 @@
 ## Dashboard Model: F Assigned to Bottom 5%; A-D Grades Assigned to Metrics with AMOs; Alternative Weights 2
 
-library(readr)
-library(tidyr)
 library(dplyr)
 
-school_accountability <- read_csv("data/school_accountability_file.csv")
+school_accountability <- readr::read_csv("data/school_accountability_file.csv")
 
 hs <- school_accountability %>%
     filter(subject == "Success Rate" & subgroup == "All Students" & pool == "HS") %>%
@@ -20,8 +18,8 @@ absenteeism14 <- readxl::read_excel("K:/Research and Policy/data/data_attendance
     mutate(`10%-20% Absent` = as.numeric(`10%-20% Absent`),
         `+20% Absent` = as.numeric(`+20% Absent`),
         pct_chronically_absent_prior = `10%-20% Absent` + `+20% Absent`,
-        AMO_target = ifelse(enrolled >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/16), NA),
-        AMO_target_4 = ifelse(enrolled >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/8), NA)) %>%
+        AMO_target = ifelse(enrolled >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/16, 1), NA),
+        AMO_target_4 = ifelse(enrolled >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/8, 1), NA)) %>%
     mutate(system = ifelse(system == 792 & (school %in% c(1, 6, 5, 195)), 793, system),
         system = ifelse(system == 792 & school %in% c(3, 20, 30, 90, 150, 155, 7, 33, 95, 170, 25), 794, system),
         system = ifelse(system == 792 & school %in% c(8, 55, 60, 63, 65, 168, 183, 190), 795, system),
@@ -67,36 +65,36 @@ F_schools <- school_accountability %>%
 # ACT Heat Map
 ACT <- school_accountability %>%
     filter(subject == "ACT Composite") %>%
-    mutate(grade_ACT_absolute = ifelse(pct_prof_adv >= 50, "A", NA),
-        grade_ACT_absolute = ifelse(pct_prof_adv >= 40 & pct_prof_adv < 50, "B", grade_ACT_absolute),
-        grade_ACT_absolute = ifelse(pct_prof_adv >= 30 & pct_prof_adv < 40, "C", grade_ACT_absolute),
-        grade_ACT_absolute = ifelse(pct_prof_adv >= 15 & pct_prof_adv < 30, "D", grade_ACT_absolute),
-        grade_ACT_absolute = ifelse(pct_prof_adv < 15, "F", grade_ACT_absolute),
-        grade_ACT_absolute = ifelse(valid_tests < 30, NA, grade_ACT_absolute),
+    mutate(grade_ACT = ifelse(pct_prof_adv >= 50, "A", NA),
+        grade_ACT = ifelse(pct_prof_adv >= 40 & pct_prof_adv < 50, "B", grade_ACT),
+        grade_ACT = ifelse(pct_prof_adv >= 30 & pct_prof_adv < 40, "C", grade_ACT),
+        grade_ACT = ifelse(pct_prof_adv >= 15 & pct_prof_adv < 30, "D", grade_ACT),
+        grade_ACT = ifelse(pct_prof_adv < 15, "F", grade_ACT),
+        grade_ACT = ifelse(valid_tests < 30, NA, grade_ACT),
         grade_ACT_target = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", NA),
         grade_ACT_target = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, "B", grade_ACT_target),
         grade_ACT_target = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, "C", grade_ACT_target),
         grade_ACT_target = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, "D", grade_ACT_target),
         grade_ACT_target = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_ACT_target),
         grade_ACT_target = ifelse(valid_tests < 30, NA, grade_ACT_target)) %>%
-    select(system, school, subgroup, grade_ACT_absolute, grade_ACT_target)
+    select(system, school, subgroup, grade_ACT, grade_ACT_target)
 
 # Grad Heat Map
 grad <- school_accountability %>%
     filter(subject == "Graduation Rate") %>%
-    mutate(grade_grad_absolute = ifelse(pct_prof_adv >= 95, "A", NA),
-        grade_grad_absolute = ifelse(pct_prof_adv >= 90 & pct_prof_adv < 95, "B", grade_grad_absolute),
-        grade_grad_absolute = ifelse(pct_prof_adv >= 80 & pct_prof_adv < 90, "C", grade_grad_absolute),
-        grade_grad_absolute = ifelse(pct_prof_adv >= 67 & pct_prof_adv < 80, "D", grade_grad_absolute),
-        grade_grad_absolute = ifelse(pct_prof_adv < 67, "F", grade_grad_absolute),
-        grade_grad_absolute = ifelse(valid_tests < 30, NA, grade_grad_absolute),
+    mutate(grade_grad = ifelse(pct_prof_adv >= 95, "A", NA),
+        grade_grad = ifelse(pct_prof_adv >= 90 & pct_prof_adv < 95, "B", grade_grad),
+        grade_grad = ifelse(pct_prof_adv >= 80 & pct_prof_adv < 90, "C", grade_grad),
+        grade_grad = ifelse(pct_prof_adv >= 67 & pct_prof_adv < 80, "D", grade_grad),
+        grade_grad = ifelse(pct_prof_adv < 67, "F", grade_grad),
+        grade_grad = ifelse(valid_tests < 30, NA, grade_grad),
         grade_grad_target = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", NA),
         grade_grad_target = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, "B", grade_grad_target),
         grade_grad_target = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, "C", grade_grad_target),
         grade_grad_target = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, "D", grade_grad_target),
         grade_grad_target = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_grad_target),
         grade_grad_target = ifelse(valid_tests < 30, NA, grade_grad_target)) %>%
-    select(system, school, subgroup, grade_grad_absolute, grade_grad_target)
+    select(system, school, subgroup, grade_grad, grade_grad_target)
 
 # All Students Heat Map
 all_students <- school_accountability %>%
@@ -163,8 +161,8 @@ full_heat_map <- all_students %>%
     left_join(absenteeism, by = c("system", "school", "subgroup")) %>%
     rowwise() %>%
     mutate(grade_achievement = min(c(grade_relative_achievement, grade_achievement_amo), na.rm = TRUE),
-        grade_ACT = min(c(grade_ACT_absolute, grade_ACT_target), na.rm = TRUE),
-        grade_grad = min(c(grade_grad_absolute, grade_grad_target), na.rm = TRUE)) %>%
+        grade_ACT = min(c(grade_ACT, grade_ACT_target), na.rm = TRUE),
+        grade_grad = min(c(grade_grad, grade_grad_target), na.rm = TRUE)) %>%
     ungroup() %>%
     select(system:designation_ineligible, grade_achievement, grade_maximizing_success, grade_tvaas, grade_BB_reduction, 
         grade_grad, grade_ACT, grade_absenteeism_reduction)
@@ -181,32 +179,31 @@ AF_grades_metrics %<>%
     mutate_each_(funs(as.numeric(.)), vars = c("grade_achievement", "grade_maximizing_success", "grade_tvaas",
         "grade_BB_reduction", "grade_grad", "grade_ACT", "grade_absenteeism_reduction")) %>%
     rowwise() %>%
-    mutate(grade_postsecondary_readiness = ifelse(pool == "HS", mean(c(grade_ACT, grade_grad), na.rm = TRUE), NA)) %>%
+    mutate(grade_readiness = ifelse(pool == "HS", mean(c(grade_ACT, grade_grad), na.rm = TRUE), NA)) %>%
     ungroup() %>%
     mutate(
         # All Students Weights
         weight_achievement = ifelse(!is.na(grade_achievement) & subgroup == "All Students", 0.35, NA),
         weight_growth = ifelse(!is.na(grade_tvaas) & subgroup == "All Students" & pool == "K8", 0.45, NA),
         weight_growth = ifelse(!is.na(grade_tvaas) & subgroup == "All Students" & pool == "HS", 0.35, weight_growth),
-        weight_postsecondary_readiness = ifelse(!is.na(grade_postsecondary_readiness) & subgroup == "All Students" & pool == "HS", 0.2, NA),
+        weight_readiness = ifelse(!is.na(grade_readiness) & subgroup == "All Students" & pool == "HS", 0.2, NA),
         weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & subgroup == "All Students" & pool == "K8", 0.2, NA),
         weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & subgroup == "All Students" & pool == "HS", 0.1, weight_opportunity),
         # Subgroup Weights
         weight_achievement = ifelse(!is.na(grade_achievement) & subgroup != "All Students", 0.35, weight_achievement),
         weight_growth = ifelse(!is.na(grade_BB_reduction) & subgroup != "All Students" & pool == "K8", 0.35, weight_growth),
         weight_growth = ifelse(!is.na(grade_BB_reduction) & subgroup != "All Students" & pool == "HS", 0.25, weight_growth),
-        weight_postsecondary_readiness = ifelse(!is.na(grade_postsecondary_readiness) & subgroup == "All Students" & pool == "HS", 0.2, grade_postsecondary_readiness),
+        weight_readiness = ifelse(!is.na(grade_readiness) & subgroup == "All Students" & pool == "HS", 0.2, grade_readiness),
         weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & subgroup != "All Students" & pool == "K8", 0.2, weight_opportunity),
         weight_opportunity = ifelse(!is.na(grade_absenteeism_reduction) & subgroup != "All Students" & pool == "HS", 0.1, weight_opportunity),
         weight_ELPA = NA) %>%
     rowwise() %>%
-    mutate(total_weight = ifelse(pool == "K8", sum(c(weight_achievement, weight_growth, weight_opportunity, weight_ELPA), na.rm = TRUE), NA),
-        total_weight = ifelse(pool == "HS", sum(c(weight_achievement, weight_growth, weight_opportunity, weight_postsecondary_readiness, weight_ELPA), na.rm = TRUE), total_weight),
+    mutate(total_weight = sum(c(weight_achievement, weight_growth, weight_opportunity, weight_readiness, weight_ELPA), na.rm = TRUE),
         subgroup_average = sum(c(weight_achievement * grade_achievement, 
             weight_growth * grade_tvaas,
             weight_growth * grade_BB_reduction,
             weight_opportunity * grade_absenteeism_reduction,
-            weight_postsecondary_readiness * grade_postsecondary_readiness), na.rm = TRUE)/total_weight,
+            weight_readiness * grade_readiness), na.rm = TRUE)/total_weight,
         # Bonus points for maximizing success
         subgroup_average = ifelse(grade_maximizing_success == 4, subgroup_average + 0.2, subgroup_average),
         subgroup_average = ifelse(grade_maximizing_success == 3, subgroup_average + 0.1, subgroup_average),
@@ -226,7 +223,6 @@ subgroup_grades_final <- AF_grades_metrics %>%
     mutate(subgroups_count = sum(temp, na.rm = TRUE)) %>%
     ungroup() %>%
     filter(!(subgroup == "Super Subgroup" & subgroups_count > 1)) %>%
-    select(-temp, -subgroups_count) %>%
     group_by(system, system_name, school, school_name) %>%
     summarise(gap_closure_average = mean(subgroup_average, na.rm = TRUE))
 
@@ -240,7 +236,7 @@ AF_grades_final <- all_students_grades_final %>%
     mutate(final_grade = ifelse(is.na(final_grade) & overall_average > 3, "A", final_grade),
         final_grade = ifelse(is.na(final_grade) & overall_average > 2 & overall_average <= 3, "B", final_grade),
         final_grade = ifelse(is.na(final_grade) & overall_average > 1 & overall_average <= 2, "C", final_grade),
-        final_grade = ifelse(is.na(final_grade) & overall_average >= 0 & overall_average <= 1, "D", final_grade),
+        final_grade = ifelse(is.na(final_grade) & overall_average <= 1, "D", final_grade),
         final_grade = ifelse(designation_ineligible, NA, final_grade))
 
 # Output files
