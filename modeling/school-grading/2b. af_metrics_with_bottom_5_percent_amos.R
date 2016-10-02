@@ -1,8 +1,9 @@
 ## Dashboard Model: F Assigned to Bottom 5%; A-D Grades Assigned to Metrics with AMOs
 
+library(readr)
 library(dplyr)
 
-school_accountability <- readr::read_csv("data/school_accountability_file.csv")
+school_accountability <- read_csv("data/school_accountability_file.csv")
 
 hs <- school_accountability %>%
     filter(subject == "Success Rate" & subgroup == "All Students" & pool == "HS") %>%
@@ -20,7 +21,7 @@ absenteeism14 <- readxl::read_excel("K:/Research and Policy/data/data_attendance
         pct_chronically_absent_prior = `10%-20% Absent` + `+20% Absent`,
         AMO_target = ifelse(enrolled >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/16, 1), NA),
         AMO_target_4 = ifelse(enrolled >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/8, 1), NA)) %>%
-    mutate(system = ifelse(system == 792 & (school %in% c(1, 6, 5, 195)), 793, system),
+    mutate(system = ifelse(system == 792 & school %in% c(1, 6, 5, 195), 793, system),
         system = ifelse(system == 792 & school %in% c(3, 20, 30, 90, 150, 155, 7, 33, 95, 170, 25), 794, system),
         system = ifelse(system == 792 & school %in% c(8, 55, 60, 63, 65, 168, 183, 190), 795, system),
         system = ifelse(system == 792 & school %in% c(111, 109, 100, 70, 160), 796, system),
@@ -212,7 +213,12 @@ AF_grades_metrics %<>%
 all_students_grades_final <- AF_grades_metrics %>%
     filter(subgroup == "All Students") %>%
     select(system, system_name, school, school_name, pool, designation_ineligible, grade_grad, subgroup_average) %>%
-    rename(achievement_average = subgroup_average)
+    rename(achievement_average = subgroup_average) %>%
+    mutate(achievement_grade = ifelse(achievement_average == 0, "F", NA),
+        achievement_grade = ifelse(achievement_average > 0 & achievement_average <= 1, "D", achievement_grade),
+        achievement_grade = ifelse(achievement_average > 1 & achievement_average <= 2, "C", achievement_grade),
+        achievement_grade = ifelse(achievement_average > 2 & achievement_average <= 3, "B", achievement_grade),
+        achievement_grade = ifelse(achievement_average > 3, "A", achievement_grade))
 
 # Drop Super Subgroup observation if other subgroups are present
 subgroup_grades_final <- AF_grades_metrics %>%
@@ -223,7 +229,12 @@ subgroup_grades_final <- AF_grades_metrics %>%
     ungroup() %>%
     filter(!(subgroup == "Super Subgroup" & subgroups_count > 1)) %>%
     group_by(system, system_name, school, school_name) %>%
-    summarise(gap_closure_average = mean(subgroup_average, na.rm = TRUE))
+    summarise(gap_closure_average = mean(subgroup_average, na.rm = TRUE)) %>%
+    mutate(gap_closure_grade = ifelse(gap_closure_average == 0, "F", NA),
+        gap_closure_grade = ifelse(gap_closure_average > 0 & gap_closure_average <= 1, "D", gap_closure_grade),
+        gap_closure_grade = ifelse(gap_closure_average > 1 & gap_closure_average <= 2, "C", gap_closure_grade),
+        gap_closure_grade = ifelse(gap_closure_average > 2 & gap_closure_average <= 3, "B", gap_closure_grade),
+        gap_closure_grade = ifelse(gap_closure_average > 3, "A", gap_closure_grade))
 
 AF_grades_final <- all_students_grades_final %>%
     full_join(subgroup_grades_final, by = c("system", "system_name", "school", "school_name")) %>%
@@ -236,7 +247,8 @@ AF_grades_final <- all_students_grades_final %>%
         final_grade = ifelse(is.na(final_grade) & overall_average > 2 & overall_average <= 3, "B", final_grade),
         final_grade = ifelse(is.na(final_grade) & overall_average > 1 & overall_average <= 2, "C", final_grade),
         final_grade = ifelse(is.na(final_grade) & overall_average <= 1, "D", final_grade),
-        final_grade = ifelse(designation_ineligible, NA, final_grade))
+        final_grade = ifelse(designation_ineligible, NA, final_grade)) %>%
+    select(system:gap_closure_grade, overall_average, final_grade)
 
 # Output files
 write_csv(AF_grades_metrics, path = "data/AF_bottom_five_amos_metrics.csv", na = "")
