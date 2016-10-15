@@ -19,7 +19,7 @@ absenteeism14 <- readstata13::read.dta13("K:/Research and Policy/data/data_atten
         subgroup = ifelse(subgroup == "EL/T1/T2", "English Language Learners with T1/T2", subgroup),
         subgroup = ifelse(subgroup == "SWD", "Students with Disabilities", subgroup),
         subgroup = ifelse(subgroup == "Super", "Super Subgroup", subgroup),
-        pct_chronically_absent_prior = round((num_chronic + num_severe)/total_students_w_abs, 1),
+        pct_chronically_absent_prior = round(100 * (num_chronic + num_severe)/total_students_w_abs, 1),
         AMO_target = ifelse(total_students_w_abs >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/16, 1), NA),
         AMO_target_4 = ifelse(total_students_w_abs >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/8, 1), NA),
         districtnumber = ifelse(districtnumber == 792 & schoolnumber %in% c(1, 6, 5, 195), 793, districtnumber),
@@ -196,7 +196,7 @@ AF_grades_metrics %<>%
         weight_achievement = ifelse(!is.na(grade_achievement) & subgroup != "All Students", 0.35, weight_achievement),
         weight_growth = ifelse(!is.na(grade_BB_reduction) & subgroup != "All Students" & pool == "K8", 0.35, weight_growth),
         weight_growth = ifelse(!is.na(grade_BB_reduction) & subgroup != "All Students" & pool == "HS", 0.25, weight_growth),
-        weight_readiness = ifelse(!is.na(grade_readiness) & subgroup == "All Students" & pool == "HS", 0.2, grade_readiness),
+        weight_readiness = ifelse(!is.na(grade_readiness) & subgroup == "All Students" & pool == "HS", 0.2, weight_readiness),
         weight_opportunity = ifelse(!is.na(grade_absenteeism) & subgroup != "All Students" & pool == "K8", 0.2, weight_opportunity),
         weight_opportunity = ifelse(!is.na(grade_absenteeism) & subgroup != "All Students" & pool == "HS", 0.1, weight_opportunity),
         weight_ELPA = NA) %>%
