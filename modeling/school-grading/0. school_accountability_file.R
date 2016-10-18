@@ -1,7 +1,6 @@
 ## School Accountability File with Super Subgroup and Science
 
-library(readr)
-library(dplyr)
+library(tidyverse)
 
 # Grade pools
 grade_pools <- readstata13::read.dta13("K:/ORP_accountability/projects/2016_pre_coding/Output/grade_pools_designation_immune_2016.dta") %>%
@@ -60,6 +59,22 @@ success_rates_1yr <- school_base %>%
         pct_below_bsc = ifelse(n_below_bsc == 0 & pct_below_bsc != 0, 0, pct_below_bsc)) %>%
     select(-pct_bsc, -pct_prof)
 
+success_rates_3yr <- success_rates_1yr %>%
+    group_by(system, system_name, school, school_name, pool, subgroup, designation_ineligible) %>%
+    summarise(valid_tests = sum(valid_tests, na.rm = TRUE), n_below_bsc = sum(n_below_bsc, na.rm = TRUE), 
+        n_bsc = sum(n_bsc, na.rm = TRUE), n_prof = sum(n_prof, na.rm = TRUE), n_adv = sum(n_adv, na.rm = TRUE),
+        n_PA = sum(n_PA, na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(subject = "Success Rate",
+        year = "3 Year",
+        pct_bsc = ifelse(valid_tests != 0, round(100 * n_bsc/valid_tests, 1), NA),
+        pct_prof = ifelse(valid_tests != 0, round(100 * n_prof/valid_tests, 1), NA),
+        pct_adv = ifelse(valid_tests != 0, round(100 * n_adv/valid_tests, 1), NA),
+        pct_below_bsc = ifelse(valid_tests != 0, round(100 - pct_bsc - pct_prof - pct_adv, 1), NA),
+        pct_prof_adv = ifelse(valid_tests != 0, round(100 * n_PA/valid_tests, 1), NA),
+        pct_below_bsc = ifelse(n_below_bsc == 0 & pct_below_bsc != 0, 0, pct_below_bsc)) %>%
+    select(-pct_bsc, -pct_prof)
+
 # School accountability subjects
 school_accountability <- school_base %>%
     mutate(subject = ifelse(grade %in% c(3, 4, 5, 6, 7, 8), paste("3-8", subject), subject),
@@ -82,17 +97,19 @@ school_accountability <- school_base %>%
         pct_prof_adv = ifelse(valid_tests != 0, round(100 * n_PA/valid_tests, 1), NA),
         pct_below_bsc = ifelse(n_below_bsc == 0 & pct_below_bsc != 0, 0, pct_below_bsc)) %>%
     select(-pct_bsc, -pct_prof) %>%
-    bind_rows(success_rates_1yr)
+    bind_rows(success_rates_1yr) %>%
+    mutate(year = as.character(year)) %>%
+    bind_rows(success_rates_3yr)
 
 amos <- school_accountability %>%
-    filter(year == 2014) %>%
+    filter(year == "2014") %>%
     mutate(AMO_target_PA = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16, 1), NA),
         AMO_target_PA_4 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA),
         AMO_target_adv = ifelse(valid_tests >= 30, round(pct_adv + (100 - pct_adv)/32, 1), NA),
         AMO_target_adv_4 = ifelse(valid_tests >= 30, round(pct_adv + (100 - pct_adv)/16, 1), NA),
         AMO_target_BB = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/8, 1), NA),
         AMO_target_BB_4 = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/4, 1), NA),
-        year = year + 1) %>%
+        year = "2015") %>%
     select(year, system, system_name, school, school_name, subject, subgroup, valid_tests, pct_below_bsc, pct_adv, pct_prof_adv, 
         AMO_target_PA, AMO_target_PA_4, AMO_target_adv, AMO_target_adv_4, AMO_target_BB, AMO_target_BB_4) %>%
     rename(valid_tests_prior = valid_tests, pct_below_bsc_prior = pct_below_bsc, pct_adv_prior = pct_adv, pct_prof_adv_prior = pct_prof_adv)
@@ -132,8 +149,7 @@ tvaas_subjects <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_E
 # ACT TVAAS
 tvaas_act <- read_csv("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2014-15/School_ACT.csv") %>%
     filter(Year == "2014" & Subject == "Composite") %>%
-    mutate(Year = as.numeric(Year) + 1,
-        Subject = "ACT Composite",
+    mutate(Subject = "ACT Composite",
         subgroup = "All Students") %>%
     rename(system = `District Number`, school = `School Number`, subject = Subject, TVAAS_level = `School vs State Avg`) %>%
     select(system, school, subject, subgroup, TVAAS_level)
@@ -141,7 +157,7 @@ tvaas_act <- read_csv("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS
 tvaas_all <- bind_rows(tvaas_2015, tvaas_subjects, tvaas_act)
 
 school_accountability %<>%
-    filter(year == 2015) %>%
+    filter(year != "2014") %>%
     left_join(amos, by = c("year", "system", "system_name", "school", "school_name", "subgroup", "subject")) %>%
     left_join(tvaas_all, by = c("system", "school", "subject", "subgroup")) %>%
     mutate(pct_prof_adv = pct_prof_adv/100,
@@ -156,18 +172,16 @@ school_accountability %<>%
         lower_bound_ci_BB = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_below_bsc + ((qnorm(0.975)^2)/(2 * valid_tests)) - 
             qnorm(0.975) * sqrt((pct_below_bsc * (1 - pct_below_bsc))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
         pct_below_bsc = 100 * pct_below_bsc,
-        eligible = (valid_tests >= 30 & valid_tests_prior >= 30)) %>%
-    group_by(designation_ineligible, subject, subgroup, eligible) %>%
-    mutate(rank_PA = ifelse(eligible, rank(pct_prof_adv, na.last = FALSE, ties.method = "average"), NA), 
-        rank_PA_prior = ifelse(eligible, rank(pct_prof_adv_prior, na.last = FALSE, ties.method = "average"), NA), 
+        eligible = valid_tests >= 30) %>%
+    group_by(year, subject, subgroup, pool, eligible) %>%
+    mutate(rank_PA = ifelse(eligible, rank(pct_prof_adv, na.last = FALSE, ties.method = "average"), NA),
         denom = sum(eligible),
-        pctile_rank_PA = round(100 * rank_PA/denom, 1),
-        pctile_rank_PA_prior = round(100 * rank_PA_prior/denom, 1)) %>%
+        pctile_rank_PA = round(100 * rank_PA/denom, 1)) %>%
     ungroup() %>%
-    select(year, system, system_name, school, school_name, subject, subgroup, pool, designation_ineligible, valid_tests:pctile_rank_PA_prior) %>%
+    select(year, system, system_name, school, school_name, subject, subgroup, pool, designation_ineligible, valid_tests:pctile_rank_PA) %>%
     arrange(system, system_name, school, school_name, subject, subgroup)
 
-rm(success_rates_1yr, amos, grade_pools, school_base, tvaas_subjects, tvaas_2014, tvaas_2015, tvaas_act, tvaas_all)
+rm(success_rates_1yr, success_rates_3yr, amos, grade_pools, school_base, tvaas_subjects, tvaas_2014, tvaas_2015, tvaas_act, tvaas_all)
 
 # Output file
 write_csv(school_accountability, path = "data/school_accountability_file.csv", na = "")
