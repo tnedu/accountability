@@ -74,7 +74,7 @@ infix
 	scale_score_lb_ci 907-909
 	scale_score_ub_ci 910-912
 
-using "K:\ORP_accountability\data\2016_cdf\TNREADY_EOC/00000_0000_State_Student_Datafile_EOC_100percent.txt", clear;
+using "K:\ORP_accountability\data\2016_cdf\TNREADY_EOC/00000_0000_State_Student_Datafile_EOC_spring_final.txt", clear;
 
 save "K:\ORP_accountability\projects\2016_student_level_file/spring_math_english_cdf.dta", replace;
 
@@ -137,6 +137,6 @@ infix
 	scale_score_lb_ci 907-909
 	scale_score_ub_ci 910-912
 
-using "K:\ORP_accountability\data\2016_cdf\TNREADY_EOC/00000_0000_State_Student_Datafile_EOC_fall.txt", clear;
+using "K:\ORP_accountability\data\2016_cdf\TNREADY_EOC/00000_0000_State_Student_Datafile_EOC_fall_final.txt", clear;
 
 save "K:\ORP_accountability\projects\2016_student_level_file/fall_math_english_cdf.dta", replace;
