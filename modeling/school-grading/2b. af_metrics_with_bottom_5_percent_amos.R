@@ -91,16 +91,18 @@ act_grad <- school_accountability %>%
         AMO_target = ifelse(valid_tests_prior_ACT >= 30 & grad_cohort_prior >= 30, round(act_grad_prior + (100 - act_grad_prior)/16, 1), NA),
         AMO_target_4 = ifelse(valid_tests_prior_ACT >= 30 & grad_cohort_prior >= 30, round(act_grad_prior + (100 - act_grad_prior)/8, 1), NA),
         act_grad = round(grad_rate * pct_21_ACT/100, 1),
-        grade_readiness_absolute = ifelse(grad_cohort >= 30 & valid_tests_ACT >= 30 & act_grad >= 50, "A", NA),
-        grade_readiness_absolute = ifelse(grad_cohort >= 30 & valid_tests_ACT >= 30 & act_grad > 35 & act_grad < 50, "B", grade_readiness_absolute),
-        grade_readiness_absolute = ifelse(grad_cohort >= 30 & valid_tests_ACT >= 30 & act_grad > 28 & act_grad <= 35, "C", grade_readiness_absolute),
-        grade_readiness_absolute = ifelse(grad_cohort >= 30 & valid_tests_ACT >= 30 & act_grad > 16 & act_grad <= 28, "D", grade_readiness_absolute),
-        grade_readiness_absolute = ifelse(grad_cohort >= 30 & valid_tests_ACT >= 30 & act_grad <= 16, "F", grade_readiness_absolute),
-        grade_readiness_target = ifelse(grad_cohort >= 30 & valid_tests_ACT >= 30 & act_grad < act_grad_prior, "F", NA),
-        grade_readiness_target = ifelse(grad_cohort >= 30 & valid_tests_ACT >= 30 & act_grad == act_grad_prior, "D", grade_readiness_target),
-        grade_readiness_target = ifelse(grad_cohort >= 30 & valid_tests_ACT >= 30 & act_grad > act_grad_prior & act_grad < AMO_target, "C", grade_readiness_target),
-        grade_readiness_target = ifelse(grad_cohort >= 30 & valid_tests_ACT >= 30 & act_grad >= AMO_target & act_grad < AMO_target_4, "B", grade_readiness_target),
-        grade_readiness_target = ifelse(grad_cohort >= 30 & valid_tests_ACT >= 30 & act_grad >= AMO_target_4, "A", grade_readiness_target))
+        grade_readiness_absolute = ifelse(act_grad >= 50, "A", NA),
+        grade_readiness_absolute = ifelse(act_grad > 35 & act_grad < 50, "B", grade_readiness_absolute),
+        grade_readiness_absolute = ifelse(act_grad > 28 & act_grad <= 35, "C", grade_readiness_absolute),
+        grade_readiness_absolute = ifelse(act_grad > 16 & act_grad <= 28, "D", grade_readiness_absolute),
+        grade_readiness_absolute = ifelse(act_grad <= 16, "F", grade_readiness_absolute),
+        grade_readiness_absolute = ifelse(grad_cohort < 30 | valid_tests_ACT < 30, NA, grade_readiness_absolute),
+        grade_readiness_target = ifelse(act_grad >= AMO_target_4, "A", NA),
+        grade_readiness_target = ifelse(act_grad >= AMO_target & act_grad < AMO_target_4, "B", grade_readiness_target),
+        grade_readiness_target = ifelse(act_grad > act_grad_prior & act_grad < AMO_target, "C", grade_readiness_target),
+        grade_readiness_target = ifelse(act_grad == act_grad_prior, "D", grade_readiness_target),
+        grade_readiness_target = ifelse(act_grad < act_grad_prior, "F", grade_readiness_target),
+        grade_readiness_target = ifelse(grad_cohort < 30 | valid_tests_ACT < 30, NA, grade_readiness_target))
 
 # All Students Heat Map
 all_students <- school_accountability %>%
@@ -222,6 +224,27 @@ all_students_grades_final <- AF_grades_metrics %>%
         achievement_grade = ifelse(achievement_average > 2 & achievement_average <= 3, "B", achievement_grade),
         achievement_grade = ifelse(achievement_average > 3, "A", achievement_grade))
 
+# Targeted support schools
+targeted_support <- AF_grades_metrics %>%
+    filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged", 
+        "English Language Learners with T1/T2", "Students with Disabilities")) %>%
+    select(system, system_name, school, school_name, subgroup, subgroup_average) %>%
+    full_join(F_schools, by = c("system", "school")) %>%
+    group_by(subgroup) %>%
+    mutate(rank = rank(subgroup_average, na.last = "keep", ties.method = "average"), 
+        denom = sum(!is.na(subgroup_average)),
+        percentile = 100 * rank/denom,
+        targeted_support = ifelse(is.na(final_grade), percentile <= 5, NA)) %>%
+    ungroup() %>%
+    select(system, system_name, school, school_name, subgroup, final_grade, targeted_support) %>%
+    spread(subgroup, targeted_support) %>%
+    rename(targeted_support_BHN = `Black/Hispanic/Native American`, targeted_support_ED = `Economically Disadvantaged`,
+        targeted_support_SWD = `Students with Disabilities`, targeted_support_EL = `English Language Learners with T1/T2`) %>%
+    mutate(targeted_support = ifelse(is.na(final_grade), targeted_support_BHN == TRUE | targeted_support_ED == TRUE | 
+        targeted_support_SWD == TRUE | targeted_support_EL == TRUE, NA)) %>%
+    select(system, school, targeted_support_BHN, targeted_support_ED, targeted_support_SWD, targeted_support_EL,
+        targeted_support)
+
 # Drop Super Subgroup observation if other subgroups are present
 subgroup_grades_final <- AF_grades_metrics %>%
     filter(subgroup != "All Students") %>%
@@ -240,7 +263,8 @@ subgroup_grades_final <- AF_grades_metrics %>%
 
 AF_grades_final <- all_students_grades_final %>%
     full_join(subgroup_grades_final, by = c("system", "system_name", "school", "school_name")) %>%
-    left_join(F_schools, by = c("system", "school")) %>%
+    full_join(F_schools, by = c("system", "school")) %>%
+    full_join(targeted_support, by = c("system", "school")) %>%
     mutate(final_grade = ifelse(is.na(final_grade) & priority_grad == TRUE, "F", final_grade)) %>%
     rowwise() %>%
     mutate(overall_average = round(mean(c(achievement_average, gap_closure_average), na.rm = TRUE), 1)) %>%
@@ -249,8 +273,12 @@ AF_grades_final <- all_students_grades_final %>%
         final_grade = ifelse(is.na(final_grade) & overall_average > 2 & overall_average <= 3, "B", final_grade),
         final_grade = ifelse(is.na(final_grade) & overall_average > 1 & overall_average <= 2, "C", final_grade),
         final_grade = ifelse(is.na(final_grade) & overall_average <= 1, "D", final_grade),
-        final_grade = ifelse(designation_ineligible, NA, final_grade)) %>%
-    select(system:gap_closure_grade, overall_average, final_grade)
+        final_grade = ifelse(designation_ineligible, NA, final_grade),
+        targeted_support = ifelse(designation_ineligible, NA, targeted_support),
+        priority_grad = ifelse(is.na(priority_grad), FALSE, priority_grad),
+        targeted_support = ifelse(priority_grad == TRUE, NA, targeted_support),
+        targeted_support = ifelse(is.na(targeted_support), FALSE, targeted_support)) %>%
+    select(system:gap_closure_grade, overall_average, targeted_support_BHN:targeted_support, final_grade)
 
 # Output files
 write_csv(AF_grades_metrics, path = "data/AF_bottom_five_amos_metrics.csv", na = "")
