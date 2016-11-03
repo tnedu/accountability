@@ -20,13 +20,20 @@ use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_
 gen year = 2016;
 
 * State results will only reflect high school students;
-drop if grade < 9;
+* drop if grade < 9;
 
 * MSAA tests above grade 9 are reassigned to EOCs;
-replace original_subject = "Algebra I" if test == "MSAA" & grade > 8 & original_subject == "Math";
-replace original_subject = "English II" if test == "MSAA" & grade > 8 & original_subject == "ELA";
-replace original_subject = "Biology I" if test == "MSAA" & grade > 8 & original_subject == "Science";
-replace original_subject = "US History" if test == "MSAA" & grade > 8 & original_subject == "Social Studies";
+replace original_subject = "Algebra I" if original_subject == "Math" & test == "MSAA" & grade >= 9 &
+	(system != 30 & system != 60 & system != 80 & system != 100 & system != 110 & system != 140 & system != 150 &
+	system != 190 & system != 440 & system != 580 & system != 590 & system != 710 & system != 800 & system != 821 &
+	system != 850 & system != 890 & system != 930);
+
+replace original_subject = "Integrated Math I" if original_subject == "Math" & test == "MSAA" & grade >= 9 &
+	(system == 30 | system == 60 | system == 80 | system == 100 | system == 110 | system == 140 | system == 150 | 
+	system == 190 | system == 440 | system == 580 | system == 590 | system == 710 | system == 800 | system == 821 | 
+	system == 850 | system == 890 | system == 930);
+
+replace original_subject = "English II" if test == "MSAA" & original_subject == "ELA";
 
 * Enrolled, proficiency levels;
 gen enrolled = 1;

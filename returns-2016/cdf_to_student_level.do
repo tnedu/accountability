@@ -188,12 +188,22 @@ replace proficiency_level = "" if el_excluded == 1;
 * Proficiency modified to missing if nullify or did not attempt or part 1 or part 2 only (5.2.1);
 replace proficiency_level = "" if (nullify_part_1 == 1 | nullify_part_2 == 1 | did_not_attempt_part_1 == 1 | did_not_attempt_part_2 == 1 | 
 	part_1_or_2_only == 1 | part_1_or_2_only == 2);
-
+replace proficiency_level = "" if invalid_score != .;
+	
 * Students taking MSAA are considered special education (5.5);
 replace special_ed = 1 if test == "MSAA";
 
 * Modify subject for MSAA tests in grade >= 9 (6.8);
-replace subject = "Algebra I" if original_subject == "Math" & test == "MSAA" & (grade >= 9 & grade != .);
+replace subject = "Algebra I" if original_subject == "Math" & test == "MSAA" & (grade >= 9 & grade != .) &
+	(system != 30 & system != 60 & system != 80 & system != 100 & system != 110 & system != 140 & system != 150 &
+	system != 190 & system != 440 & system != 580 & system != 590 & system != 710 & system != 800 & system != 821 &
+	system != 850 & system != 890 & system != 930);
+
+replace subject = "Integrated Math I" if original_subject == "Math" & test == "MSAA" & (grade >= 9 & grade != .) &
+	(system == 30 | system == 60 | system == 80 | system == 100 | system == 110 | system == 140 | system == 150 | 
+	system == 190 | system == 440 | system == 580 | system == 590 | system == 710 | system == 800 | system == 821 | 
+	system == 850 | system == 890 | system == 930);
+
 replace subject = "English II" if original_subject == "ELA" & test == "MSAA" & (grade >= 9 & grade != .);
 
 * Drop tests from CTE, adult HS, and alternative schools (6.9);
