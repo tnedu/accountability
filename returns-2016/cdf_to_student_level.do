@@ -139,9 +139,15 @@ replace original_subject = "US History" if original_subject == "U1";
 append using `msaa';
 
 * Create student level file variables;
-gen tested_part_1 = 1 if test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
-gen tested_part_2 = 1 if test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
+gen enrolled = 1 if test == "MSAA" | original_subject == "Biology I" | original_subject == "Chemistry";
+gen enrolled_part_1 = 1 if system_part_1 != . & test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
+gen enrolled_part_2 = 1 if system_part_2 != . & test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
+
 gen tested = 1 if test == "MSAA" | original_subject == "Biology I" | original_subject == "Chemistry";
+gen tested_part_1_only = 1 if system_part_1 != . & system_part_2 == . & test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
+gen tested_part_2_only = 1 if system_part_1 == . & system_part_2 != . & test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
+gen tested_both = 1 if system_part_1 != . & system_part_2 != . & test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
+
 gen valid_test = .;
 
 gen original_proficiency_level = "1. Below" if performance_level == 1;
@@ -170,19 +176,28 @@ drop if grade == 13;
 
 * Apply testing flag hierarchy (5.2.1);
 * Absent students have a missing proficiency and tested value;
-replace tested_part_1 = 0 if absent_part_1 == 1;
-replace tested_part_2 = 0 if absent_part_2 == 1;
+replace tested_part_1_only = 0 if absent_part_1 == 1 & (subject != "Biology I" & subject != "Chemistry");
+replace tested_part_2_only = 0 if absent_part_2 == 1 & (subject != "Biology I" & subject != "Chemistry");
+replace tested_both = 0 if absent_part_1 == 1 & (subject != "Biology I" & subject != "Chemistry");
+replace tested_both = 0 if absent_part_2 == 1 & (subject != "Biology I" & subject != "Chemistry");
+
+replace tested = 0 if absent_part_2 == 1 & (subject == "Biology I" | subject == "Chemistry");
+
 replace proficiency_level = "" if absent_part_1 == 1 | absent_part_2 == 1;
 
 * EL Excluded students are considered tested unless they do not have a performance level, but are not considered valid tests;
 * EL Excluded students with a proficiency level are tested, but proficiency modified to missing (5.2.1);
 replace valid_test = 0 if el_excluded == 1;
-replace tested_part_1 = 0 if el_excluded == 1 & original_proficiency_level == "" & (original_subject == "Math" |
-	original_subject == "Algebra I" | original_subject == "Algebra II" | original_subject == "Geometry" |
-	regexm(original_subject, "Integrated Math") | original_subject == "Biology I" | original_subject == "Chemistry");
-replace tested_part_2 = 0 if el_excluded == 1 & original_proficiency_level == "" & (original_subject == "Math" |
-	original_subject == "Algebra I" | original_subject == "Algebra II" | original_subject == "Geometry" |
-	regexm(original_subject, "Integrated Math") | original_subject == "Biology I" | original_subject == "Chemistry");
+replace tested_part_1_only = 0 if el_excluded == 1 & original_proficiency_level == "" & 
+	(original_subject == "Math" | original_subject == "Algebra I" | original_subject == "Algebra II" | 
+	original_subject == "Geometry" | regexm(original_subject, "Integrated Math"));
+replace tested_part_2_only = 0 if el_excluded == 1 & original_proficiency_level == "" & 
+	(original_subject == "Math" | original_subject == "Algebra I" | original_subject == "Algebra II" | 
+	original_subject == "Geometry" | regexm(original_subject, "Integrated Math"));
+replace tested_both = 0 if el_excluded == 1 & original_proficiency_level == "" &
+	(original_subject == "Math" | original_subject == "Algebra I" | original_subject == "Algebra II" | 
+	original_subject == "Geometry" | regexm(original_subject, "Integrated Math"));
+replace tested = 0 if el_excluded == 1 & original_proficiency_level == "" & (original_subject == "Biology I" | original_subject == "Chemistry");
 replace proficiency_level = "" if el_excluded == 1;
 
 * Proficiency modified to missing if nullify or did not attempt or part 1 or part 2 only (5.2.1);
@@ -241,7 +256,7 @@ replace subject = "Social Studies" if original_subject == "US History" & grade <
 replace test = "Achievement" if original_subject == "US History" & grade < 9;
 
 keep system_part_1 system_name_part_1 school_part_1 school_name_part_1 system system_name school school_name test
-	original_subject subject original_proficiency_level proficiency_level scale_score tested* valid_test 
+	original_subject subject original_proficiency_level proficiency_level scale_score enrolled* tested* valid_test 
 	unique_student_id last_name first_name grade race bhn_group functionally_delayed special_ed economically_disadvantaged 
 	el el_t1_t2 el_exclude greater_than_60_pct part_1_or_2_only migrant homebound absent_part_* did_not_attempt_part_* 
 	nullify_part_* residential_facility_part_* semester;
@@ -313,10 +328,10 @@ replace el_t1_t2 = 0 if el_t1_t2 == .;
 replace el_t1_t2 = 1 if el_t1_t2 == 1 | el_t1_t2 == 2;
 
 order system_part_1 system_name_part_1 school_part_1 school_name_part_1 system system_name school school_name test
-	original_subject subject original_proficiency_level proficiency_level scale_score tested tested_part_1 tested_part_2 valid_test 
-	unique_student_id last_name first_name grade race bhn_group functionally_delayed special_ed economically_disadvantaged 
-	el el_t1_t2 el_exclude greater_than_60_pct part_1_or_2_only migrant homebound absent_part_1 absent_part_2 did_not_attempt_part_1
-	did_not_attempt_part_2  nullify_part_1 nullify_part_2 residential_facility_part_1 residential_facility_part_2;
+	original_subject subject original_proficiency_level proficiency_level scale_score enrolled enrolled_part_1 enrolled_part_2
+	tested tested_part_1 tested_part_2 tested_both valid_test unique_student_id last_name first_name grade race bhn_group functionally_delayed 
+	special_ed economically_disadvantaged el el_t1_t2 el_exclude greater_than_60_pct part_1_or_2_only migrant homebound absent_part_1 
+	absent_part_2 did_not_attempt_part_1 did_not_attempt_part_2 nullify_part_1 nullify_part_2 residential_facility_part_1 residential_facility_part_2;
 
 compress;
 
