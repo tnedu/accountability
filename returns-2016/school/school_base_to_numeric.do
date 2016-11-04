@@ -8,19 +8,19 @@ program drop _all;
 estimates drop _all;
 
 /***************************************************************
-Do File description:  State Base to State Level Results
+Do File description:  School Base to Numeric
 
 Edited last by:  Alexander Poon
 
-Date edited last:  10/31/2016
+Date edited last:  11/4/2016
 ***************************************************************/
 
-use "K:\ORP_accountability\projects\2016_state_results/state_base_with_super_subgroup_2016.dta", clear;
+use "K:\ORP_accountability\projects\2016_state_results/school_base_with_super_subgroup_2016.dta", clear;
 
 * Keep only subjects, subgroups in accountability;
 keep if subgroup == "All Students" | subgroup == "Black/Hispanic/Native American" | subgroup == "Economically Disadvantaged" |
 	subgroup == "Students with Disabilities" | subgroup == "English Learners with T1/T2";
-	
+
 * Drop all grades, have to collapse to manually create grade combinations;
 drop if grade == "All Grades";
 
@@ -30,7 +30,8 @@ replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" 
 replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III";
 replace subject = "HS Science" if subject == "Biology I" | subject == "Chemistry";
 
-collapse (sum) enrolled tested tested_part_1 tested_part_2 valid_tests n_below n_approaching n_on_track n_mastered, by(year subject subgroup grade_band);
+collapse (sum) enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both
+	valid_tests n_below n_approaching n_on_track n_mastered, by(year system school subject subgroup grade_band);
 
 rename grade_band grade;
 
@@ -66,25 +67,11 @@ tab pct_total;
 drop pct_total;
 
 * Output numeric file;
-gsort grade subject subgroup;
+gsort system school subject subgroup;
 
-gen system = 0;
-gen system_name = "State of Tennessee";
-
-order year system system_name subject grade subgroup enrolled tested tested_part_1 tested_part_2 valid_tests 
-	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
+order year system school subject grade subgroup enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only 
+	tested_both valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 compress;
 
-save "K:\ORP_accountability\projects\2016_state_results/state_numeric_with_super_subgroup_2016.dta", replace;
-
-append using "K:\ORP_accountability\projects\2016_state_results/state_base_with_super_subgroup_2016.dta";
-drop if grade == "9" | grade == "10" | grade == "11" | grade == "12";
-
-keep year system system_name subject subgroup valid_tests n_below n_approaching n_on_track n_mastered
-	pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
-
-duplicates drop;
-
-save "K:\ORP_accountability\projects\2016_state_results/state_results_2016.dta", replace;
-export excel "K:\ORP_accountability\projects\2016_state_results/state_results_2016.xlsx", firstrow(var) replace;
+save "K:\ORP_accountability\projects\2016_state_results/school_numeric_with_super_subgroup_2016.dta", replace;
