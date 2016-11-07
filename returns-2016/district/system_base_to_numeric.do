@@ -19,7 +19,7 @@ use "K:\ORP_accountability\projects\2016_state_results/system_base_with_super_su
 
 * Keep only subjects, subgroups in accountability;
 keep if subgroup == "All Students" | subgroup == "Black/Hispanic/Native American" | subgroup == "Economically Disadvantaged" |
-	subgroup == "Students with Disabilities" | subgroup == "English Learners with T1/T2";
+	subgroup == "Students with Disabilities" | subgroup == "English Learners with T1/T2" | subgroup == "Super Subgroup";
 
 * Drop all grades, have to collapse to manually create grade combinations;
 drop if grade == "All Grades";
@@ -28,9 +28,10 @@ gen grade_band = "9th through 12th";
 
 replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math");
 replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III";
-replace subject = "HS Science" if subject == "Biology I" | subject == "Chemistry";
 
-collapse (sum) enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both
+drop if subject == "Biology I" | subject == "Chemistry" | subject == "US History";
+
+collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both
 	valid_tests n_below n_approaching n_on_track n_mastered, by(year system subject subgroup grade_band);
 
 rename grade_band grade;
@@ -66,11 +67,63 @@ tab pct_total;
 
 drop pct_total;
 
+* Participation Rate;
+gen participation_rate = round(100 * (tested + tested_part_1_only + tested_part_2_only + tested_both)/(enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both));
+
+* Percentile rank;
+gen eligible = valid_tests >= 30 & valid_tests != .;
+gen pctile_rank_OM = .;
+
+count;
+local count = r(N);
+
+* Looping over observations, generate a new variable equal to the number of eligible districts with the 
+* same or lower percent O/M within the same year, subject, grade band, and subgroup;
+quietly forval k = 1(1)`count' {;
+
+	if pct_on_mastered[`k'] != . {;
+
+		count if pct_on_mastered <= pct_on_mastered[`k'] & subject == subject[`k'] & subgroup == subgroup[`k'] & 
+			grade == grade[`k'] & year == year[`k'] & pct_on_mastered != . & eligible == 1;
+
+		replace pctile_rank_OM = r(N) if [_n] == `k' & eligible == 1;
+
+	};
+};
+bysort subject grade year subgroup: egen eligible_count = sum(eligible);
+
+gsort -year subject grade subgroup -eligible -pct_on_mastered;
+gen OM_percentile = round(100 * pctile_rank_OM/eligible_count, 0.1) if eligible == 1;
+
+drop eligible pctile_rank_* eligible_count;
+
+* Merge on prior percentile rank;
+preserve;
+
+use "K:\ORP_accountability\projects\2016_pre_coding\Output/system_numeric_with_super_subgroup_2016.dta", clear;
+
+keep if year == 2015;
+keep if subject == "HS Math" | subject == "HS English";
+
+replace subgroup = "English Learners with T1/T2" if subgroup == "English Language Learners";
+
+keep system system_name subject subgroup PA_percentile;
+rename PA_percentile PA_percentile_prior;
+
+tempfile pctile_prior;
+save `pctile_prior', replace;
+
+restore;
+
+mmerge system subject subgroup using `pctile_prior', type(1:1);
+drop _merge;
+
 * Output numeric file;
 gsort system subject subgroup;
 
-order year system subject grade subgroup enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only 
-	tested_both valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
+order year system system_name subject grade subgroup participation_rate enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both 
+	tested tested_part_1_only tested_part_2_only tested_both valid_tests n_below n_approaching n_on_track n_mastered 
+	pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered OM_percentile PA_percentile_prior;
 
 compress;
 

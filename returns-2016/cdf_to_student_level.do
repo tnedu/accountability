@@ -140,8 +140,9 @@ append using `msaa';
 
 * Create student level file variables;
 gen enrolled = 1 if test == "MSAA" | original_subject == "Biology I" | original_subject == "Chemistry";
-gen enrolled_part_1 = 1 if system_part_1 != . & test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
-gen enrolled_part_2 = 1 if system_part_2 != . & test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
+gen enrolled_part_1_only = 1 if system_part_1 != . & system_part_2 == . & test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
+gen enrolled_part_2_only = 1 if system_part_2 != . & system_part_1 == . & test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
+gen enrolled_both = 1 if system_part_1 != . & system_part_2 != . & test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
 
 gen tested = 1 if test == "MSAA" | original_subject == "Biology I" | original_subject == "Chemistry";
 gen tested_part_1_only = 1 if system_part_1 != . & system_part_2 == . & test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
@@ -327,8 +328,8 @@ replace el = 0 if el == .;
 replace el_t1_t2 = 0 if el_t1_t2 == .;
 replace el_t1_t2 = 1 if el_t1_t2 == 1 | el_t1_t2 == 2;
 
-order system_part_1 system_name_part_1 school_part_1 school_name_part_1 system system_name school school_name test
-	original_subject subject original_proficiency_level proficiency_level scale_score enrolled enrolled_part_1 enrolled_part_2
+order system_part_1 system_name_part_1 school_part_1 school_name_part_1 system system_name school school_name test 
+	original_subject subject original_proficiency_level proficiency_level scale_score enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both
 	tested tested_part_1 tested_part_2 tested_both valid_test unique_student_id last_name first_name grade race bhn_group functionally_delayed 
 	special_ed economically_disadvantaged el el_t1_t2 el_exclude greater_than_60_pct part_1_or_2_only migrant homebound absent_part_1 
 	absent_part_2 did_not_attempt_part_1 did_not_attempt_part_2 nullify_part_1 nullify_part_2 residential_facility_part_1 residential_facility_part_2;

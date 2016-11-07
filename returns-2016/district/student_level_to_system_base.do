@@ -12,7 +12,7 @@ Do File description:  Student Level to System Base
 
 Edited last by:  Alexander Poon
 
-Date edited last:  11/4/2016
+Date edited last:  11/7/2016
 ***************************************************************/
 
 use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
@@ -72,7 +72,8 @@ quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD E
 	keep if `s' == 1;
 	gen subgroup = "`s'";
 
-	collapse (sum) enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1 tested_part_2 tested_both valid_test n_below n_approaching n_on_track n_mastered, by(year system original_subject subgroup);
+	collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1 tested_part_2 tested_both 
+		valid_test n_below n_approaching n_on_track n_mastered, by(year system original_subject subgroup);
 
 	gen grade = "All Grades";
 
@@ -88,7 +89,8 @@ quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD E
 	keep if `s' == 1;
 	gen subgroup = "`s'";
 
-	collapse (sum) enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1 tested_part_2 tested_both valid_test n_below n_approaching n_on_track n_mastered, by(year system original_subject grade subgroup);
+	collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1 tested_part_2 tested_both 
+		valid_test n_below n_approaching n_on_track n_mastered, by(year system original_subject grade subgroup);
 	
 	tostring grade, replace;
 
@@ -141,11 +143,11 @@ tab pct_total;
 drop pct_total;
 
 * Create New Entries for missing subgroups (with 0 enrolled, valid tests, etc.);
-reshape wide enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both valid_tests 
+reshape wide enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both valid_tests 
 	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered,
 	i(year system subject grade) j(subgroup) string;
 
-foreach v in enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both valid_tests 
+foreach v in enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both valid_tests 
 	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered {;
 
 	foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD EL EL_T1_T2 Non_ED Non_SWD Non_EL Non_EL_T1_T2 Super {;
@@ -175,7 +177,7 @@ replace subgroup = "American Indian or Alaska Native" if subgroup == "Native";
 * Clean and output base file;
 gsort system subject grade subgroup;
 
-order year system subject grade subgroup enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both 
+order year system subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
 	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 compress;
