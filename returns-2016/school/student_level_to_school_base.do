@@ -73,7 +73,8 @@ quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD E
 	keep if `s' == 1;
 	gen subgroup = "`s'";
 
-	collapse (sum) enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1 tested_part_2 tested_both valid_test n_below n_approaching n_on_track n_mastered, by(year system school original_subject subgroup);
+	collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1 tested_part_2 tested_both 
+		valid_test n_below n_approaching n_on_track n_mastered, by(year system school original_subject subgroup);
 
 	gen grade = "All Grades";
 
@@ -89,7 +90,8 @@ quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD E
 	keep if `s' == 1;
 	gen subgroup = "`s'";
 
-	collapse (sum) enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1 tested_part_2 tested_both valid_test n_below n_approaching n_on_track n_mastered, by(year system school original_subject grade subgroup);
+	collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1 tested_part_2 tested_both 
+		valid_test n_below n_approaching n_on_track n_mastered, by(year system school original_subject grade subgroup);
 	
 	tostring grade, replace;
 
@@ -142,12 +144,12 @@ tab pct_total;
 drop pct_total;
 
 * Create New Entries for missing subgroups (with 0 enrolled, valid tests, etc.);
-reshape wide enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both valid_tests 
-	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered,
+reshape wide enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
+	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered,
 	i(year system school subject grade) j(subgroup) string;
 
-foreach v in enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both valid_tests 
-	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered {;
+foreach v in enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
+	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered {;
 
 	foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD EL EL_T1_T2 Non_ED Non_SWD Non_EL Non_EL_T1_T2 Super {;
 
@@ -176,8 +178,9 @@ replace subgroup = "American Indian or Alaska Native" if subgroup == "Native";
 * Clean and output base file;
 gsort system school subject grade subgroup;
 
-order year system school subject grade subgroup enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both 
-	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
+order year system school subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both
+	tested tested_part_1_only tested_part_2_only tested_both valid_tests n_below n_approaching n_on_track n_mastered 
+	pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 compress;
 

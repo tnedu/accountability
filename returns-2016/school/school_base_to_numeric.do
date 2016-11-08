@@ -19,7 +19,7 @@ use "K:\ORP_accountability\projects\2016_state_results/school_base_with_super_su
 
 * Keep only subjects, subgroups in accountability;
 keep if subgroup == "All Students" | subgroup == "Black/Hispanic/Native American" | subgroup == "Economically Disadvantaged" |
-	subgroup == "Students with Disabilities" | subgroup == "English Learners with T1/T2";
+	subgroup == "Students with Disabilities" | subgroup == "English Learners with T1/T2" | subgroup == "Super Subgroup";
 
 * Drop all grades, have to collapse to manually create grade combinations;
 drop if grade == "All Grades";
@@ -28,9 +28,10 @@ gen grade_band = "9th through 12th";
 
 replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math");
 replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III";
-replace subject = "HS Science" if subject == "Biology I" | subject == "Chemistry";
 
-collapse (sum) enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both
+drop if subject == "Biology I" | subject == "Chemistry" | subject == "US History";
+
+collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both
 	valid_tests n_below n_approaching n_on_track n_mastered, by(year system school subject subgroup grade_band);
 
 rename grade_band grade;
@@ -66,11 +67,15 @@ tab pct_total;
 
 drop pct_total;
 
+* Participation Rate;
+gen participation_rate = round(100 * (tested + tested_part_1_only + tested_part_2_only + tested_both)/(enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both));
+
 * Output numeric file;
 gsort system school subject subgroup;
 
-order year system school subject grade subgroup enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only 
-	tested_both valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
+order year system school subject grade subgroup participation_rate enrolled enrolled_part_1 enrolled_part_2 enrolled_both
+	tested tested_part_1_only tested_part_2_only tested_both valid_tests n_below n_approaching n_on_track n_mastered 
+	pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 compress;
 
