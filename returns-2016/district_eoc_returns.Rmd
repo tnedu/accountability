@@ -15,15 +15,22 @@ library(ggthemes)
 system_base <- readstata13::read.dta13("K:/ORP_accountability/projects/2016_state_results/system_base_with_super_subgroup_2016.dta")
 
 system_numeric <- readstata13::read.dta13("K:/ORP_accountability/projects/2016_state_results/system_numeric_with_super_subgroup_2016.dta") %>%
-    mutate(Math = ifelse(system %in% c(30, 60, 80, 100, 110, 140, 150, 190, 440, 580, 590, 710, 800, 821, 850, 890, 930), "Integrated Math", "Algebra"))
+    rename(District = system_name) %>%
+    mutate(District = sub("Special School District", "SSD", District),
+        Math = ifelse(system %in% c(30, 60, 80, 100, 110, 140, 150, 190, 440, 580, 590, 710, 800, 821, 850, 890, 930), "Integrated Math", "Algebra")) 
 
+state_numeric <- readstata13::read.dta13("K:/ORP_accountability/projects/2016_state_results/state_numeric_with_super_subgroup_2016.dta") %>%
+    rename(District = system_name) %>%
+    mutate(District = sub("Special School District", "SSD", District))
 ```
 
 **Participation Rate**
 
-For accountability purposes, districts are required to meet a 95 percent participation rate for all subject/subgroup combinations with 30 or more enrolled students. 
+For accountability purposes, districts are required to meet a 95 percent participation rate for all subject/subgroup combinations with 30 or more enrolled students.
 
-`r with(system_numeric, sum(subject == "HS English" & subgroup == "All Students" & (enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both) > 30 & participation_rate >= 95))` out of `r with(system_numeric, sum(subject == "HS English" & subgroup == "All Students" & (enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both) > 30))` eligible districts met a 95 percent All Students participation rate in High School English.
+The state participation rate was `r state_numeric[state_numeric$subject == "HS English" & state_numeric$subgroup == "All Students", ]$participation_rate` percent for High School English, and `r state_numeric[state_numeric$subject == "HS Math" & state_numeric$subgroup == "All Students", ]$participation_rate` percent for High School Math, and `r state_numeric[state_numeric$subject == "HS Science" & state_numeric$subgroup == "All Students", ]$participation_rate` percent for High School Science.
+
+`r with(system_numeric, sum(subject == "HS English" & subgroup == "All Students" & (enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both) > 30 & participation_rate >= 95))` out of `r with(system_numeric, sum(subject == "HS English" & subgroup == "All Students" & (enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both) > 30))` eligible districts met a 95 percent participation rate in High School English.
 
 ``` {r, fig.width = 6}
 system_numeric %>%
@@ -35,7 +42,7 @@ system_numeric %>%
     labs(x = "HS English Participation Rate", y = "District Count")
 ```
 
-Districts which failed to meet 95% participation rate for English:
+Districts which failed to meet a 95 percent participation rate for English:
 
 ``` {r}
 system_numeric %>%
@@ -43,13 +50,14 @@ system_numeric %>%
     filter(enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both >= 30) %>%
     filter(participation_rate < 95) %>%
     arrange(participation_rate) %>%
-    select(system_name, participation_rate) %>%
+    select(District, participation_rate) %>%
+    rename(`Participation Rate` = participation_rate) %>%
     knitr::kable()
 ```
 
 &nbsp;
 
-`r with(system_numeric, sum(subject == "HS Math" & subgroup == "All Students" & (enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both) > 30 & participation_rate >= 95))` out of `r with(system_numeric, sum(subject == "HS Math" & subgroup == "All Students" & (enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both) > 30))` eligible districts met a 95 percent All Students participation rate in High School Math.
+`r with(system_numeric, sum(subject == "HS Math" & subgroup == "All Students" & (enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both) > 30 & participation_rate >= 95))` out of `r with(system_numeric, sum(subject == "HS Math" & subgroup == "All Students" & (enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both) > 30))` eligible districts met a 95 percent participation rate in High School Math.
 
 ``` {r, fig.width = 6}
 system_numeric %>%
@@ -61,7 +69,7 @@ system_numeric %>%
     labs(x = "HS Math Participation Rate", y = "District Count")
 ```
 
-Districts which failed to meet 95% participation rate for math:
+Districts which failed to meet a 95 percent participation rate for math:
 
 ``` {r}
 system_numeric %>%
@@ -69,15 +77,16 @@ system_numeric %>%
     filter(enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both >= 30) %>%
     filter(participation_rate < 95) %>%
     arrange(participation_rate) %>%
-    select(system_name, participation_rate) %>%
+    select(District, participation_rate) %>%
+    rename(`Participation Rate` = participation_rate) %>%
     knitr::kable()
 ```
 
 &nbsp;
 
-**Performance**
+**All Students Achievement**
 
-Distribution of proficiency rates in HS Math ranged from `r system_numeric %>% filter(subgroup == "All Students" & subject == "HS Math" & valid_tests >= 30) %>% with(min(pct_on_mastered))` to `r system_numeric %>% filter(subgroup == "All Students" & subject == "HS Math" & valid_tests >= 30) %>% with(max(pct_on_mastered))`.
+The percentage of students On Track/Mastered in Math ranged from `r system_numeric %>% filter(subgroup == "All Students" & subject == "HS Math" & valid_tests >= 30) %>% with(min(pct_on_mastered))` to `r system_numeric %>% filter(subgroup == "All Students" & subject == "HS Math" & valid_tests >= 30) %>% with(max(pct_on_mastered))`.
 
 ``` {r, fig.width = 6}
 system_numeric %>%
@@ -89,7 +98,24 @@ system_numeric %>%
     labs(x = "HS Math Percent On Track/Mastered", y = "District Count")
 ```
 
-Distribution of proficiency rates in HS English ranged from `r system_numeric %>% filter(subgroup == "All Students" & subject == "HS English" & valid_tests >= 30) %>% with(min(pct_on_mastered))` to `r system_numeric %>% filter(subgroup == "All Students" & subject == "HS English" & valid_tests >= 30) %>% with(max(pct_on_mastered))`.
+&nbsp;
+
+The highest performing districts in Math were...
+
+``` {r}
+system_numeric %>%
+    filter(subgroup == "All Students" & subject == "HS Math") %>%
+    filter(valid_tests >= 30) %>%
+    arrange(desc(pct_on_mastered)) %>%
+    select(District, pct_on_mastered) %>%
+    rename(`Percent On Track/Mastered` = pct_on_mastered) %>%
+    slice(1:10) %>%
+    knitr::kable()
+```
+
+&nbsp;
+
+The percentage of students On Track/Mastered in English ranged from `r system_numeric %>% filter(subgroup == "All Students" & subject == "HS English" & valid_tests >= 30) %>% with(min(pct_on_mastered))` to `r system_numeric %>% filter(subgroup == "All Students" & subject == "HS English" & valid_tests >= 30) %>% with(max(pct_on_mastered))`.
 
 ``` {r, fig.width = 6}
 system_numeric %>%
@@ -101,13 +127,30 @@ system_numeric %>%
     labs(x = "HS English Percent On Track/Mastered", y = "District Count")
 ```
 
-Most districts performed better in English than in Math. Districts which performed better in English also tended to performed better in Math.
+&nbsp;
+
+The highest performing districts in English were...
+
+``` {r}
+system_numeric %>%
+    filter(subgroup == "All Students" & subject == "HS English") %>%
+    filter(valid_tests >= 30) %>%
+    arrange(desc(pct_on_mastered)) %>%
+    select(District, pct_on_mastered) %>%
+    rename(`Percent On Track/Mastered` = pct_on_mastered) %>%
+    slice(1:10) %>%
+    knitr::kable()
+```
+
+&nbsp;
+
+Most districts performed better in English than in Math. Higher performing districts in English also tended to be higher performing districts in Math.
 
 ``` {r}
 system_numeric %>%
     filter(subgroup == "All Students" & subject %in% c("HS Math", "HS English")) %>%
     filter(valid_tests >= 30) %>%
-    select(system, system_name, subject, pct_on_mastered, Math) %>%
+    select(District, subject, pct_on_mastered, Math) %>%
     spread(subject, pct_on_mastered) %>%
     ggplot(aes(x = `HS Math`, y = `HS English`, colour = Math)) +
     geom_point() + 
@@ -116,7 +159,7 @@ system_numeric %>%
     labs(x = "HS Math Percent On Track/Mastered", y = "HS English Percent On Track/Mastered")
 ```
 
-**Relative Performance**
+**All Students Relative Performance**
 
 Changes in Math relative performance... (Some large swings)
 
@@ -126,33 +169,36 @@ system_numeric %>%
     ggplot(aes(x = PA_percentile_prior, y = OM_percentile, colour = Math)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, color = "red") +
-    theme_hc()
+    theme_hc() +
+    labs(x = "2015 Math Proficient/Advanced Percentile", y = "2016 Math On Track/Mastered Percentile")
 ```
 
 &nbsp;
 
-Districts with the largest increases in relative performance in Math were....
+Districts with the largest increases in relative performance in Math were...
 
 ``` {r}
 system_numeric %>%
     filter(subgroup == "All Students" & subject == "HS Math") %>%
     mutate(`Change in Percentile Rank` = OM_percentile - PA_percentile_prior) %>%
     arrange(desc(`Change in Percentile Rank`)) %>%
-    select(system_name, OM_percentile, PA_percentile_prior, `Change in Percentile Rank`) %>%
+    select(District, OM_percentile, PA_percentile_prior, `Change in Percentile Rank`) %>%
+    rename(`2016 Percentile Rank` = OM_percentile, `2015 Percentile Rank` = PA_percentile_prior) %>%
     slice(1:10) %>%
     knitr::kable()
 ```
 
 &nbsp;
 
-Districts with the largest decreases in relative performance in Math were....
+Districts with the largest decreases in relative performance in Math were...
 
 ``` {r}
 system_numeric %>%
     filter(subgroup == "All Students" & subject == "HS Math") %>%
     mutate(`Change in Percentile Rank` = OM_percentile - PA_percentile_prior) %>%
     arrange(`Change in Percentile Rank`) %>%
-    select(system_name, OM_percentile, PA_percentile_prior, `Change in Percentile Rank`) %>%
+    select(District, OM_percentile, PA_percentile_prior, `Change in Percentile Rank`) %>%
+    rename(`2016 Percentile Rank` = OM_percentile, `2015 Percentile Rank` = PA_percentile_prior) %>%
     slice(1:10) %>%
     knitr::kable()
 ```
@@ -167,34 +213,111 @@ system_numeric %>%
     ggplot(aes(x = PA_percentile_prior, y = OM_percentile)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, color = "red") +
-    theme_hc()
+    theme_hc() +
+    labs(x = "2015 English Proficient/Advanced Percentile", y = "2016 English On Track/Mastered Percentile")
 ```
 
 &nbsp;
 
-Districts with the largest increases in relative performance in English were....
+Districts with the largest increases in relative performance in English were...
 
 ``` {r}
 system_numeric %>%
     filter(subgroup == "All Students" & subject == "HS English") %>%
     mutate(`Change in Percentile Rank` = OM_percentile - PA_percentile_prior) %>%
     arrange(desc(`Change in Percentile Rank`)) %>%
-    select(system_name, OM_percentile, PA_percentile_prior, `Change in Percentile Rank`) %>%
+    select(District, OM_percentile, PA_percentile_prior, `Change in Percentile Rank`) %>%
+    rename(`2016 Percentile Rank` = OM_percentile, `2015 Percentile Rank` = PA_percentile_prior) %>%
     slice(1:10) %>%
     knitr::kable()
 ```
 
 &nbsp;
 
-Districts with the largest decreases in relative performance in English were....
+Districts with the largest decreases in relative performance in English were...
 
 ``` {r}
 system_numeric %>%
     filter(subgroup == "All Students" & subject == "HS English") %>%
     mutate(`Change in Percentile Rank` = OM_percentile - PA_percentile_prior) %>%
     arrange(`Change in Percentile Rank`) %>%
-    select(system_name, OM_percentile, PA_percentile_prior, `Change in Percentile Rank`) %>%
+    select(District, OM_percentile, PA_percentile_prior, `Change in Percentile Rank`) %>%
+    rename(`2016 Percentile Rank` = OM_percentile, `2015 Percentile Rank` = PA_percentile_prior) %>%
     slice(1:10) %>%
     knitr::kable()
 ```
 
+&nbsp;
+
+**Subgroup Performance**
+
+Performance in HS Math and English by subgroup... (Consistent with above, English looks better than math)
+
+``` {r, fig.width = 7, fig.height = 7}
+system_numeric %>%
+    filter(!(subgroup %in% c("All Students", "Super Subgroup"))) %>%
+    filter(valid_tests >= 30) %>%
+    ggplot(aes(x = pct_on_mastered)) +
+    geom_histogram(col = "black", fill = "blue", alpha = 0.3) +
+    facet_grid(subject ~ subgroup) + 
+    theme_hc() +
+    labs(x = "Percent On Track/Mastered", y = "Number of Districts")
+```
+
+&nbsp;
+
+How does subgroup performance hang with All Students performance? (It doesn't as much as you'd think.)
+
+``` {r, fig.width = 7, fig.height = 7}
+all <- system_numeric %>%
+    filter(subgroup == "All Students") %>%
+    filter(valid_tests >= 30) %>%
+    select(system, subject, OM_percentile) %>%
+    rename(OM_percentile_all = OM_percentile)
+
+system_numeric %>%
+    filter(!(subgroup %in% c("All Students", "Super Subgroup"))) %>%
+    filter(valid_tests >= 30) %>%
+    full_join(all, by = c("system", "subject")) %>%
+    filter(!is.na(OM_percentile)) %>%
+    ggplot(aes(x = OM_percentile_all, y = OM_percentile)) + 
+    geom_point() +
+    geom_abline(intercept = 0, slope = 1, color = "red") +
+    facet_grid(subject ~ subgroup) +
+    theme_hc() +
+    labs(x = "All Students On Track/Mastered Percentile", y = "Subgroup On Track/Mastered Percentile")
+```
+
+&nbsp;
+
+Movement in percentile ranks in HS Math by subgroup...
+
+```{r, fig.width = 7, fig.height = 4}
+system_numeric %>%
+    filter(subject == "HS Math") %>%
+    filter(!(subgroup %in% c("All Students", "Super Subgroup"))) %>%
+    filter(valid_tests >= 30) %>%
+    ggplot(aes(x = PA_percentile_prior, y = OM_percentile, colour = Math)) +
+    geom_point() +
+    geom_abline(intercept = 0, slope = 1, color = "red") +
+    facet_grid(. ~ subgroup) +
+    theme_hc() +
+    labs(x = "2015 Math Proficient/Advanced Percentile", y = "2016 Math On Track/Mastered Percentile")
+```
+
+&nbsp;
+
+Movement in percentile ranks in HS English by subgroup...
+
+```{r, fig.width = 7, fig.height = 4}
+system_numeric %>%
+    filter(subject == "HS English") %>%
+    filter(!(subgroup %in% c("All Students", "Super Subgroup"))) %>%
+    filter(valid_tests >= 30) %>%
+    ggplot(aes(x = PA_percentile_prior, y = OM_percentile)) +
+    geom_point() +
+    geom_abline(intercept = 0, slope = 1, color = "red") +
+    facet_grid(. ~ subgroup) +
+    theme_hc() +
+    labs(x = "2015 English Proficient/Advanced Percentile", y = "2016 English On Track/Mastered Percentile")
+```
