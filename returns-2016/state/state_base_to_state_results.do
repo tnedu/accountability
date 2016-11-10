@@ -30,7 +30,7 @@ replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" 
 replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III";
 replace subject = "HS Science" if subject == "Biology I" | subject == "Chemistry";
 
-collapse (sum) enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both
+collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both
 	valid_tests n_below n_approaching n_on_track n_mastered, by(year subject subgroup grade_band);
 
 rename grade_band grade;
@@ -66,14 +66,18 @@ tab pct_total;
 
 drop pct_total;
 
+* Participation Rate;
+gen participation_rate = round(100 * (tested + tested_part_1_only + tested_part_2_only + tested_both)/(enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both));
+
 * Output numeric file;
 gsort grade subject subgroup;
 
 gen system = 0;
 gen system_name = "State of Tennessee";
 
-order year system system_name subject grade subgroup enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only 
-	tested_both valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
+order year system system_name subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both participation_rate
+	tested tested_part_1_only tested_part_2_only tested_both valid_tests n_below n_approaching n_on_track n_mastered 
+	pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 compress;
 
@@ -82,8 +86,9 @@ save "K:\ORP_accountability\projects\2016_state_results/state_numeric_with_super
 append using "K:\ORP_accountability\projects\2016_state_results/state_base_with_super_subgroup_2016.dta";
 drop if grade == "9" | grade == "10" | grade == "11" | grade == "12";
 
-keep year system system_name subject grade subgroup enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only 
-	tested_both valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
+keep year system system_name subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both
+	tested tested_part_1_only tested_part_2_only tested_both valid_tests n_below n_approaching n_on_track n_mastered 
+	pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 duplicates drop;
 

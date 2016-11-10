@@ -94,8 +94,8 @@ replace special_ed = special_ed == 0 | special_ed == 1 | special_ed == 2;
 
 rename (system_name system_number school_name school_number Native_American Asian Black_or_AfricanAmerican Hawaiian_PacificIslander 
 	White ell ell_t1_t2 race_reported perf_level_total_sci scale_score_total_sci content_area_code ri_status district_enroll)
-	(system_name_final system_final school_name_final school_final native_american asian black hawaiian_pi white el el_t1_t2 reported_race 
-	performance_level scale_score content_area_code_final ri_status_part_2 greater_than_60_pct);
+	(system_name_final system_final school_name_final school_final native_american asian black hawaiian_pi 
+	white el el_t1_t2 reported_race performance_level scale_score content_area_code_final ri_status_part_2 greater_than_60_pct);
 
 tempfile science;
 save `science', replace;
@@ -139,22 +139,47 @@ replace original_subject = "US History" if original_subject == "U1";
 append using `msaa';
 
 * Create student level file variables;
-gen enrolled = 1 if test == "MSAA" | original_subject == "Biology I" | original_subject == "Chemistry";
-gen enrolled_part_1_only = 1 if system_part_1 != . & system_part_2 == . & test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
-gen enrolled_part_2_only = 1 if system_part_2 != . & system_part_1 == . & test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
-gen enrolled_both = 1 if system_part_1 != . & system_part_2 != . & test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
+gen enrolled = test == "MSAA" | original_subject == "Biology I" | original_subject == "Chemistry";
+gen enrolled_part_1_only = system_part_1 != . & system_part_2 == . if test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
+gen enrolled_part_2_only = system_part_2 != . & system_part_1 == . if test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
+gen enrolled_both = system_part_1 != . & system_part_2 != . if test != "MSAA" & (original_subject != "Biology I" & original_subject != "Chemistry");
 
-gen tested = 1 if test == "MSAA" | original_subject == "Biology I" | original_subject == "Chemistry";
-gen tested_part_1_only = 1 if system_part_1 != . & system_part_2 == . & test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
-gen tested_part_2_only = 1 if system_part_1 == . & system_part_2 != . & test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
-gen tested_both = 1 if system_part_1 != . & system_part_2 != . & test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
+gen tested = test == "MSAA" | original_subject == "Biology I" | original_subject == "Chemistry";
+gen tested_part_1_only = system_part_1 != . & system_part_2 == . if test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
+gen tested_part_2_only = system_part_1 == . & system_part_2 != . if test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
+gen tested_both = system_part_1 != . & system_part_2 != . if test != "MSAA" & original_subject != "Biology I" & original_subject != "Chemistry";
 
 gen valid_test = .;
 
-gen original_proficiency_level = "1. Below" if performance_level == 1;
-replace original_proficiency_level = "2. Approaching" if performance_level == 2;
-replace original_proficiency_level = "3. On Track" if performance_level == 3;
-replace original_proficiency_level = "4. Mastered" if performance_level == 4;
+gen original_proficiency_level = "1. Below" if performance_level == 1 &
+	(original_subject == "Algebra I" | original_subject == "Algebra II" | original_subject == "Geometry" | 
+	original_subject == "Integrated Math I" | original_subject == "Integrated Math II" | original_subject == "Integrated Math III" | 
+	original_subject == "English I" | original_subject == "English II" | original_subject == "English III" |
+	original_subject == "US History" | test == "MSAA");
+replace original_proficiency_level = "2. Approaching" if performance_level == 2 & 
+	(original_subject == "Algebra I" | original_subject == "Algebra II" | original_subject == "Geometry" | 
+	original_subject == "Integrated Math I" | original_subject == "Integrated Math II" | original_subject == "Integrated Math III" | 
+	original_subject == "English I" | original_subject == "English II" | original_subject == "English III" |
+	original_subject == "US History" | test == "MSAA");
+replace original_proficiency_level = "3. On Track" if performance_level == 3 & 
+	(original_subject == "Algebra I" | original_subject == "Algebra II" | original_subject == "Geometry" | 
+	original_subject == "Integrated Math I" | original_subject == "Integrated Math II" | original_subject == "Integrated Math III" | 
+	original_subject == "English I" | original_subject == "English II" | original_subject == "English III" |
+	original_subject == "US History" | test == "MSAA");
+replace original_proficiency_level = "4. Mastered" if performance_level == 4 & 
+	(original_subject == "Algebra I" | original_subject == "Algebra II" | original_subject == "Geometry" | 
+	original_subject == "Integrated Math I" | original_subject == "Integrated Math II" | original_subject == "Integrated Math III" | 
+	original_subject == "English I" | original_subject == "English II" | original_subject == "English III" |
+	original_subject == "US History" | test == "MSAA");
+
+replace original_proficiency_level = "1. Below Basic" if performance_level == 1 &
+	(original_subject == "Biology I" | original_subject == "Chemistry");
+replace original_proficiency_level = "2. Basic" if performance_level == 2 &
+	(original_subject == "Biology I" | original_subject == "Chemistry");
+replace original_proficiency_level = "3. Proficient" if performance_level == 3 &
+	(original_subject == "Biology I" | original_subject == "Chemistry");
+replace original_proficiency_level = "4. Advanced" if performance_level == 4 &
+	(original_subject == "Biology I" | original_subject == "Chemistry");
 
 gen race = "Hispanic/Latino" if reported_race == 4;
 replace race = "Black or African American" if reported_race == 3;
@@ -210,17 +235,17 @@ replace proficiency_level = "" if invalid_score != .;
 replace special_ed = 1 if test == "MSAA";
 
 * Modify subject for MSAA tests in grade >= 9 (6.8);
-replace subject = "Algebra I" if original_subject == "Math" & test == "MSAA" & (grade >= 9 & grade != .) &
+replace subject = "Algebra I" if original_subject == "Math" & test == "MSAA" & grade >= 9 & grade != . &
 	(system != 30 & system != 60 & system != 80 & system != 100 & system != 110 & system != 140 & system != 150 &
 	system != 190 & system != 440 & system != 580 & system != 590 & system != 710 & system != 800 & system != 821 &
 	system != 850 & system != 890 & system != 930);
 
-replace subject = "Integrated Math I" if original_subject == "Math" & test == "MSAA" & (grade >= 9 & grade != .) &
+replace subject = "Integrated Math I" if original_subject == "Math" & test == "MSAA" & grade >= 9 & grade != . &
 	(system == 30 | system == 60 | system == 80 | system == 100 | system == 110 | system == 140 | system == 150 | 
 	system == 190 | system == 440 | system == 580 | system == 590 | system == 710 | system == 800 | system == 821 | 
 	system == 850 | system == 890 | system == 930);
 
-replace subject = "English II" if original_subject == "ELA" & test == "MSAA" & (grade >= 9 & grade != .);
+replace subject = "English II" if original_subject == "ELA" & test == "MSAA" & grade >= 9 & grade != .;
 
 * Drop tests from CTE, adult HS, and alternative schools (6.9);
 preserve;
@@ -327,6 +352,11 @@ replace special_ed = 0 if special_ed == .;
 replace el = 0 if el == .;
 replace el_t1_t2 = 0 if el_t1_t2 == .;
 replace el_t1_t2 = 1 if el_t1_t2 == 1 | el_t1_t2 == 2;
+replace functionally_delayed = 0 if functionally_delayed == .;
+replace el_excluded = 0 if el_excluded == .;
+replace migrant = 0 if migrant == .;
+replace homebound = 0 if homebound == .;
+replace part_1_or_2_only = 0 if part_1_or_2_only == 3;
 
 order system_part_1 system_name_part_1 school_part_1 school_name_part_1 system system_name school school_name test 
 	original_subject subject original_proficiency_level proficiency_level scale_score enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both
@@ -337,6 +367,7 @@ order system_part_1 system_name_part_1 school_part_1 school_name_part_1 system s
 compress;
 
 save "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", replace;
+save "K:\ORP_accountability\data\2016_accountability/state_student_level_2016.dta", replace;
 
 duplicates tag system school subject grade test unique_student_id, gen(dup);
 drop if dup > 0;

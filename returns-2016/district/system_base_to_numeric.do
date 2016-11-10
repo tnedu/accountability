@@ -90,6 +90,7 @@ quietly forval k = 1(1)`count' {;
 
 	};
 };
+
 bysort subject grade year subgroup: egen eligible_count = sum(eligible);
 
 gsort -year subject grade subgroup -eligible -pct_on_mastered;
@@ -127,4 +128,5 @@ order year system system_name subject grade subgroup participation_rate enrolled
 
 compress;
 
-save "K:\ORP_accountability\projects\2016_state_results/system_numeric_with_super_subgroup_2016.dta", replace;
+save "K:\ORP_accountability\data\2016_accountability/system_numeric_with_super_subgroup_2016.dta", replace;
+export excel using "K:\ORP_accountability\data\2016_accountability/system_numeric_with_super_subgroup_2016.xlsx", firstrow(var) replace;

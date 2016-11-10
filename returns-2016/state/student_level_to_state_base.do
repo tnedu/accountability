@@ -8,7 +8,7 @@ program drop _all;
 estimates drop _all;
 
 /***************************************************************
-Do File description:  Student Level to Base
+Do File description:  Student Level to State Base
 
 Edited last by:  Alexander Poon
 
@@ -68,7 +68,8 @@ quietly foreach s in All BHN ED Non_ED SWD EL_T1_T2 {;
 	keep if `s' == 1;
 	gen subgroup = "`s'";
 
-	collapse (sum) enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1 tested_part_2 tested_both valid_test n_below n_approaching n_on_track n_mastered, by(year original_subject subgroup);
+	collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1 tested_part_2 tested_both 
+		valid_test n_below n_approaching n_on_track n_mastered, by(year original_subject subgroup);
 
 	gen grade = "All Grades";
 
@@ -84,7 +85,8 @@ quietly foreach s in All BHN ED Non_ED SWD EL_T1_T2 {;
 	keep if `s' == 1;
 	gen subgroup = "`s'";
 
-	collapse (sum) enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1 tested_part_2 tested_both valid_test n_below n_approaching n_on_track n_mastered, by(year original_subject grade subgroup);
+	collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1 tested_part_2 tested_both 
+		valid_test n_below n_approaching n_on_track n_mastered, by(year original_subject grade subgroup);
 	
 	tostring grade, replace;
 
@@ -151,12 +153,12 @@ replace subgroup = "Non_ED" if subgroup == "Non-Economically Disadvantaged";
 replace subgroup = "EL_T1_T2" if subgroup == "English Learners with T1/T2";
 replace subgroup = "SWD" if subgroup == "Students with Disabilities";
 
-reshape wide enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both valid_tests 
-	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered,
+reshape wide enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
+	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered,
 	i(year subject grade) j(subgroup) string;
 
-foreach v in enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both valid_tests 
-	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered {;
+foreach v in enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
+	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered {;
 
 	foreach s in All BHN ED SWD EL_T1_T2 {;
 
@@ -180,8 +182,9 @@ gsort subject grade subgroup;
 gen system = 0;
 gen system_name = "State of Tennessee";
 
-order year system system_name subject grade subgroup enrolled enrolled_part_1 enrolled_part_2 tested tested_part_1_only tested_part_2_only tested_both 
-	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
+order year system system_name subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both
+	tested tested_part_1_only tested_part_2_only tested_both valid_tests n_below n_approaching n_on_track n_mastered 
+	pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 compress;
 

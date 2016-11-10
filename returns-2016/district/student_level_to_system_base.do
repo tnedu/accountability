@@ -40,10 +40,10 @@ replace original_subject = "English II" if test == "MSAA" & original_subject == 
 drop if residential_facility_part_1 == 1 | residential_facility_part_2 == 1;
 
 * Proficiency levels;
-gen n_below = 1 if proficiency_level == "1. Below";
-gen n_approaching = 1 if proficiency_level == "2. Approaching";
-gen n_on_track = 1 if proficiency_level == "3. On Track";
-gen n_mastered = 1 if proficiency_level == "4. Mastered";
+gen n_below = 1 if proficiency_level == "1. Below" | proficiency_level == "1. Below Basic";
+gen n_approaching = 1 if proficiency_level == "2. Approaching" | proficiency_level == "2. Basic";
+gen n_on_track = 1 if proficiency_level == "3. On Track" | proficiency_level == "3. Proficient";
+gen n_mastered = 1 if proficiency_level == "4. Mastered" | proficiency_level == "4. Advanced";
 
 * Create subgroup variables for collapse;
 gen All = 1;
@@ -182,4 +182,5 @@ order year system subject grade subgroup enrolled enrolled_part_1_only enrolled_
 
 compress;
 
-save "K:\ORP_accountability\projects\2016_state_results/system_base_with_super_subgroup_2016.dta", replace;
+save "K:\ORP_accountability\data\2016_accountability/system_base_with_super_subgroup_2016.dta", replace;
+export excel using "K:\ORP_accountability\data\2016_accountability/system_base_with_super_subgroup_2016.xlsx", firstrow(var) replace;

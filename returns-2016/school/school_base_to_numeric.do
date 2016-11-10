@@ -79,4 +79,5 @@ order year system school subject grade subgroup participation_rate enrolled enro
 
 compress;
 
-save "K:\ORP_accountability\projects\2016_state_results/school_numeric_with_super_subgroup_2016.dta", replace;
+save "K:\ORP_accountability\data\2016_accountability/school_numeric_with_super_subgroup_2016.dta", replace;
+export excel using "K:\ORP_accountability\data\2016_accountability/school_numeric_with_super_subgroup_2016.xlsx", firstrow(var) replace;
