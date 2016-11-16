@@ -19,9 +19,8 @@ use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_
 
 gen year = 2016;
 
-* Omit < 60% Enrollment and grades < 9;
+* Omit < 60% Enrollment;
 drop if greater_than_60_pct == "N";
-drop if grade < 9;
 
 * MSAA tests above grade 9 are reassigned to EOCs;
 replace original_subject = "Algebra I" if original_subject == "Math" & test == "MSAA" & grade >= 9 &
@@ -174,10 +173,27 @@ replace subgroup = "Black or African American" if subgroup == "Black";
 replace subgroup = "Native Hawaiian or Other Pacific Islander" if subgroup == "Hawaiian";
 replace subgroup = "American Indian or Alaska Native" if subgroup == "Native";
 
+* Merge on names;
+preserve;
+
+use "K:\ORP_accountability\projects\2016_pre_coding\Output/system_numeric_with_super_subgroup_2016.dta", clear;
+
+keep system system_name;
+duplicates drop;
+
+tempfile names;
+save `names', replace;
+
+restore;
+
+mmerge system using `names', type(n:1);
+drop if _merge == 2;
+drop _merge;
+
 * Clean and output base file;
 gsort system subject grade subgroup;
 
-order year system subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
+order year system system_name subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
 	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 compress;

@@ -24,6 +24,9 @@ keep if subgroup == "All Students" | subgroup == "Black/Hispanic/Native American
 * Drop all grades, have to collapse to manually create grade combinations;
 drop if grade == "All Grades";
 
+* Numeric will only include high school subjects, so drop grade we would normally reassign;
+drop if grade == "6" | grade == "7" | grade == "8";
+
 gen grade_band = "9th through 12th";
 
 replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math");

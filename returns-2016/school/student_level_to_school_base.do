@@ -19,9 +19,8 @@ use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_
 
 gen year = 2016;
 
-* Omit < 60% Enrollment and grades < 9;
+* Omit < 60% Enrollment;
 drop if greater_than_60_pct == "N";
-drop if grade < 9;
 
 * MSAA tests above grade 9 are reassigned to EOCs;
 replace original_subject = "Algebra I" if original_subject == "Math" & test == "MSAA" & grade >= 9 &
