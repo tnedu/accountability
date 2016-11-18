@@ -8,7 +8,7 @@ program drop _all;
 estimates drop _all;
 
 /***************************************************************
-Do File description:  Student Level to System Base
+Do File description:  System Base for Report Card
 
 Edited last by:  Alexander Poon
 
@@ -18,6 +18,9 @@ Date edited last:  11/7/2016
 use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
 
 gen year = 2016;
+
+* Omit < 60% Enrollment;
+* drop if greater_than_60_pct == "N";
 
 * MSAA tests above grade 9 are reassigned to EOCs;
 replace original_subject = "Algebra I" if original_subject == "Math" & test == "MSAA" & grade >= 9 &
@@ -195,5 +198,4 @@ order year system system_name subject grade subgroup enrolled enrolled_part_1_on
 
 compress;
 
-save "K:\ORP_accountability\data\2016_accountability/system_base_with_super_subgroup_2016.dta", replace;
-export excel using "K:\ORP_accountability\data\2016_accountability/system_base_with_super_subgroup_2016.xlsx", firstrow(var) replace;
+export excel using "K:\ORP_accountability\projects\2016_state_results\For Report Card/system_base_2016_for_report_card.xlsx", firstrow(var) replace;

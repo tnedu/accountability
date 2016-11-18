@@ -8,11 +8,11 @@ program drop _all;
 estimates drop _all;
 
 /***************************************************************
-Do File description:  Student Level to System Base
+Do File description:  State Base for Report Card
 
 Edited last by:  Alexander Poon
 
-Date edited last:  11/7/2016
+Date edited last:  11/18/2016
 ***************************************************************/
 
 use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
@@ -32,14 +32,11 @@ replace original_subject = "Integrated Math I" if original_subject == "Math" & t
 
 replace original_subject = "English II" if test == "MSAA" & original_subject == "ELA";
 
-* Residential Facility students are dropped from system level;
-drop if residential_facility_part_1 == 1 | residential_facility_part_2 == 1;
-
 * Proficiency levels;
-gen n_below = 1 if proficiency_level == "1. Below" | proficiency_level == "1. Below Basic";
-gen n_approaching = 1 if proficiency_level == "2. Approaching" | proficiency_level == "2. Basic";
-gen n_on_track = 1 if proficiency_level == "3. On Track" | proficiency_level == "3. Proficient";
-gen n_mastered = 1 if proficiency_level == "4. Mastered" | proficiency_level == "4. Advanced";
+gen n_below = 1 if proficiency_level == "1. Below";
+gen n_approaching = 1 if proficiency_level == "2. Approaching";
+gen n_on_track = 1 if proficiency_level == "3. On Track";
+gen n_mastered = 1 if proficiency_level == "4. Mastered";
 
 * Create subgroup variables for collapse;
 gen All = 1;
@@ -69,7 +66,7 @@ quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD E
 	gen subgroup = "`s'";
 
 	collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1 tested_part_2 tested_both 
-		valid_test n_below n_approaching n_on_track n_mastered, by(year system original_subject subgroup);
+		valid_test n_below n_approaching n_on_track n_mastered, by(year original_subject subgroup);
 
 	gen grade = "All Grades";
 
@@ -86,7 +83,7 @@ quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD E
 	gen subgroup = "`s'";
 
 	collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1 tested_part_2 tested_both 
-		valid_test n_below n_approaching n_on_track n_mastered, by(year system original_subject grade subgroup);
+		valid_test n_below n_approaching n_on_track n_mastered, by(year original_subject grade subgroup);
 	
 	tostring grade, replace;
 
@@ -139,12 +136,12 @@ tab pct_total;
 drop pct_total;
 
 * Create New Entries for missing subgroups (with 0 enrolled, valid tests, etc.);
-reshape wide enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both valid_tests 
-	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered,
-	i(year system subject grade) j(subgroup) string;
+reshape wide enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
+	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered,
+	i(year subject grade) j(subgroup) string;
 
-foreach v in enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both valid_tests 
-	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered {;
+foreach v in enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
+	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered {;
 
 	foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD EL EL_T1_T2 Non_ED Non_SWD Non_EL Non_EL_T1_T2 Super {;
 
@@ -170,30 +167,16 @@ replace subgroup = "Black or African American" if subgroup == "Black";
 replace subgroup = "Native Hawaiian or Other Pacific Islander" if subgroup == "Hawaiian";
 replace subgroup = "American Indian or Alaska Native" if subgroup == "Native";
 
-* Merge on names;
-preserve;
-
-use "K:\ORP_accountability\projects\2016_pre_coding\Output/system_numeric_with_super_subgroup_2016.dta", clear;
-
-keep system system_name;
-duplicates drop;
-
-tempfile names;
-save `names', replace;
-
-restore;
-
-mmerge system using `names', type(n:1);
-drop if _merge == 2;
-drop _merge;
-
 * Clean and output base file;
-gsort system subject grade subgroup;
+gsort subject grade subgroup;
 
-order year system system_name subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
-	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
+gen system = 0;
+gen system_name = "State of Tennessee";
+
+order year system system_name subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both
+	tested tested_part_1_only tested_part_2_only tested_both valid_tests n_below n_approaching n_on_track n_mastered 
+	pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 compress;
 
-save "K:\ORP_accountability\data\2016_accountability/system_base_with_super_subgroup_2016.dta", replace;
-export excel using "K:\ORP_accountability\data\2016_accountability/system_base_with_super_subgroup_2016.xlsx", firstrow(var) replace;
+export excel "K:\ORP_accountability\projects\2016_state_results\For Report Card/state_base_2016_for_report_card.xlsx", firstrow(var) replace;
