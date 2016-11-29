@@ -33,10 +33,10 @@ replace original_subject = "Integrated Math I" if original_subject == "Math" & t
 replace original_subject = "English II" if test == "MSAA" & original_subject == "ELA";
 
 * Proficiency levels;
-gen n_below = 1 if proficiency_level == "1. Below";
-gen n_approaching = 1 if proficiency_level == "2. Approaching";
-gen n_on_track = 1 if proficiency_level == "3. On Track";
-gen n_mastered = 1 if proficiency_level == "4. Mastered";
+gen n_below = 1 if proficiency_level == "1. Below" | proficiency_level == "1. Below Basic";
+gen n_approaching = 1 if proficiency_level == "2. Approaching" | proficiency_level == "2. Basic";
+gen n_on_track = 1 if proficiency_level == "3. On Track" | proficiency_level == "3. Proficient";
+gen n_mastered = 1 if proficiency_level == "4. Mastered" | proficiency_level == "4. Advanced";
 
 * Create subgroup variables for collapse;
 gen All = 1;

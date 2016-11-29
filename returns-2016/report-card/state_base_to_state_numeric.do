@@ -23,6 +23,7 @@ keep if subgroup == "All Students" | subgroup == "Black/Hispanic/Native American
 
 * Drop all grades, have to collapse to manually create grade combinations;
 drop if grade == "All Grades";
+drop if grade == "6" | grade == "7" | grade == "8";
 
 gen grade_band = "9th through 12th";
 
@@ -75,8 +76,8 @@ gsort subject subgroup;
 gen system = 0;
 gen system_name = "State of Tennessee";
 
-order year system system_name subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both participation_rate
-	tested tested_part_1_only tested_part_2_only tested_both valid_tests n_below n_approaching n_on_track n_mastered 
+order year system system_name subject grade subgroup participation_rate enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both
+	tested tested_part_1_only tested_part_2_only tested_both valid_tests n_below n_approaching n_on_track n_mastered
 	pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 export excel "K:\ORP_accountability\projects\2016_state_results\For Report Card/state_numeric_2016_for_report_card.xlsx", firstrow(var) replace;
