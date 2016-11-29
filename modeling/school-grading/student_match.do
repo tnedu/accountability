@@ -12,7 +12,7 @@ Do File description:  Student Match for Subgroup Growth Measure
 
 Edited last by:  Alexander Poon
 
-Date edited last:  11/21/2016
+Date edited last:  11/29/2016
 ***************************************************************/
 
 use "K:\ORP_accountability\data\2014_sas_accountability/state-student-level_2014_09dec2014_withchem.dta", clear;
@@ -32,8 +32,8 @@ drop if subject == "Social Studies" | subject == "U.S. History";
 drop if proficiency_level == "";
 rename (proficiency_level subject) (proficiency_level_prior subject_prior);
 
-* For student with multiple tests in a content area, take higher scale score, then force drop if scale score are the same;
-bysort state_student_id content_area: egen temp = max(scale_score);
+* For student with multiple tests in a content area, take lower scale score, then force drop if scale score are the same;
+bysort state_student_id content_area: egen temp = min(scale_score);
 drop if scale_score != temp;
 
 duplicates drop state_student_id content_area, force;
@@ -72,6 +72,7 @@ drop _merge;
 gen improved = 1 if proficiency_level_prior == "1. Below Basic" & (proficiency_level == "2. Basic" | proficiency_level == "3. Proficient" | proficiency_level  == "4. Advanced");
 replace improved = 1 if proficiency_level_prior == "2. Basic" & (proficiency_level == "3. Proficient" | proficiency_level  == "4. Advanced");
 replace improved = 1 if proficiency_level_prior == "3. Proficient" & proficiency_level  == "4. Advanced";
+replace improved = 1 if proficiency_level_prior == "4. Advanced" & proficiency_level  == "4. Advanced";
 
 replace improved = 0 if improved == .;
 gen students = 1;
@@ -104,7 +105,7 @@ foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super {;
 
 replace subgroup = "Black/Hispanic/Native American" if subgroup == "bhn_group";
 replace subgroup = "Economically Disadvantaged" if subgroup == "economically_disadvantaged";
-replace subgroup = "English Learners with T1/T2" if subgroup == "ell_t1_t2";
+replace subgroup = "English Language Learners with T1/T2" if subgroup == "ell_t1_t2";
 replace subgroup = "Students with Disabilities" if subgroup == "special_ed";
 replace subgroup = "Super Subgroup" if subgroup == "super";
 
@@ -121,3 +122,4 @@ replace grade = "C" if eligible == 1 & percentile_rank >= 40 & percentile_rank <
 replace grade = "D" if eligible == 1 & percentile_rank >= 20 & percentile_rank < 40;
 replace grade = "F" if eligible == 1 & percentile_rank < 20;
 
+export delim using "K:\ORP_accountability\projects\Alex\accountability\modeling\school-grading\data/student_match_ranks.csv", delim(",") replace;
