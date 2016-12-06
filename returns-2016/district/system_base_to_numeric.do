@@ -15,11 +15,13 @@ Edited last by:  Alexander Poon
 Date edited last:  11/4/2016
 ***************************************************************/
 
-use "K:\ORP_accountability\projects\2016_state_results/system_base_with_super_subgroup_2016.dta", clear;
+use "K:\ORP_accountability\data\2016_accountability/system_base_with_act_substitution_2016.dta", clear;
 
 * Keep only subjects, subgroups in accountability;
 keep if subgroup == "All Students" | subgroup == "Black/Hispanic/Native American" | subgroup == "Economically Disadvantaged" |
 	subgroup == "Students with Disabilities" | subgroup == "English Learners with T1/T2" | subgroup == "Super Subgroup";
+
+replace n_on_track = n_met_benchmark if subject == "ACT English" | subject == "ACT Math";
 
 * Drop all grades, have to collapse to manually create grade combinations;
 drop if grade == "All Grades";
@@ -29,8 +31,8 @@ drop if grade == "6" | grade == "7" | grade == "8";
 
 gen grade_band = "9th through 12th";
 
-replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math");
-replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III";
+replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | subject == "ACT Math" | regexm(subject, "Integrated Math");
+replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III" | subject == "ACT English";
 
 drop if subject == "Biology I" | subject == "Chemistry" | subject == "US History";
 
@@ -131,5 +133,5 @@ order year system system_name subject grade subgroup participation_rate enrolled
 
 compress;
 
-save "K:\ORP_accountability\data\2016_accountability/system_numeric_with_super_subgroup_2016.dta", replace;
-export excel using "K:\ORP_accountability\data\2016_accountability/system_numeric_with_super_subgroup_2016.xlsx", firstrow(var) replace;
+save "K:\ORP_accountability\data\2016_accountability/system_numeric_with_act_substitution_2016.dta", replace;
+export excel using "K:\ORP_accountability\data\2016_accountability/system_numeric_with_act_substitution_2016.xlsx", firstrow(var) replace;

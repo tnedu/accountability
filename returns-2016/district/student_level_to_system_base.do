@@ -170,6 +170,9 @@ replace subgroup = "Black or African American" if subgroup == "Black";
 replace subgroup = "Native Hawaiian or Other Pacific Islander" if subgroup == "Hawaiian";
 replace subgroup = "American Indian or Alaska Native" if subgroup == "Native";
 
+* ACT Substitution;
+append using "K:\ORP_accountability\data\2016_accountability/system_act_substitution.dta";
+
 * Merge on names;
 preserve;
 
@@ -191,9 +194,9 @@ drop _merge;
 gsort system subject grade subgroup;
 
 order year system system_name subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
-	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
+	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered n_met_benchmark pct_met_benchmark;
 
 compress;
 
-save "K:\ORP_accountability\data\2016_accountability/system_base_with_super_subgroup_2016.dta", replace;
-export excel using "K:\ORP_accountability\data\2016_accountability/system_base_with_super_subgroup_2016.xlsx", firstrow(var) replace;
+save "K:\ORP_accountability\data\2016_accountability/system_base_with_act_substitution_2016.dta", replace;
+export excel using "K:\ORP_accountability\data\2016_accountability/system_base_with_act_substitution_2016.xlsx", firstrow(var) replace;
