@@ -77,6 +77,7 @@ rename act_math act_subscore;
 
 gen subject = "ACT Math";
 gen n_met_benchmark = act_subscore >= 22 & act_subscore != .;
+gen n_did_not_meet_benchmark = act_subscore < 22;
 gen valid_tests = 1;
 
 tempfile math;
@@ -95,23 +96,25 @@ rename act_eng act_subscore;
 
 gen subject = "ACT English";
 gen n_met_benchmark = act_subscore >= 18 & act_subscore != .;
+gen n_did_not_meet_benchmark = act_subscore < 18;
 gen valid_tests = 1;
 
 append using `math';
 
-collapse (sum) n_met_benchmark valid_tests, by(system subject);
+collapse (sum) n_met_benchmark n_did_not_meet_benchmark valid_tests, by(system subject);
 
 gen subgroup = "All Students";
-gen grade = "11";
+gen grade = 11;
 
 gen pct_met_benchmark = round(100 * n_met_benchmark/valid_tests, 0.1);
 
 replace subject = "English" if subject == "ACT English";
 replace subject = "Math" if subject == "ACT Math";
 
-reshape wide valid_tests n_met_benchmark pct_met_benchmark, i(system subgroup grade) j(subject) string;
+reshape wide valid_tests n_met_benchmark n_did_not_meet_benchmark pct_met_benchmark, i(system subgroup grade) j(subject) string;
 
-foreach v in valid_testsEnglish n_met_benchmarkEnglish pct_met_benchmarkEnglish valid_testsMath n_met_benchmarkMath pct_met_benchmarkMath {;
+foreach v in valid_testsEnglish n_met_benchmarkEnglish n_did_not_meet_benchmarkEnglish pct_met_benchmarkEnglish 
+	valid_testsMath n_met_benchmarkMath n_did_not_meet_benchmarkMath pct_met_benchmarkMath {;
 
 	replace `v' = 0 if `v' == .;
 
@@ -122,7 +125,7 @@ reshape long;
 replace subject = "ACT English" if subject == "English";
 replace subject = "ACT Math" if subject == "Math";
 
-order system subject subgroup grade valid_tests n_met_benchmark pct_met_benchmark;
+order system subject subgroup grade valid_tests n_met_benchmark n_did_not_meet_benchmark pct_met_benchmark;
 
 gen year = 2016, before(system);
 drop if system == .;
