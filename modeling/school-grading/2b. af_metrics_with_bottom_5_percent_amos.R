@@ -38,7 +38,7 @@ absenteeism <- readstata13::read.dta13("K:/Research and Policy/data/data_attenda
         subgroup = ifelse(subgroup == "EL/T1/T2", "English Language Learners with T1/T2", subgroup),
         subgroup = ifelse(subgroup == "SWD", "Students with Disabilities", subgroup),
         subgroup = ifelse(subgroup == "Super", "Super Subgroup", subgroup),
-        pct_chronically_absent = pct_chronic + pct_severe) %>%
+        pct_chronically_absent = round(100 * (num_chronic + num_severe)/total_students_w_abs, 1)) %>%
     rename(system = districtnumber, school = schoolnumber, enrolled = total_students_w_abs) %>%
     select(system, school, subgroup, enrolled, pct_chronically_absent) %>%
     left_join(absenteeism14, by = c("system", "school", "subgroup")) %>%
@@ -182,27 +182,27 @@ AF_grades_metrics %<>%
         "grade_readiness", "grade_absenteeism", "grade_ELPA")) %>%
     mutate(
         # All Students Weights
-        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup == "All Students" & pool == "K8", 0.4, NA),
-        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup == "All Students" & pool == "HS", 0.35, weight_achievement),
-        weight_growth = ifelse(!is.na(grade_tvaas) & subgroup == "All Students" & pool == "K8", 0.4, NA),
-        weight_growth = ifelse(!is.na(grade_tvaas) & subgroup == "All Students" & pool == "HS", 0.35, weight_growth),
+        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup == "All Students" & pool == "K8", 0.45, NA),
+        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup == "All Students" & pool == "HS", 0.4, weight_achievement),
+        weight_growth = ifelse(!is.na(grade_tvaas) & subgroup == "All Students" & pool == "K8", 0.35, NA),
+        weight_growth = ifelse(!is.na(grade_tvaas) & subgroup == "All Students" & pool == "HS", 0.3, weight_growth),
         weight_readiness = ifelse(!is.na(grade_readiness) & subgroup == "All Students" & pool == "HS", 0.2, NA),
         weight_opportunity = ifelse(!is.na(grade_absenteeism) & subgroup == "All Students" & pool == "K8", 0.2, NA),
         weight_opportunity = ifelse(!is.na(grade_absenteeism) & subgroup == "All Students" & pool == "HS", 0.1, weight_opportunity),
         # Subgroup Weights
-        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup != "All Students" & pool == "K8", 0.35, weight_achievement),
-        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup != "All Students" & pool == "HS", 0.3, weight_achievement),
-        weight_growth = ifelse(!is.na(grade_growth) & subgroup != "All Students" & pool == "K8", 0.35, weight_growth),
-        weight_growth = ifelse(!is.na(grade_growth) & subgroup != "All Students" & pool == "HS", 0.3, weight_growth),
+        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup != "All Students" & pool == "K8", 0.4, weight_achievement),
+        weight_achievement = ifelse(!is.na(grade_achievement) & subgroup != "All Students" & pool == "HS", 0.35, weight_achievement),
+        weight_growth = ifelse(!is.na(grade_growth) & subgroup != "All Students" & pool == "K8", 0.3, weight_growth),
+        weight_growth = ifelse(!is.na(grade_growth) & subgroup != "All Students" & pool == "HS", 0.25, weight_growth),
         weight_readiness = ifelse(!is.na(grade_readiness) & subgroup != "All Students" & pool == "HS", 0.2, weight_readiness),
         weight_opportunity = ifelse(!is.na(grade_absenteeism) & subgroup != "All Students" & pool == "K8", 0.2, weight_opportunity),
         weight_opportunity = ifelse(!is.na(grade_absenteeism) & subgroup != "All Students" & pool == "HS", 0.1, weight_opportunity),
         weight_ELPA = ifelse(!is.na(grade_ELPA) & subgroup != "All Students", 0.1, NA),
         # If no ELPA, adjust achievement and growth weights accordingly
-        weight_achievement = ifelse(is.na(grade_ELPA) & !is.na(grade_achievement) & subgroup != "All Students" & pool == "K8", 0.4, weight_achievement),
-        weight_growth = ifelse(is.na(grade_ELPA) & !is.na(grade_growth) & subgroup != "All Students" & pool == "K8", 0.4, weight_growth),
-        weight_achievement = ifelse(is.na(grade_ELPA) & !is.na(grade_achievement) & subgroup != "All Students" & pool == "HS", 0.35, weight_achievement),
-        weight_growth = ifelse(is.na(grade_ELPA) & !is.na(grade_growth) & subgroup != "All Students" & pool == "HS", 0.35, weight_growth)) %>%
+        weight_achievement = ifelse(is.na(grade_ELPA) & !is.na(grade_achievement) & subgroup != "All Students" & pool == "K8", 0.45, weight_achievement),
+        weight_achievement = ifelse(is.na(grade_ELPA) & !is.na(grade_achievement) & subgroup != "All Students" & pool == "HS", 0.4, weight_achievement),
+        weight_growth = ifelse(is.na(grade_ELPA) & !is.na(grade_growth) & subgroup != "All Students" & pool == "K8", 0.35, weight_growth),
+        weight_growth = ifelse(is.na(grade_ELPA) & !is.na(grade_growth) & subgroup != "All Students" & pool == "HS", 0.3, weight_growth)) %>%
     rowwise() %>%
     mutate(total_weight = sum(c(weight_achievement, weight_growth, weight_opportunity, weight_readiness, weight_ELPA), na.rm = TRUE),
         subgroup_average = sum(c(weight_achievement * grade_achievement,
@@ -271,7 +271,8 @@ AF_grades_final <- all_students_grades_final %>%
         overall_average = ifelse(!is.na(achievement_average) & is.na(gap_closure_average),
             achievement_average, overall_average),
         overall_average = ifelse(is.na(achievement_average) & !is.na(gap_closure_average),
-            gap_closure_average, overall_average)) %>%
+            gap_closure_average, overall_average),
+        overall_average = round(overall_average, 1)) %>%
     ungroup() %>%
     mutate(final_grade = ifelse(is.na(final_grade) & overall_average > 3, "A", final_grade),
         final_grade = ifelse(is.na(final_grade) & overall_average > 2 & overall_average <= 3, "B", final_grade),
