@@ -8,7 +8,7 @@ program drop _all;
 estimates drop _all;
 
 /***************************************************************
-Do File description:  Student Level to System Numeric for Report Card
+Do File description:  System Numeric for Report Card
 
 Edited last by:  Alexander Poon
 

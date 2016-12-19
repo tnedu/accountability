@@ -8,7 +8,7 @@ program drop _all;
 estimates drop _all;
 
 /***************************************************************
-Do File description:  System Base for Report Card
+Do File description:  School Base for Report Card
 
 Edited last by:  Alexander Poon
 
@@ -18,9 +18,6 @@ Date edited last:  11/7/2016
 use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
 
 gen year = 2016;
-
-* Omit < 60% Enrollment;
-* drop if greater_than_60_pct == "N";
 
 * MSAA tests above grade 9 are reassigned to EOCs;
 replace original_subject = "Algebra I" if original_subject == "Math" & test == "MSAA" & grade >= 9 &
@@ -35,8 +32,9 @@ replace original_subject = "Integrated Math I" if original_subject == "Math" & t
 
 replace original_subject = "English II" if test == "MSAA" & original_subject == "ELA";
 
-* Residential Facility students are dropped from system level;
+* Residential Facility and Homebound students are dropped from school level;
 drop if residential_facility_part_1 == 1 | residential_facility_part_2 == 1;
+drop if homebound == 1;
 
 * Proficiency levels;
 gen n_below = 1 if proficiency_level == "1. Below" | proficiency_level == "1. Below Basic";
