@@ -1,8 +1,6 @@
 # Plots for Dashboard modeling results
 
-library(readr)
-library(dplyr)
-library(ggplot2)
+library(tidyverse)
 library(ggthemes)
 
 # Weighting option 1
@@ -22,11 +20,23 @@ demographics <- readxl::read_excel("K:/ORP_accountability/projects/Alex/accounta
     ungroup()
 
 school_accountability %>%
-    filter(subgroup == "All Students" & subject == "Success Rate") %>%
+    filter(subgroup == "All Students" & subject == "Success Rate" & year == "3 Year") %>%
     full_join(AF_grades_final, by = c("system", "system_name", "school", "school_name", "designation_ineligible", "pool")) %>%
     ggplot(aes(x = final_grade, y = pct_prof_adv)) +
     geom_boxplot(outlier.shape = NA) +
-    geom_jitter(position = position_jitter(width = .4, height = 0)) +
+    geom_jitter(position = position_jitter(width = .2, height = 0)) +
+    theme_hc() +
+    scale_x_discrete(limits = c("F", "D", "C", "B", "A")) +
+    scale_y_continuous(limits = c(0, 100), breaks = 10 * (0:10)) +
+    xlab("Final Grade") +
+    ylab("All Students Success Rate")
+
+school_accountability %>%
+    filter(subgroup == "All Students" & subject == "Success Rate" & year == "2015") %>%
+    full_join(AF_grades_final, by = c("system", "system_name", "school", "school_name", "designation_ineligible", "pool")) %>%
+    ggplot(aes(x = final_grade, y = pct_prof_adv)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(position = position_jitter(width = .2, height = 0)) +
     theme_hc() +
     scale_x_discrete(limits = c("F", "D", "C", "B", "A")) +
     scale_y_continuous(limits = c(0, 100), breaks = 10 * (0:10)) +
