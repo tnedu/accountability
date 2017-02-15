@@ -171,23 +171,27 @@ AF_grades_metrics <- full_heat_map %>%
         weight_achievement = ifelse(!is.na(grade_achievement) & pool == "K8", 0.45, NA),
         weight_achievement = ifelse(!is.na(grade_achievement) & pool == "HS", 0.3, weight_achievement),
         weight_growth = ifelse(!is.na(grade_tvaas) & pool == "K8", 0.35, NA),
+        weight_growth = ifelse(!is.na(grade_growth) & pool == "K8", 0.35, weight_growth),
         weight_growth = ifelse(!is.na(grade_tvaas) & pool == "HS", 0.25, weight_growth),
+        weight_growth = ifelse(!is.na(grade_growth) & pool == "HS", 0.25, weight_growth),
         weight_readiness = ifelse(!is.na(grade_readiness) & pool == "HS", 0.25, NA),
         weight_opportunity = ifelse(!is.na(grade_absenteeism), 0.1, NA),
         weight_elpa = ifelse(!is.na(grade_elpa), 0.1, NA),
         # If no ELPA, adjust achievement and growth weights accordingly
         weight_achievement = ifelse(is.na(grade_elpa) & !is.na(grade_achievement) & pool == "K8", 0.5, weight_achievement),
         weight_achievement = ifelse(is.na(grade_elpa) & !is.na(grade_achievement) & pool == "HS", 0.35, weight_achievement),
+        weight_growth = ifelse(is.na(grade_elpa) & !is.na(grade_tvaas) & pool == "K8", 0.4, weight_growth),
         weight_growth = ifelse(is.na(grade_elpa) & !is.na(grade_growth) & pool == "K8", 0.4, weight_growth),
+        weight_growth = ifelse(is.na(grade_elpa) & !is.na(grade_tvaas) & pool == "HS", 0.3, weight_growth),
         weight_growth = ifelse(is.na(grade_elpa) & !is.na(grade_growth) & pool == "HS", 0.3, weight_growth)) %>%
     rowwise() %>%
-    mutate(total_weight = sum(c(weight_achievement, weight_growth, weight_opportunity, weight_readiness, weight_elpa), na.rm = TRUE),
-        subgroup_average = sum(c(weight_achievement * grade_achievement,
+    mutate(total_weight = sum(weight_achievement, weight_growth, weight_opportunity, weight_readiness, weight_elpa, na.rm = TRUE),
+        subgroup_average = sum(weight_achievement * grade_achievement,
             weight_growth * grade_tvaas,
             weight_growth * grade_growth,
             weight_opportunity * grade_absenteeism,
             weight_readiness * grade_readiness,
-            weight_elpa * grade_elpa), na.rm = TRUE)/total_weight) %>%
+            weight_elpa * grade_elpa, na.rm = TRUE)/total_weight) %>%
     ungroup()
 
 all_students_grades_final <- AF_grades_metrics %>%
@@ -246,7 +250,7 @@ AF_grades_final <- all_students_grades_final %>%
     mutate(final_grade = ifelse(is.na(final_grade) & priority_grad == TRUE, "F", final_grade)) %>%
     rowwise() %>%
     mutate(overall_average = ifelse(!is.na(achievement_average) & !is.na(gap_closure_average), 
-            sum(c(0.6 * achievement_average, 0.4 * gap_closure_average), na.rm = TRUE), NA),
+            sum(0.6 * achievement_average, 0.4 * gap_closure_average, na.rm = TRUE), NA),
         overall_average = ifelse(!is.na(achievement_average) & is.na(gap_closure_average),
             achievement_average, overall_average),
         overall_average = ifelse(is.na(achievement_average) & !is.na(gap_closure_average),

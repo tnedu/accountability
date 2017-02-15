@@ -25,9 +25,9 @@ elpa16 <- haven::read_dta("K:/ORP_accountability/data/2016_WIDA_Access/2016_Stat
         timeinlepellinus = ifelse(timeinlepellinus == "6y", "6", timeinlepellinus),
         timeinlepellinus = ifelse(timeinlepellinus == "7y", "7", timeinlepellinus),
         timeinlepellinus = ifelse(timeinlepellinus == "8y", "8", timeinlepellinus),
-        timeinlepellinus = ifelse(is.na(timeinlepellinus), grade, timeinlepellinus)) %>% 
+        timeinlepellinus = ifelse(timeinlepellinus == "  ", grade, timeinlepellinus)) %>% 
     transmute(system = as.numeric(substr(districtcode, 3, length(districtcode))), school = schoolcode, 
-        student_id = statestudentid, swd = iepstatus, time_in_esl = timeinlepellinus,
+        student_id = statestudentid, swd = iepstatus, time_in_esl = as.numeric(timeinlepellinus),
         hispanic = ethnicityhispaniclatino, native = raceamericanindianalaskanative, black = raceblack, 
         literacy = as.numeric(literacyperformancelevel), composite = as.numeric(performancelevelcomposite)) %>%
     left_join(econ_dis, by = "student_id") %>% 
@@ -66,24 +66,25 @@ elpa_indicator <- bind_rows(elpa_all, elpa_ed, elpa_bhn, elpa_swd, elpa_el) %>%
     mutate(valid_tests = !is.na(literacy) & !is.na(composite),
         exit_count = ifelse(valid_tests, literacy >= 5.0 & composite >= 5.0, NA),
         exit_denom = ifelse(time_in_esl == 0, 0.2, NA),
-        exit_denom = ifelse(time_in_esl == 1, 0.4, NA),
-        exit_denom = ifelse(time_in_esl == 2, 0.5, exit_denom),
-        exit_denom = ifelse(time_in_esl == 3, 0.6, exit_denom),
+        exit_denom = ifelse(time_in_esl == 1, 0.4, exit_denom),
+        exit_denom = ifelse(time_in_esl == 2, 0.6, exit_denom),
+        exit_denom = ifelse(time_in_esl == 3, 0.8, exit_denom),
         exit_denom = ifelse(time_in_esl == 4, 1.0, exit_denom),
         exit_denom = ifelse(time_in_esl >= 5 | is.na(time_in_esl), 1.2, exit_denom),
+        exit_denom = ifelse(!valid_tests, NA, exit_denom),
         growth_standard_denom = !is.na(composite) & !is.na(composite_prior),
         met_growth_standard = (composite - composite_prior) >= 0.7) %>%
     group_by(system, school, subgroup) %>%
     summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, exit_count, exit_denom, growth_standard_denom, met_growth_standard) %>%
     ungroup() %>%
-    mutate(exit_percent = 100 * exit_count/exit_denom,
+    mutate(exit_percent = round(100 * exit_count/exit_denom, 1),
         exit_points = ifelse(exit_percent < 6, 0, NA),
         exit_points = ifelse(exit_percent >= 6 & exit_percent < 12, 1, exit_points),
         exit_points = ifelse(exit_percent >= 12 & exit_percent < 24, 2, exit_points),
         exit_points = ifelse(exit_percent >= 24 & exit_percent < 36, 3, exit_points),
         exit_points = ifelse(exit_percent >= 36, 4, exit_points),
         exit_points = ifelse(valid_tests < 10, NA, exit_points),
-        met_growth_percent = 100 * met_growth_standard/growth_standard_denom,
+        met_growth_percent = round(100 * met_growth_standard/growth_standard_denom, 1),
         growth_points = ifelse(met_growth_percent < 30, 0, NA),
         growth_points = ifelse(met_growth_percent >= 30 & met_growth_percent < 45, 1, growth_points),
         growth_points = ifelse(met_growth_percent >= 45 & met_growth_percent < 60, 2, growth_points),
