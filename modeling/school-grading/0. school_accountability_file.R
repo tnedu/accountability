@@ -30,18 +30,21 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
 success_rates_1yr <- school_base %>%
     filter(!(subject == "Graduation Rate" | subject == "ACT Composite")) %>%
     rowwise() %>%
-    mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
+    mutate(n_PA = sum(n_prof, n_adv, na.rm = TRUE)) %>%
     ungroup() %>%
     filter(!(pool == "K8" & subject %in% c("Algebra I", "Algebra II", "Biology I", "Chemistry", "English I", "English II", "English III", "Graduation Rate"))) %>%
+    mutate(subject = ifelse(subject %in% c("Algebra I", "Algebra II"), "HS Math", subject),
+        subject = ifelse(subject %in% c("English I", "English II", "English III"), "HS English", subject),
+        subject = ifelse(subject %in% c("Biology I", "Chemistry"), "HS Science", subject)) %>% 
     group_by(year, system, system_name, school, school_name, pool, subgroup, subject, designation_ineligible) %>%
-    summarise_each(funs(sum(., na.rm = TRUE), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv)) %>% 
+    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv) %>% 
     ungroup() %>%
-    mutate_each(funs(ifelse(. < 30, 0, .), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv)) %>%
+    mutate_each(funs(ifelse(valid_tests < 30, 0, .)), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv) %>%
     rowwise() %>%
-    mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
+    mutate(n_PA = sum(n_prof, n_adv, na.rm = TRUE)) %>%
     ungroup() %>%
     group_by(year, system, system_name, school, school_name, pool, subgroup, designation_ineligible) %>%
-    summarise_each(funs(sum(., na.rm = TRUE), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv)) %>%
+    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv, n_PA) %>%
     ungroup() %>%
     mutate(subject = "Success Rate",
         pct_bsc = ifelse(valid_tests != 0, round(100 * n_bsc/valid_tests, 1), NA),
@@ -54,7 +57,7 @@ success_rates_1yr <- school_base %>%
 
 success_rates_3yr <- success_rates_1yr %>%
     group_by(system, system_name, school, school_name, pool, subgroup, designation_ineligible) %>%
-    summarise_each(funs(sum(., na.rm = TRUE), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv, n_PA)) %>%
+    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv, n_PA) %>%
     ungroup() %>%
     mutate(subject = "Success Rate",
         year = "3 Year",
@@ -73,10 +76,10 @@ school_accountability <- school_base %>%
         subject = ifelse(subject %in% c("English I", "English II", "English III"), "HS English", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry"), "HS Science", subject)) %>%
     group_by(year, system, system_name, school, school_name, subgroup, subject, designation_ineligible, pool) %>%
-    summarise_each(funs(sum(., na.rm = TRUE), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv)) %>% 
+    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv) %>% 
     ungroup() %>%
     rowwise() %>%
-    mutate(n_PA = sum(c(n_prof, n_adv), na.rm = TRUE)) %>%
+    mutate(n_PA = sum(n_prof, n_adv, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate(pct_bsc = ifelse(valid_tests != 0, round(100 * n_bsc/valid_tests, 1), NA),
         pct_prof = ifelse(valid_tests != 0, round(100 * n_prof/valid_tests, 1), NA),
@@ -100,9 +103,9 @@ amos <- school_accountability %>%
         AMO_target_BB = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/8, 1), NA),
         AMO_target_BB_4 = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/4, 1), NA),
         year = "2015") %>%
-    select(year, system, system_name, school, school_name, subject, subgroup, valid_tests, pct_below_bsc, pct_adv, pct_prof_adv, 
-        AMO_target_PA, AMO_target_PA_4, AMO_target_adv, AMO_target_adv_4, AMO_target_BB, AMO_target_BB_4) %>%
-    rename(valid_tests_prior = valid_tests, pct_below_bsc_prior = pct_below_bsc, pct_adv_prior = pct_adv, pct_prof_adv_prior = pct_prof_adv)
+    transmute(year, system, system_name, school, school_name, subject, subgroup, valid_tests_prior = valid_tests,
+        pct_below_bsc_prior = pct_below_bsc, pct_adv_prior = pct_adv, pct_prof_adv_prior = pct_prof_adv,
+        AMO_target_PA, AMO_target_PA_4, AMO_target_adv, AMO_target_adv_4, AMO_target_BB, AMO_target_BB_4)
 
 # School Composite TVAAS
 tvaas_2014 <- read_csv("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2013-14/URM School Value-Added and Composites.csv") %>%

@@ -15,7 +15,8 @@ k8 <- school_accountability %>%
 absenteeism14 <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT Files - Enrollment and Demographic/For Alex/2013-14 Chronic Absenteeism by Subgroup.dta") %>%
     filter(subgroup %in% c("All Students", "BHN", "ED", "EL/T1/T2", "SWD", "Super")) %>%
     rename(system = districtnumber, school = schoolnumber) %>%
-    mutate_at("subgroup", funs(recode(., "BHN" = "Black/Hispanic/Native American",
+    mutate_at("subgroup", funs(recode(., 
+        "BHN" = "Black/Hispanic/Native American",
         "ED" = "Economically Disadvantaged",
         "EL/T1/T2" = "English Language Learners with T1/T2",
         "SWD" = "Students with Disabilities",
@@ -158,11 +159,12 @@ full_heat_map <- all_students %>%
     rowwise() %>%
     mutate(grade_achievement = min(c(grade_relative_achievement, grade_achievement_amo), na.rm = TRUE),
         grade_readiness = min(c(grade_readiness_absolute, grade_readiness_target), na.rm = TRUE),
-        grade_absenteeism = min(c(grade_absenteeism_absolute, grade_absenteeism_reduction), na.rm = TRUE)) %>%
+        grade_absenteeism = min(c(grade_absenteeism_absolute, grade_absenteeism_reduction), na.rm = TRUE),
+        subgroup_grade_eligible = !is.na(grade_achievement_amo)) %>%
     ungroup() %>%
     mutate(priority_grad = ifelse(subgroup == "All Students", designation_ineligible == 0 & grad_cohort >= 30 & grad_rate < 67, NA)) %>%
     select(system:designation_ineligible, priority_grad, grade_achievement, grade_tvaas, grade_growth, 
-        grade_readiness, grade_absenteeism, grade_elpa)
+        grade_readiness, grade_absenteeism, grade_elpa, subgroup_grade_eligible)
 
 AF_grades_metrics <- full_heat_map %>%
     mutate_at(vars(starts_with("grade_")), funs(recode(., "A" = 4, "B" = 3, "C" = 2, "D" = 1, "F" = 0))) %>%
@@ -191,7 +193,8 @@ AF_grades_metrics <- full_heat_map %>%
             weight_growth * grade_growth,
             weight_opportunity * grade_absenteeism,
             weight_readiness * grade_readiness,
-            weight_elpa * grade_elpa, na.rm = TRUE)/total_weight) %>%
+            weight_elpa * grade_elpa, na.rm = TRUE)/total_weight,
+        subgroup_average = ifelse(subgroup_grade_eligible == FALSE, NA, subgroup_average)) %>%
     ungroup()
 
 all_students_grades_final <- AF_grades_metrics %>%
