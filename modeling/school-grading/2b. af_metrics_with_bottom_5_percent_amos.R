@@ -15,7 +15,7 @@ k8 <- school_accountability %>%
 absenteeism14 <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT Files - Enrollment and Demographic/For Alex/2013-14 Chronic Absenteeism by Subgroup.dta") %>%
     filter(subgroup %in% c("All Students", "BHN", "ED", "EL/T1/T2", "SWD", "Super")) %>%
     rename(system = districtnumber, school = schoolnumber) %>%
-    mutate_at("subgroup", funs(recode(., 
+    mutate_at("subgroup", funs(recode(.,
         "BHN" = "Black/Hispanic/Native American",
         "ED" = "Economically Disadvantaged",
         "EL/T1/T2" = "English Language Learners with T1/T2",
@@ -34,7 +34,8 @@ absenteeism14 <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT
 
 absenteeism <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT Files - Enrollment and Demographic/For Alex/2014-15 Chronic Absenteeism by Subgroup.dta") %>%
     filter(subgroup %in% c("All Students", "BHN", "ED", "EL/T1/T2", "SWD", "Super")) %>%
-    mutate_at("subgroup", funs(recode(., "BHN" = "Black/Hispanic/Native American",
+    mutate_at("subgroup", funs(recode(.,
+        "BHN" = "Black/Hispanic/Native American",
         "ED" = "Economically Disadvantaged",
         "EL/T1/T2" = "English Language Learners with T1/T2",
         "SWD" = "Students with Disabilities",
@@ -109,9 +110,9 @@ act_grad <- school_accountability %>%
         grade_readiness_target = ifelse(act_grad < act_grad_prior, "F", grade_readiness_target),
         grade_readiness_target = ifelse(grad_cohort < 30 | valid_tests_ACT < 30, NA, grade_readiness_target))
 
-# All Students Heat Map
-all_students <- school_accountability %>%
-    filter(subgroup == "All Students", year == "2015", subject == "Success Rate") %>%
+# Achievement and growth
+ach_growth <- school_accountability %>% 
+    filter(year == "2015", subject == "Success Rate") %>%
     mutate(grade_relative_achievement = ifelse(pctile_rank_PA >= 80, "A", NA),
         grade_relative_achievement = ifelse(pctile_rank_PA >= 60 & pctile_rank_PA < 80, "B", grade_relative_achievement),
         grade_relative_achievement = ifelse(pctile_rank_PA >= 40 & pctile_rank_PA < 60, "C", grade_relative_achievement),
@@ -128,43 +129,21 @@ all_students <- school_accountability %>%
         grade_tvaas = ifelse(TVAAS_level == "Level 3", "C", grade_tvaas),
         grade_tvaas = ifelse(TVAAS_level == "Level 2", "D", grade_tvaas),
         grade_tvaas = ifelse(TVAAS_level == "Level 1", "F", grade_tvaas)) %>%
-    left_join(elpa, by = c("system", "school", "subgroup")) %>%
-    select(system, system_name, school, school_name, subgroup, pool, designation_ineligible, 
-        grade_relative_achievement, grade_achievement_amo, grade_tvaas, grade_elpa) 
-
-# Subgroup Heat Map
-subgroups <- school_accountability %>%
-    filter(subgroup != "All Students", year == "2015", subject == "Success Rate") %>%
-    mutate(grade_relative_achievement = ifelse(pctile_rank_PA >= 80, "A", NA),
-        grade_relative_achievement = ifelse(pctile_rank_PA >= 60 & pctile_rank_PA < 80, "B", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank_PA >= 40 & pctile_rank_PA < 60, "C", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank_PA >= 20 & pctile_rank_PA < 40, "D", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank_PA < 20, "F", grade_relative_achievement),
-        grade_achievement_amo = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", NA),
-        grade_achievement_amo = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, "B", grade_achievement_amo),
-        grade_achievement_amo = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, "C", grade_achievement_amo),
-        grade_achievement_amo = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, "D", grade_achievement_amo),
-        grade_achievement_amo = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_achievement_amo),
-        grade_achievement_amo = ifelse(valid_tests < 30, NA, grade_achievement_amo)) %>%
     left_join(subgroup_growth, by = c("system", "school", "subgroup")) %>%
     left_join(elpa, by = c("system", "school", "subgroup")) %>%
     select(system, system_name, school, school_name, subgroup, pool, designation_ineligible,
-        grade_relative_achievement, grade_achievement_amo, grade_growth, grade_elpa)
+        grade_relative_achievement, grade_achievement_amo, grade_tvaas, grade_growth, grade_elpa)
 
 # Full Heat Map
-full_heat_map <- all_students %>%
-    bind_rows(subgroups) %>%
+full_heat_map <- ach_growth %>%
     left_join(act_grad, by = c("system", "school", "subgroup")) %>%
     left_join(absenteeism, by = c("system", "school", "subgroup")) %>%
-    rowwise() %>%
-    mutate(grade_achievement = min(c(grade_relative_achievement, grade_achievement_amo), na.rm = TRUE),
-        grade_readiness = min(c(grade_readiness_absolute, grade_readiness_target), na.rm = TRUE),
-        grade_absenteeism = min(c(grade_absenteeism_absolute, grade_absenteeism_reduction), na.rm = TRUE),
-        subgroup_grade_eligible = !is.na(grade_achievement_amo)) %>%
-    ungroup() %>%
-    mutate(priority_grad = ifelse(subgroup == "All Students", designation_ineligible == 0 & grad_cohort >= 30 & grad_rate < 67, NA)) %>%
+    mutate(grade_achievement = pmin(grade_relative_achievement, grade_achievement_amo, na.rm = TRUE),
+        grade_readiness = pmin(grade_readiness_absolute, grade_readiness_target, na.rm = TRUE),
+        grade_absenteeism = pmin(grade_absenteeism_absolute, grade_absenteeism_reduction, na.rm = TRUE),
+        priority_grad = ifelse(subgroup == "All Students", designation_ineligible == 0 & grad_cohort >= 30 & grad_rate < 67, NA)) %>%
     select(system:designation_ineligible, priority_grad, grade_achievement, grade_tvaas, grade_growth, 
-        grade_readiness, grade_absenteeism, grade_elpa, subgroup_grade_eligible)
+        grade_readiness, grade_absenteeism, grade_elpa)
 
 AF_grades_metrics <- full_heat_map %>%
     mutate_at(vars(starts_with("grade_")), funs(recode(., "A" = 4, "B" = 3, "C" = 2, "D" = 1, "F" = 0))) %>%
@@ -193,10 +172,10 @@ AF_grades_metrics <- full_heat_map %>%
             weight_growth * grade_growth,
             weight_opportunity * grade_absenteeism,
             weight_readiness * grade_readiness,
-            weight_elpa * grade_elpa, na.rm = TRUE)/total_weight,
-        subgroup_average = ifelse(subgroup_grade_eligible == FALSE, NA, subgroup_average)) %>%
+            weight_elpa * grade_elpa, na.rm = TRUE)/total_weight) %>%
     ungroup()
 
+# Achievement grades
 all_students_grades_final <- AF_grades_metrics %>%
     filter(subgroup == "All Students") %>%
     transmute(system, system_name, school, school_name, pool, designation_ineligible, priority_grad, 
@@ -209,13 +188,12 @@ all_students_grades_final <- AF_grades_metrics %>%
 
 # Targeted support schools
 targeted_support <- AF_grades_metrics %>%
-    filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged", 
+    filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
         "English Language Learners with T1/T2", "Students with Disabilities")) %>%
     select(system, system_name, school, school_name, subgroup, designation_ineligible, subgroup_average) %>%
     full_join(F_schools, by = c("system", "school")) %>%
     group_by(subgroup) %>%
     mutate(denom = sum(!is.na(subgroup_average))) %>%
-    ungroup() %>%
     group_by(subgroup, designation_ineligible, final_grade) %>%
     mutate(rank = rank(subgroup_average, na.last = "keep", ties.method = "average"),
         targeted_support = ifelse(is.na(final_grade) & designation_ineligible == 0, rank/denom <= 0.05, NA)) %>%
@@ -227,19 +205,23 @@ targeted_support <- AF_grades_metrics %>%
         targeted_support_ED = `Economically Disadvantaged`,
         targeted_support_SWD = `Students with Disabilities`,
         targeted_support_EL = `English Language Learners with T1/T2`,
-        targeted_support = ifelse(is.na(final_grade), targeted_support_BHN == 1 | targeted_support_ED == 1 | 
+        targeted_support = ifelse(is.na(final_grade), targeted_support_BHN == 1 | targeted_support_ED == 1 |
             targeted_support_SWD == 1 | targeted_support_EL == 1, NA)) %>%
     mutate_each(funs(as.numeric), contains("targeted_support"))
 
-# Drop Super Subgroup observation if other subgroups are present
+# Gap closure grades
 subgroup_grades_final <- AF_grades_metrics %>%
     filter(subgroup != "All Students") %>%
+    # Drop Super Subgroup observation if other subgroups are present
     mutate(temp = ifelse(!is.na(subgroup_average), 1, NA)) %>%
     group_by(system, system_name, school, school_name) %>%
     mutate(subgroups_count = sum(temp, na.rm = TRUE)) %>%
     filter(!(subgroup == "Super Subgroup" & subgroups_count > 1)) %>%
-    summarise(gap_closure_average = mean(subgroup_average, na.rm = TRUE)) %>%
+    mutate(numerator = total_weight * subgroup_average) %>% 
+    summarise_each(funs(sum(., na.rm = TRUE)), total_weight, numerator) %>% 
+    mutate(gap_closure_average = numerator/total_weight) %>% 
     ungroup() %>%
+    select(-numerator, -total_weight) %>%
     mutate(gap_closure_grade = ifelse(gap_closure_average == 0, "F", NA),
         gap_closure_grade = ifelse(gap_closure_average > 0 & gap_closure_average <= 1, "D", gap_closure_grade),
         gap_closure_grade = ifelse(gap_closure_average > 1 & gap_closure_average <= 2, "C", gap_closure_grade),

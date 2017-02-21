@@ -98,14 +98,12 @@ amos <- school_accountability %>%
     filter(year == "2014") %>%
     mutate(AMO_target_PA = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16, 1), NA),
         AMO_target_PA_4 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA),
-        AMO_target_adv = ifelse(valid_tests >= 30, round(pct_adv + (100 - pct_adv)/32, 1), NA),
-        AMO_target_adv_4 = ifelse(valid_tests >= 30, round(pct_adv + (100 - pct_adv)/16, 1), NA),
         AMO_target_BB = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/8, 1), NA),
         AMO_target_BB_4 = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/4, 1), NA),
         year = "2015") %>%
     transmute(year, system, system_name, school, school_name, subject, subgroup, valid_tests_prior = valid_tests,
-        pct_below_bsc_prior = pct_below_bsc, pct_adv_prior = pct_adv, pct_prof_adv_prior = pct_prof_adv,
-        AMO_target_PA, AMO_target_PA_4, AMO_target_adv, AMO_target_adv_4, AMO_target_BB, AMO_target_BB_4)
+        pct_below_bsc_prior = pct_below_bsc, pct_prof_adv_prior = pct_prof_adv,
+        AMO_target_PA, AMO_target_PA_4, AMO_target_BB, AMO_target_BB_4)
 
 # School Composite TVAAS
 tvaas_2014 <- read_csv("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2013-14/URM School Value-Added and Composites.csv") %>%
@@ -119,9 +117,7 @@ tvaas_2015 <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_Evalu
     mutate_each(funs(as.numeric), system, school) %>%
     filter(Test == "TCAP/EOC", Subject == "Overall") %>%
     left_join(tvaas_2014, by = c("system", "school")) %>%
-    mutate(subject = "Success Rate", 
-        subgroup = "All Students") %>%
-    select(system, school, subject, subgroup, TVAAS_level, TVAAS_level_lag)
+    transmute(system, school, subject = "Success Rate", subgroup = "All Students", TVAAS_level, TVAAS_level_lag)
 
 # Subject Specific TVAAS
 tvaas_subjects <- readxl::read_excel("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2014-15/URM School Value-Added and Composites.xlsx") %>%
@@ -152,10 +148,6 @@ school_accountability %<>%
         upper_bound_ci_PA = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_prof_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) + 
             qnorm(0.975) * sqrt((pct_prof_adv * (1 - pct_prof_adv))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
         pct_prof_adv = 100 * pct_prof_adv,
-        pct_adv = pct_adv/100,
-        upper_bound_ci_adv = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) + 
-            qnorm(0.975) * sqrt((pct_adv * (1 - pct_adv))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
-        pct_adv = 100 * pct_adv,
         pct_below_bsc = pct_below_bsc/100,
         lower_bound_ci_BB = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_below_bsc + ((qnorm(0.975)^2)/(2 * valid_tests)) - 
             qnorm(0.975) * sqrt((pct_below_bsc * (1 - pct_below_bsc))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
