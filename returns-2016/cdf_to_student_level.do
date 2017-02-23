@@ -78,7 +78,7 @@ gen test_admin_final = "FB";
 append using "K:\ORP_accountability\projects\2016_dictionary_coding/2016_State_Student_Spring_File_science.dta";
 replace test_admin_final = "TR" if test_admin_final == "";
 
-keep system_name system_number school_name school_number grade content_area_code unique_student_id ethnic_origin 
+keep system_name system_number school_name school_number grade content_area_code unique_student_id ethnic_origin last_name first_name
 	Native_American Asian Black_or_AfricanAmerican Hawaiian_PacificIslander White race_reported gender economically_disadvantaged ell ell_t1_t2
 	special_ed functionally_delayed ri_status perf_level_total_sci scale_score_total_sci district_enroll test_admin_final;
 
@@ -363,6 +363,14 @@ order system_part_1 system_name_part_1 school_part_1 school_name_part_1 system s
 	tested tested_part_1 tested_part_2 tested_both valid_test unique_student_id last_name first_name grade race bhn_group functionally_delayed 
 	special_ed economically_disadvantaged el el_t1_t2 el_exclude greater_than_60_pct part_1_or_2_only migrant homebound absent_part_1 
 	absent_part_2 did_not_attempt_part_1 did_not_attempt_part_2 nullify_part_1 nullify_part_2 residential_facility_part_1 residential_facility_part_2;
+
+* Fill in missing school/district names;
+gsort system school -system_name -school_name;
+
+replace system_name = system_name[_n-1] if system_name == "" & system_name[_n-1] != "";
+replace school_name = school_name[_n-1] if school_name == "" & school_name[_n-1] != "";
+
+gsort system school unique_student_id;
 
 compress;
 
