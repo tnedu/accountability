@@ -11,7 +11,9 @@ district_absenteeism_14 <- haven::read_dta("K:/Research and Policy/data/data_att
         n_chronic_prior = num_chronic + num_severe, n_severe_prior = num_severe) %>%
     group_by(system, subgroup) %>%
     summarise_each(funs(sum), starts_with("n_")) %>%
-    filter(!grepl("non-", subgroup))
+    filter(!grepl("non-", subgroup)) %>% 
+    mutate(pct_chronic_prior = 100 * n_chronic_prior/n_students_prior,
+        pct_severe_prior = 100 * n_severe_prior/n_students_prior)
 
 district_absenteeism_15 <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT Files - Enrollment and Demographic/For Alex/2014-15 Chronic Absenteeism by Subgroup.dta") %>%
     transmute(system = districtnumber, system_name = districtname, subgroup, n_students = total_students_w_abs,
@@ -19,6 +21,8 @@ district_absenteeism_15 <- haven::read_dta("K:/Research and Policy/data/data_att
     group_by(system, system_name, subgroup) %>%
     summarise_each(funs(sum), starts_with("n_")) %>%
     filter(!grepl("non-", subgroup)) %>%
+    mutate(pct_chronic = 100 * n_chronic/n_students,
+        pct_severe = 100 * n_severe/n_students) %>%
     left_join(district_absenteeism_14, by = c("system", "subgroup"))
 
 write_csv(district_absenteeism_15, path = "data/cohort_absenteeism.csv", na = "")

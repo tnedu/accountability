@@ -46,20 +46,23 @@ prior <- success_rates %>%
         pct_below_prior = pct_below_bsc, pct_prof_adv_prior = pct_prof_adv)
 
 # Success Rates Minimum Performance Keys
-minimum_performance_all <- success_rates %>%
+success_rates_super <- success_rates %>%
+    filter(subgroup == "Super Subgroup") %>%
+    filter(year == 2015) %>%
+    left_join(prior, by = c("system", "system_name", "subject", "subgroup")) %>%
+    transmute(system, system_name, subject, bb_reduction_key = pct_below_bsc <= pct_below_prior + 2)
+
+success_rates <- success_rates %>%
     filter(subgroup == "All Students") %>%
     filter(year == 2015) %>%
     left_join(prior, by = c("system", "system_name", "subject", "subgroup")) %>%
     left_join(tvaas, by = c("year", "system", "system_name", "subject", "subgroup")) %>% 
     transmute(system, system_name, subject,
         achievement_key = pct_prof_adv >= pct_prof_adv_prior - 2,
-        value_added_key = tvaas_level %in% c("Level 3", "Level 4", "Level 5"))
+        value_added_key = tvaas_level %in% c("Level 3", "Level 4", "Level 5")) %>% 
+    full_join(success_rates_super, by = c("system", "system_name", "subject"))
 
-minimum_performance_super <- success_rates %>%
-    filter(subgroup == "Super Subgroup") %>%
-    filter(year == 2015) %>%
-    left_join(prior, by = c("system", "system_name", "subject", "subgroup")) %>%
-    transmute(system, system_name, subject, bb_reduction_key = pct_below_bsc <= pct_below_prior + 2)
+rm(prior, tvaas, success_rates_super)
 
 # Absenteeism Minimum Performance Keys
 absenteeism_growth <- read_csv("data/student_match_absenteeism.csv") %>%
@@ -72,6 +75,8 @@ absenteeism <- read_csv("data/cohort_absenteeism.csv") %>%
     spread(subgroup, key) %>%
     transmute(system, system_name, subject = "Absenteeism", achievement_key = `All Students`, bb_reduction_key = Super) %>%
     full_join(absenteeism_growth, by = "system")
+
+rm(absenteeism_growth)
 
 # Grad Minimum Performance Keys
 grad_prior <- haven::read_dta("K:/ORP_accountability/data/2015_graduation_rate/district_grad_rate2014.dta") %>%
@@ -93,8 +98,47 @@ grad <- haven::read_dta("K:/ORP_accountability/data/2015_graduation_rate/distric
     select(system, system_name, subject, achievement_key, value_added_key) %>%
     full_join(grad_super, by = "system")
 
+rm(grad_prior, grad_super)
+
+# ELPA Minimum Performance Keys
+elpa_long_term <- read_csv("data/long_term_els.csv") %>%
+    transmute(system, bb_reduction_key = ifelse(n_students >= 30 & n_students_prior >= 30, 
+        pct_long_term_el <= pct_long_term_el_prior + 2, NA))
+
+elpa_prior <- readxl::read_excel("K:/ORP_accountability/projects/Title III/Output/AMAO_I_2015.xlsx") %>%
+    transmute(system, system_name, n_students_prior = tested_both_years, 
+        pct_met_growth_standard_prior = percent_improved)
+
+elpa <- read_csv("data/elpa_growth_standard.csv") %>%
+    filter(subgroup == "All Students") %>%
+    left_join(elpa_prior, by = "system") %>%
+    mutate(pct_met_growth_standard_scaled = ifelse(growth_standard_denom >= 30,
+        scale(pct_met_growth_standard), NA)) %>%
+    transmute(system, subject = "ELPA",
+        achievement_key = ifelse(growth_standard_denom >= 30 & n_students_prior >= 30, 
+            pct_met_growth_standard >= pct_met_growth_standard_prior - 2, NA),
+        value_added_key = pct_met_growth_standard_scaled >= -0.5) %>%
+    full_join(elpa_long_term, by = "system")
+
+rm(elpa_prior, elpa_long_term)
+
 # Combine Minimum Performance Keys
-minimum_performance <- minimum_performance_all %>%
-    full_join(minimum_performance_super, by = c("system", "system_name", "subject")) %>% 
+minimum_performance <- success_rates %>%
     bind_rows(absenteeism) %>% 
-    bind_rows(grad)
+    bind_rows(grad) %>% 
+    bind_rows(elpa) %>%
+    arrange(system, subject) %>%
+    group_by(system) %>%
+    summarise(achievement_met = sum(achievement_key, na.rm = TRUE), 
+        achievement_eligible = sum(!is.na(achievement_key), na.rm = TRUE),
+        value_added_met = sum(value_added_key, na.rm = TRUE),
+        value_added_eligible = sum(!is.na(value_added_key), na.rm = TRUE),
+        bb_reduction_met = sum(bb_reduction_key, na.rm = TRUE),
+        bb_reduction_eligible = sum(!is.na(bb_reduction_key), na.rm = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(met_achievement_goal = achievement_met/achievement_eligible >= 1/3,
+        met_value_added_goal = value_added_met/value_added_eligible >= 1/3,
+        met_bb_reduction_goal = bb_reduction_met/bb_reduction_eligible >= 1/3) %>%
+    rowwise() %>%
+    mutate(met_minimum_performance_goal = mean(c(met_achievement_goal, met_value_added_goal, met_bb_reduction_goal), na.rm = TRUE) == 1) %>% 
+    ungroup()
