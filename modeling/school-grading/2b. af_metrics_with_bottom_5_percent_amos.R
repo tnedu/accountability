@@ -195,7 +195,7 @@ targeted_support <- AF_grades_metrics %>%
     group_by(subgroup) %>%
     mutate(denom = sum(!is.na(subgroup_average))) %>%
     group_by(subgroup, designation_ineligible, final_grade) %>%
-    mutate(rank = rank(subgroup_average, na.last = "keep", ties.method = "average"),
+    mutate(rank = rank(subgroup_average, na.last = "keep", ties.method = "min"),
         targeted_support = ifelse(is.na(final_grade) & designation_ineligible == 0, rank/denom <= 0.05, NA)) %>%
     ungroup() %>%
     select(system, system_name, school, school_name, subgroup, final_grade, targeted_support) %>%
