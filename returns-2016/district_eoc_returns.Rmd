@@ -19,9 +19,7 @@ system_numeric <- readstata13::read.dta13("K:/ORP_accountability/projects/2016_s
     mutate(District = sub("Special School District", "SSD", District),
         Math = ifelse(system %in% c(30, 60, 80, 100, 110, 140, 150, 190, 440, 580, 590, 710, 800, 821, 850, 890, 930), "Integrated Math", "Algebra")) 
 
-state_numeric <- readstata13::read.dta13("K:/ORP_accountability/projects/2016_state_results/state_numeric_with_super_subgroup_2016.dta") %>%
-    rename(District = system_name) %>%
-    mutate(District = sub("Special School District", "SSD", District))
+state_numeric <- readstata13::read.dta13("K:/ORP_accountability/projects/2016_state_results/state_numeric_with_super_subgroup_2016.dta")
 ```
 
 **Participation Rate**
@@ -100,11 +98,12 @@ system_numeric %>%
 
 &nbsp;
 
-The highest performing districts in Math were...
+The highest performing districts (meeting a 95% participation rate) in Math were...
 
 ``` {r}
 system_numeric %>%
     filter(subgroup == "All Students" & subject == "HS Math") %>%
+    filter(participation_rate >= 95) %>%
     filter(valid_tests >= 30) %>%
     arrange(desc(pct_on_mastered)) %>%
     select(District, pct_on_mastered) %>%
@@ -129,11 +128,12 @@ system_numeric %>%
 
 &nbsp;
 
-The highest performing districts in English were...
+The highest performing districts (meeting a 95% participation rate) in English were...
 
 ``` {r}
 system_numeric %>%
     filter(subgroup == "All Students" & subject == "HS English") %>%
+    filter(participation_rate >= 95) %>%
     filter(valid_tests >= 30) %>%
     arrange(desc(pct_on_mastered)) %>%
     select(District, pct_on_mastered) %>%
@@ -268,7 +268,7 @@ system_numeric %>%
 
 How does subgroup performance hang with All Students performance? (It doesn't as much as you'd think.)
 
-``` {r, fig.width = 7, fig.height = 7}
+``` {r, fig.width = 7, fig.height = 10}
 all <- system_numeric %>%
     filter(subgroup == "All Students") %>%
     filter(valid_tests >= 30) %>%
@@ -283,7 +283,7 @@ system_numeric %>%
     ggplot(aes(x = OM_percentile_all, y = OM_percentile)) + 
     geom_point() +
     geom_abline(intercept = 0, slope = 1, color = "red") +
-    facet_grid(subject ~ subgroup) +
+    facet_grid(subgroup ~ subject) +
     theme_hc() +
     labs(x = "All Students On Track/Mastered Percentile", y = "Subgroup On Track/Mastered Percentile")
 ```
@@ -292,7 +292,7 @@ system_numeric %>%
 
 Movement in percentile ranks in HS Math by subgroup...
 
-```{r, fig.width = 7, fig.height = 4}
+```{r, fig.width = 7, fig.height = 6}
 system_numeric %>%
     filter(subject == "HS Math") %>%
     filter(!(subgroup %in% c("All Students", "Super Subgroup"))) %>%
@@ -300,7 +300,7 @@ system_numeric %>%
     ggplot(aes(x = PA_percentile_prior, y = OM_percentile, colour = Math)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, color = "red") +
-    facet_grid(. ~ subgroup) +
+    facet_wrap(~ subgroup, ncol = 2) +
     theme_hc() +
     labs(x = "2015 Math Proficient/Advanced Percentile", y = "2016 Math On Track/Mastered Percentile")
 ```
@@ -309,7 +309,7 @@ system_numeric %>%
 
 Movement in percentile ranks in HS English by subgroup...
 
-```{r, fig.width = 7, fig.height = 4}
+```{r, fig.width = 7, fig.height = 6}
 system_numeric %>%
     filter(subject == "HS English") %>%
     filter(!(subgroup %in% c("All Students", "Super Subgroup"))) %>%
@@ -317,7 +317,7 @@ system_numeric %>%
     ggplot(aes(x = PA_percentile_prior, y = OM_percentile)) +
     geom_point() +
     geom_abline(intercept = 0, slope = 1, color = "red") +
-    facet_grid(. ~ subgroup) +
+    facet_wrap(~ subgroup, ncol = 2) +
     theme_hc() +
     labs(x = "2015 English Proficient/Advanced Percentile", y = "2016 English On Track/Mastered Percentile")
 ```
