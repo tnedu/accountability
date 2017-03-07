@@ -4,8 +4,7 @@ library(tidyverse)
 
 # Grade pools
 grade_pools <- haven::read_dta("K:/ORP_accountability/projects/2016_pre_coding/Output/grade_pools_designation_immune_2016.dta") %>%
-    select(system, school, designation_ineligible, pool) %>%
-    mutate_each(funs(as.numeric), system, school)
+    transmute(system = as.numeric(system), school = as.numeric(school), designation_ineligible, pool)
 
 # School base + merge on grade pools
 school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_base_with_super_subgroup_2016.csv") %>%
@@ -37,7 +36,7 @@ success_rates_1yr <- school_base %>%
         subject = ifelse(subject %in% c("English I", "English II", "English III"), "HS English", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry"), "HS Science", subject)) %>% 
     group_by(year, system, system_name, school, school_name, pool, subgroup, subject, designation_ineligible) %>%
-    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv) %>% 
+    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv) %>%
     ungroup() %>%
     mutate_each(funs(ifelse(valid_tests < 30, 0, .)), valid_tests, n_below_bsc, n_bsc, n_prof, n_adv) %>%
     rowwise() %>%
@@ -101,7 +100,7 @@ amos <- school_accountability %>%
         AMO_target_BB = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/8, 1), NA),
         AMO_target_BB_4 = ifelse(valid_tests >= 30, round(pct_below_bsc - pct_below_bsc/4, 1), NA),
         year = "2015") %>%
-    transmute(year, system, system_name, school, school_name, subject, subgroup, valid_tests_prior = valid_tests,
+    select(year, system, system_name, school, school_name, subject, subgroup, valid_tests_prior = valid_tests,
         pct_below_bsc_prior = pct_below_bsc, pct_prof_adv_prior = pct_prof_adv,
         AMO_target_PA, AMO_target_PA_4, AMO_target_BB, AMO_target_BB_4)
 

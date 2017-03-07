@@ -43,27 +43,27 @@ absenteeism <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT F
     transmute(system = districtnumber, school = schoolnumber, subgroup, enrolled = total_students_w_abs,
         pct_chronically_absent = round(100 * (num_chronic + num_severe)/total_students_w_abs, 1)) %>%
     left_join(absenteeism14, by = c("system", "school", "subgroup")) %>%
-    mutate(grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) <= 8, "A", NA),
-        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 8 & round(pct_chronically_absent, 1) <= 12, "B", grade_absenteeism_absolute),
-        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 12 & round(pct_chronically_absent, 1) <= 17, "C", grade_absenteeism_absolute),
-        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 17 & round(pct_chronically_absent, 1) <= 24, "D", grade_absenteeism_absolute),
-        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 24, "F", grade_absenteeism_absolute),
+    mutate(grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 24, "F", NA),
+        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 17, "D", grade_absenteeism_absolute),
+        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 12, "C", grade_absenteeism_absolute),
+        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 8, "B", grade_absenteeism_absolute),
+        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) <= 8, "A", grade_absenteeism_absolute),
         grade_absenteeism_absolute = ifelse(enrolled < 30, NA, grade_absenteeism_absolute),
         pct_chronically_absent = pct_chronically_absent/100,
         lower_bound_ci = round(100 * (enrolled/(enrolled + qnorm(0.975)^2)) * (pct_chronically_absent + ((qnorm(0.975)^2)/(2 * enrolled)) - 
             qnorm(0.975) * sqrt((pct_chronically_absent * (1 - pct_chronically_absent))/enrolled + (qnorm(0.975)^2)/(4 * enrolled^2))), 1),
         pct_chronically_absent = 100 * pct_chronically_absent,
-        grade_absenteeism_reduction = ifelse(round(pct_chronically_absent, 1) <= round(AMO_target_4, 1), "A", NA),
-        grade_absenteeism_reduction = ifelse(round(pct_chronically_absent, 1) < round(AMO_target, 1) & round(pct_chronically_absent, 1) > round(AMO_target_4, 1), "B", grade_absenteeism_reduction),
-        grade_absenteeism_reduction = ifelse(lower_bound_ci <= AMO_target & pct_chronically_absent >= AMO_target, "C", grade_absenteeism_reduction),
-        grade_absenteeism_reduction = ifelse(lower_bound_ci < pct_chronically_absent_prior & lower_bound_ci > AMO_target, "D", grade_absenteeism_reduction),
-        grade_absenteeism_reduction = ifelse(lower_bound_ci >= pct_chronically_absent_prior, "F", grade_absenteeism_reduction),
+        grade_absenteeism_reduction = ifelse(lower_bound_ci >= pct_chronically_absent_prior, "F", NA),
+        grade_absenteeism_reduction = ifelse(lower_bound_ci < pct_chronically_absent_prior, "D", grade_absenteeism_reduction),
+        grade_absenteeism_reduction = ifelse(lower_bound_ci <= AMO_target, "C", grade_absenteeism_reduction),
+        grade_absenteeism_reduction = ifelse(round(pct_chronically_absent, 1) < round(AMO_target, 1), "B", grade_absenteeism_reduction),
+        grade_absenteeism_reduction = ifelse(round(pct_chronically_absent, 1) <= round(AMO_target_4, 1), "A", grade_absenteeism_reduction),
         grade_absenteeism_reduction = ifelse(enrolled < 30, NA, grade_absenteeism_reduction)) %>%
     select(system, school, subgroup, grade_absenteeism_absolute, grade_absenteeism_reduction)
 
 # Students advancing in proficiency for subgroup growth
-subgroup_growth <- read_csv("K:/ORP_accountability/projects/Alex/accountability/modeling/school-grading/data/student_match_ranks.csv") %>%
-    transmute(system, school, subgroup, grade_growth = grade)
+subgroup_growth <- read_csv("data/student_match_ranks.csv") %>%
+    select(system, school, subgroup, grade_growth = grade)
 
 # ELPA
 elpa <- read_csv("data/elpa_indicator.csv") %>%
@@ -85,44 +85,44 @@ F_schools <- school_accountability %>%
 # ACT and Grad
 act <- school_accountability %>%
     filter(subject == "ACT Composite") %>%
-    transmute(system, school, subgroup, valid_tests_ACT = valid_tests, pct_21_ACT = pct_prof_adv,
+    select(system, school, subgroup, valid_tests_ACT = valid_tests, pct_21_ACT = pct_prof_adv,
         valid_tests_prior_ACT = valid_tests_prior, pct_21_prior_ACT = pct_prof_adv_prior)
 
 act_grad <- school_accountability %>%
     filter(subject == "Graduation Rate") %>%
-    transmute(system, school, subgroup, grad_cohort = valid_tests, grad_rate = pct_prof_adv,
+    select(system, school, subgroup, grad_cohort = valid_tests, grad_rate = pct_prof_adv,
         grad_cohort_prior = valid_tests_prior, grad_rate_prior = pct_prof_adv_prior) %>%
     full_join(act, by = c("system", "school", "subgroup")) %>%
     mutate(act_grad_prior = round(grad_rate_prior * pct_21_prior_ACT/100, 1),
         AMO_target = ifelse(valid_tests_prior_ACT >= 30 & grad_cohort_prior >= 30, round(act_grad_prior + (100 - act_grad_prior)/16, 1), NA),
         AMO_target_4 = ifelse(valid_tests_prior_ACT >= 30 & grad_cohort_prior >= 30, round(act_grad_prior + (100 - act_grad_prior)/8, 1), NA),
         act_grad = round(grad_rate * pct_21_ACT/100, 1),
-        grade_readiness_absolute = ifelse(act_grad >= 50, "A", NA),
-        grade_readiness_absolute = ifelse(act_grad > 35 & act_grad < 50, "B", grade_readiness_absolute),
-        grade_readiness_absolute = ifelse(act_grad > 28 & act_grad <= 35, "C", grade_readiness_absolute),
-        grade_readiness_absolute = ifelse(act_grad > 16 & act_grad <= 28, "D", grade_readiness_absolute),
-        grade_readiness_absolute = ifelse(act_grad <= 16, "F", grade_readiness_absolute),
+        grade_readiness_absolute = ifelse(act_grad <= 16, "F", NA),
+        grade_readiness_absolute = ifelse(act_grad > 16, "D", grade_readiness_absolute),
+        grade_readiness_absolute = ifelse(act_grad > 28, "C", grade_readiness_absolute),
+        grade_readiness_absolute = ifelse(act_grad > 35, "B", grade_readiness_absolute),
+        grade_readiness_absolute = ifelse(act_grad >= 50, "A", grade_readiness_absolute),
         grade_readiness_absolute = ifelse(grad_cohort < 30 | valid_tests_ACT < 30, NA, grade_readiness_absolute),
-        grade_readiness_target = ifelse(act_grad >= AMO_target_4, "A", NA),
-        grade_readiness_target = ifelse(act_grad >= AMO_target & act_grad < AMO_target_4, "B", grade_readiness_target),
-        grade_readiness_target = ifelse(act_grad > act_grad_prior & act_grad < AMO_target, "C", grade_readiness_target),
+        grade_readiness_target = ifelse(act_grad < act_grad_prior, "F", NA),
         grade_readiness_target = ifelse(act_grad == act_grad_prior, "D", grade_readiness_target),
-        grade_readiness_target = ifelse(act_grad < act_grad_prior, "F", grade_readiness_target),
+        grade_readiness_target = ifelse(act_grad > act_grad_prior, "C", grade_readiness_target),
+        grade_readiness_target = ifelse(act_grad >= AMO_target, "B", grade_readiness_target),
+        grade_readiness_target = ifelse(act_grad >= AMO_target_4, "A", grade_readiness_target),
         grade_readiness_target = ifelse(grad_cohort < 30 | valid_tests_ACT < 30, NA, grade_readiness_target))
 
 # Achievement and growth
 ach_growth <- school_accountability %>% 
     filter(year == "2015", subject == "Success Rate") %>%
-    mutate(grade_relative_achievement = ifelse(pctile_rank_PA >= 80, "A", NA),
-        grade_relative_achievement = ifelse(pctile_rank_PA >= 60 & pctile_rank_PA < 80, "B", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank_PA >= 40 & pctile_rank_PA < 60, "C", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank_PA >= 20 & pctile_rank_PA < 40, "D", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank_PA < 20, "F", grade_relative_achievement),
-        grade_achievement_amo = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", NA),
-        grade_achievement_amo = ifelse(pct_prof_adv > AMO_target_PA & pct_prof_adv < AMO_target_PA_4, "B", grade_achievement_amo),
-        grade_achievement_amo = ifelse(upper_bound_ci_PA >= AMO_target_PA & pct_prof_adv <= AMO_target_PA, "C", grade_achievement_amo),
-        grade_achievement_amo = ifelse(upper_bound_ci_PA > pct_prof_adv_prior & upper_bound_ci_PA < AMO_target_PA, "D", grade_achievement_amo),
-        grade_achievement_amo = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", grade_achievement_amo),
+    mutate(grade_relative_achievement = ifelse(pctile_rank_PA < 20, "F", NA),
+        grade_relative_achievement = ifelse(pctile_rank_PA >= 20, "D", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank_PA >= 40, "C", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank_PA >= 60, "B", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank_PA >= 80, "A", grade_relative_achievement),
+        grade_achievement_amo = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", NA),
+        grade_achievement_amo = ifelse(upper_bound_ci_PA > pct_prof_adv_prior, "D", grade_achievement_amo),
+        grade_achievement_amo = ifelse(upper_bound_ci_PA >= AMO_target_PA, "C", grade_achievement_amo),
+        grade_achievement_amo = ifelse(pct_prof_adv > AMO_target_PA, "B", grade_achievement_amo),
+        grade_achievement_amo = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", grade_achievement_amo),
         grade_achievement_amo = ifelse(valid_tests < 30, NA, grade_achievement_amo),
         grade_tvaas = ifelse(TVAAS_level == "Level 5", "A", NA),
         grade_tvaas = ifelse(TVAAS_level == "Level 4", "B", grade_tvaas),
@@ -178,12 +178,12 @@ AF_grades_metrics <- full_heat_map %>%
 # Achievement grades
 all_students_grades_final <- AF_grades_metrics %>%
     filter(subgroup == "All Students") %>%
-    transmute(system, system_name, school, school_name, pool, designation_ineligible, priority_grad, 
+    select(system, system_name, school, school_name, pool, designation_ineligible, priority_grad, 
         achievement_average = subgroup_average) %>%
     mutate(achievement_grade = ifelse(achievement_average == 0, "F", NA),
-        achievement_grade = ifelse(achievement_average > 0 & achievement_average <= 1, "D", achievement_grade),
-        achievement_grade = ifelse(achievement_average > 1 & achievement_average <= 2, "C", achievement_grade),
-        achievement_grade = ifelse(achievement_average > 2 & achievement_average <= 3, "B", achievement_grade),
+        achievement_grade = ifelse(achievement_average > 0, "D", achievement_grade),
+        achievement_grade = ifelse(achievement_average > 1, "C", achievement_grade),
+        achievement_grade = ifelse(achievement_average > 2, "B", achievement_grade),
         achievement_grade = ifelse(achievement_average > 3, "A", achievement_grade))
 
 # Targeted support schools
@@ -223,9 +223,9 @@ subgroup_grades_final <- AF_grades_metrics %>%
     ungroup() %>%
     select(-numerator, -total_weight) %>%
     mutate(gap_closure_grade = ifelse(gap_closure_average == 0, "F", NA),
-        gap_closure_grade = ifelse(gap_closure_average > 0 & gap_closure_average <= 1, "D", gap_closure_grade),
-        gap_closure_grade = ifelse(gap_closure_average > 1 & gap_closure_average <= 2, "C", gap_closure_grade),
-        gap_closure_grade = ifelse(gap_closure_average > 2 & gap_closure_average <= 3, "B", gap_closure_grade),
+        gap_closure_grade = ifelse(gap_closure_average > 0, "D", gap_closure_grade),
+        gap_closure_grade = ifelse(gap_closure_average > 1, "C", gap_closure_grade),
+        gap_closure_grade = ifelse(gap_closure_average > 2, "B", gap_closure_grade),
         gap_closure_grade = ifelse(gap_closure_average > 3, "A", gap_closure_grade))
 
 AF_grades_final <- all_students_grades_final %>%
@@ -242,10 +242,10 @@ AF_grades_final <- all_students_grades_final %>%
             gap_closure_average, overall_average),
         overall_average = round(overall_average, 1)) %>%
     ungroup() %>%
-    mutate(final_grade = ifelse(is.na(final_grade) & overall_average > 3, "A", final_grade),
-        final_grade = ifelse(is.na(final_grade) & overall_average > 2 & overall_average <= 3, "B", final_grade),
+    mutate(final_grade = ifelse(is.na(final_grade) & overall_average <= 1, "D", final_grade),
         final_grade = ifelse(is.na(final_grade) & overall_average > 1 & overall_average <= 2, "C", final_grade),
-        final_grade = ifelse(is.na(final_grade) & overall_average <= 1, "D", final_grade),
+        final_grade = ifelse(is.na(final_grade) & overall_average > 2 & overall_average <= 3, "B", final_grade),
+        final_grade = ifelse(is.na(final_grade) & overall_average > 3, "A", final_grade),
         final_grade = ifelse(designation_ineligible, NA, final_grade),
         # targeted_support = ifelse(final_grade == "D", 1, targeted_support),
         targeted_support = ifelse(designation_ineligible, NA, targeted_support),
@@ -256,10 +256,9 @@ AF_grades_final <- all_students_grades_final %>%
 
 # Merge Title 1 Status
 title_1 <- readxl::read_excel("data/2014-15 Title I Schools List.xlsx") %>%
-    mutate(system = as.numeric(substr(`School ID`, 1, 3)),
+    transmute(system = as.numeric(substr(`School ID`, 1, 3)),
         school = as.numeric(substr(`School ID`, 5, 8)),
-        title_1 = 1) %>%
-    select(system, school, title_1)
+        title_1 = 1)
 
 # Output files
 write_csv(AF_grades_metrics, path = paste0("data/AF_bottom_five_amos_metrics_", format(Sys.Date(), "%b%d"), ".csv"), na = "")
