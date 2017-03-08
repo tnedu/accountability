@@ -1,19 +1,19 @@
 library(tidyverse)
+library(readxl)
 
-all_students <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/District-Level Intra-Year NCE MRM and URM Results (All Students).xlsx") %>%
+all_students <- read_excel("K:/ORP_accountability/data/2015_tvaas/District-Level Intra-Year NCE MRM and URM Results (All Students).xlsx") %>%
     mutate(Subgroup = "All Students")
 
-subgroups <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/District-Level Intra-Year NCE MRM and URM Results (Subgroups).xlsx")
-super <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/District-Level Intra-Year NCE MRM and URM Results (Super Subgroup).xlsx")
+subgroups <- read_excel("K:/ORP_accountability/data/2015_tvaas/District-Level Intra-Year NCE MRM and URM Results (Subgroups).xlsx")
 
-tvaas <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/District-Level Intra-Year NCE MRM and URM Results (All Students).xlsx") %>%
-    mutate(Subgroup = "All Students") %>% 
-    bind_rows(subgroups, super) %>% 
-    filter(!Test == "ACT") %>% 
+super <- read_excel("K:/ORP_accountability/data/2015_tvaas/District-Level Intra-Year NCE MRM and URM Results (Super Subgroup).xlsx")
+
+tvaas <- bind_rows(all_students, subgroups, super) %>%
+    filter(!Test == "ACT") %>%
     mutate(Index = as.numeric(Index),
         Grade = ifelse(Test == "EOC", "9-12", Grade),
-        temp = 1) %>% 
-    group_by(`System Number`, System, Year, Subgroup, Grade) %>% 
+        temp = 1) %>%
+    group_by(`System Number`, System, Year, Subgroup, Grade) %>%
     summarise(index_avg = mean(Index, na.rm = TRUE), n_subjects = sum(temp, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate(Index = index_avg * sqrt(n_subjects),
@@ -25,7 +25,7 @@ tvaas <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/District-Leve
     mutate_at("Grade", funs(recode(.,
         "4-5" = "3-5 Success Rate",
         "6-8" = "6-8 Success Rate",
-        "9-12" = "HS Success Rate"))) %>% 
-    transmute(year = Year, system = `System Number`, system_name = System, subgroup = Subgroup, content_area = Grade, tvaas_level)
+        "9-12" = "HS Success Rate"))) %>%
+    select(year = Year, system = `System Number`, system_name = System, subgroup = Subgroup, content_area = Grade, tvaas_level)
 
 write_csv(tvaas, "data/grade_band_tvaas.csv", na = "")

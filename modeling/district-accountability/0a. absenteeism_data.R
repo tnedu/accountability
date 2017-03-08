@@ -18,10 +18,11 @@ absenteeism_prior <- haven::read_dta("K:/Research and Policy/data/data_attendanc
     group_by(system, subgroup) %>%
     summarise_each(funs(sum(., na.rm = TRUE)), n_students_prior = total_students_w_abs,
         n_chronic_prior = num_chronic, n_severe_prior = num_severe) %>%
-    mutate(pct_chronically_absent_prior = round(100 * (n_chronic_prior + n_severe_prior)/n_students_prior, 1),
+    ungroup() %>%
+    transmute(system, subgroup,
+        pct_chronically_absent_prior = round(100 * (n_chronic_prior + n_severe_prior)/n_students_prior, 1),
         AMO_target = ifelse(n_students_prior >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/16, 1), NA),
-        AMO_target_4 = ifelse(n_students_prior >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/8, 1), NA)) %>%
-    select(system, subgroup, pct_chronically_absent_prior, AMO_target, AMO_target_4)
+        AMO_target_4 = ifelse(n_students_prior >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/8, 1), NA))
 
 absenteeism <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT Files - Enrollment and Demographic/For Alex/2014-15 Chronic Absenteeism by Subgroup.dta") %>%
     rename(system = districtnumber) %>%
@@ -35,12 +36,11 @@ absenteeism <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT F
     group_by(system, subgroup) %>%
     summarise_each(funs(sum(., na.rm = TRUE)), n_students = total_students_w_abs, n_chronic = num_chronic, n_severe = num_severe) %>%
     ungroup() %>%
-    mutate(pct_chronically_absent = round(100 * (n_chronic + n_severe)/n_students, 1),
-        pct_chronically_absent = pct_chronically_absent/100,
-        lower_bound_ci = round(100 * (n_students/(n_students + qnorm(0.975)^2)) * (pct_chronically_absent + ((qnorm(0.975)^2)/(2 * n_students)) - 
+    mutate(pct_chronically_absent = round((n_chronic + n_severe)/n_students, 3),
+        lower_bound_ci = round(100 * (n_students/(n_students + qnorm(0.975)^2)) * (pct_chronically_absent + ((qnorm(0.975)^2)/(2 * n_students)) -
             qnorm(0.975) * sqrt((pct_chronically_absent * (1 - pct_chronically_absent))/n_students + (qnorm(0.975)^2)/(4 * n_students^2))), 1),
         pct_chronically_absent = 100 * pct_chronically_absent) %>%
-    left_join(absenteeism_prior, by = c("system", "subgroup")) %>% 
+    left_join(absenteeism_prior, by = c("system", "subgroup")) %>%
     select(-n_chronic, -n_severe) %>%
     group_by(subgroup) %>%
     mutate(rank_CA = ifelse(n_students >= 30, rank(pct_chronically_absent, ties.method = "min"), NA),
@@ -50,11 +50,11 @@ absenteeism <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT F
         CA_quintile = ifelse(rank_CA/CA_denom >= 0.4, 2, CA_quintile),
         CA_quintile = ifelse(rank_CA/CA_denom >= 0.6, 1, CA_quintile),
         CA_quintile = ifelse(rank_CA/CA_denom >= 0.8, 0, CA_quintile),
-        CA_amo = ifelse(pct_chronically_absent <= AMO_target_4, 4, NA),
-        CA_amo = ifelse(pct_chronically_absent < AMO_target & pct_chronically_absent > AMO_target_4, 3, CA_amo),
-        CA_amo = ifelse(lower_bound_ci <= AMO_target & pct_chronically_absent >= AMO_target, 2, CA_amo),
-        CA_amo = ifelse(lower_bound_ci < pct_chronically_absent_prior & lower_bound_ci > AMO_target, 1, CA_amo),
-        CA_amo = ifelse(lower_bound_ci >= pct_chronically_absent_prior, 0, CA_amo),
+        CA_amo = ifelse(lower_bound_ci >= pct_chronically_absent_prior, 0, NA),
+        CA_amo = ifelse(lower_bound_ci < pct_chronically_absent_prior, 1, CA_amo),
+        CA_amo = ifelse(lower_bound_ci <= AMO_target, 2, CA_amo),
+        CA_amo = ifelse(pct_chronically_absent <= AMO_target, 3, CA_amo),
+        CA_amo = ifelse(pct_chronically_absent <= AMO_target_4, 4, CA_amo),
         CA_amo = ifelse(n_students < 30, NA, CA_amo)) %>%
     ungroup()
 
@@ -72,7 +72,7 @@ student_absenteeism_14 <- haven::read_dta("K:/Research and Policy/ORP_Data/Stude
 # Force drop duplicates
     mutate(temp = duplicated(studentid)) %>%
     filter(!temp) %>%
-    transmute(studentid, chronic_prior = chronic, severe_prior = severe)
+    select(studentid, chronic_prior = chronic, severe_prior = severe)
 
 district_CA_reduction <- haven::read_dta("K:/Research and Policy/ORP_Data/Student_Information/Attendance/data_attendance/IT Files - Enrollment and Demographic/2015 CA enr race.dta") %>%
     transmute(studentid, system = districtnumber, system_name = districtname, school = schoolnumber, school_name = schoolname,

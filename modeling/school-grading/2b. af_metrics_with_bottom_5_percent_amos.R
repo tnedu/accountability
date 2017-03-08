@@ -50,7 +50,7 @@ absenteeism <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT F
         grade_absenteeism_absolute = ifelse(pct_chronically_absent < 8, "A", grade_absenteeism_absolute),
         grade_absenteeism_absolute = ifelse(enrolled < 30, NA, grade_absenteeism_absolute),
         pct_chronically_absent = pct_chronically_absent/100,
-        lower_bound_ci = round(100 * (enrolled/(enrolled + qnorm(0.975)^2)) * (pct_chronically_absent + ((qnorm(0.975)^2)/(2 * enrolled)) - 
+        lower_bound_ci = round(100 * (enrolled/(enrolled + qnorm(0.975)^2)) * (pct_chronically_absent + ((qnorm(0.975)^2)/(2 * enrolled)) -
             qnorm(0.975) * sqrt((pct_chronically_absent * (1 - pct_chronically_absent))/enrolled + (qnorm(0.975)^2)/(4 * enrolled^2))), 1),
         pct_chronically_absent = 100 * pct_chronically_absent,
         grade_absenteeism_reduction = ifelse(lower_bound_ci >= pct_chronically_absent_prior, "F", NA),
@@ -111,7 +111,7 @@ act_grad <- school_accountability %>%
         grade_readiness_target = ifelse(grad_cohort < 30 | valid_tests_ACT < 30, NA, grade_readiness_target))
 
 # Achievement and growth
-ach_growth <- school_accountability %>% 
+ach_growth <- school_accountability %>%
     filter(year == "2015", subject == "Success Rate") %>%
     mutate(grade_relative_achievement = ifelse(pctile_rank_PA < 20, "F", NA),
         grade_relative_achievement = ifelse(pctile_rank_PA >= 20, "D", grade_relative_achievement),
@@ -142,7 +142,7 @@ full_heat_map <- ach_growth %>%
         grade_readiness = pmin(grade_readiness_absolute, grade_readiness_target, na.rm = TRUE),
         grade_absenteeism = pmin(grade_absenteeism_absolute, grade_absenteeism_reduction, na.rm = TRUE),
         priority_grad = ifelse(subgroup == "All Students", designation_ineligible == 0 & grad_cohort >= 30 & grad_rate < 67, NA)) %>%
-    select(system:designation_ineligible, priority_grad, grade_achievement, grade_tvaas, grade_growth, 
+    select(system:designation_ineligible, priority_grad, grade_achievement, grade_tvaas, grade_growth,
         grade_readiness, grade_absenteeism, grade_elpa)
 
 AF_grades_metrics <- full_heat_map %>%
@@ -178,7 +178,7 @@ AF_grades_metrics <- full_heat_map %>%
 # Achievement grades
 all_students_grades_final <- AF_grades_metrics %>%
     filter(subgroup == "All Students") %>%
-    select(system, system_name, school, school_name, pool, designation_ineligible, priority_grad, 
+    select(system, system_name, school, school_name, pool, designation_ineligible, priority_grad,
         achievement_average = subgroup_average) %>%
     mutate(achievement_grade = ifelse(achievement_average == 0, "F", NA),
         achievement_grade = ifelse(achievement_average > 0, "D", achievement_grade),
@@ -217,9 +217,9 @@ subgroup_grades_final <- AF_grades_metrics %>%
     group_by(system, system_name, school, school_name) %>%
     mutate(subgroups_count = sum(temp, na.rm = TRUE)) %>%
     filter(!(subgroup == "Super Subgroup" & subgroups_count > 1)) %>%
-    mutate(numerator = total_weight * subgroup_average) %>% 
-    summarise_each(funs(sum(., na.rm = TRUE)), total_weight, numerator) %>% 
-    mutate(gap_closure_average = numerator/total_weight) %>% 
+    mutate(numerator = total_weight * subgroup_average) %>%
+    summarise_each(funs(sum(., na.rm = TRUE)), total_weight, numerator) %>%
+    mutate(gap_closure_average = numerator/total_weight) %>%
     ungroup() %>%
     select(-numerator, -total_weight) %>%
     mutate(gap_closure_grade = ifelse(gap_closure_average == 0, "F", NA),
@@ -234,7 +234,7 @@ AF_grades_final <- all_students_grades_final %>%
     full_join(targeted_support, by = c("system", "school")) %>%
     mutate(final_grade = ifelse(is.na(final_grade) & priority_grad == TRUE, "F", final_grade)) %>%
     rowwise() %>%
-    mutate(overall_average = ifelse(!is.na(achievement_average) & !is.na(gap_closure_average), 
+    mutate(overall_average = ifelse(!is.na(achievement_average) & !is.na(gap_closure_average),
             sum(0.6 * achievement_average, 0.4 * gap_closure_average, na.rm = TRUE), NA),
         overall_average = ifelse(!is.na(achievement_average) & is.na(gap_closure_average),
             achievement_average, overall_average),
@@ -325,12 +325,12 @@ plot_tvaas <- AF_grades_metrics %>%
     inner_join(AF_grades_final, by = c("system", "system_name", "school", "school_name", "designation_ineligible", "pool")) %>%
     filter(!is.na(final_grade)) %>%
     count(final_grade, grade_tvaas) %>%
-    ggplot(aes(x = final_grade, y = n, fill = grade_tvaas, label = n)) + 
+    ggplot(aes(x = final_grade, y = n, fill = grade_tvaas, label = n)) +
         geom_bar(stat = "identity") +
-        geom_text(position = position_stack(vjust = 0.5)) + 
-        theme_hc() + 
+        geom_text(position = position_stack(vjust = 0.5)) +
+        theme_hc() +
         scale_x_discrete(limits = c("F", "D", "C", "B", "A")) +
-        scale_fill_manual(values = c("#00b050", "#92d050", "#f6f7dd", "#ff9f99", "#ff0000")) + 
+        scale_fill_manual(values = c("#00b050", "#92d050", "#f6f7dd", "#ff9f99", "#ff0000")) +
         labs(fill = "TVAAS", y = "Count") +
         theme(axis.title.x = element_blank())
 

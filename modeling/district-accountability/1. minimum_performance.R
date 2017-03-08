@@ -2,7 +2,7 @@ library(tidyverse)
 
 # TVAAS by Grade Band
 tvaas <- read_csv("data/grade_band_tvaas.csv") %>%
-    rename(subject = content_area)
+    select(year, system, subgroup, subject = content_area, tvaas_level)
 
 # One-Year Success and Below Rates
 success_rates <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/system_base_with_super_subgroup_2016.csv") %>%
@@ -39,18 +39,18 @@ success_rates <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output
         pct_prof_adv = ifelse(valid_tests != 0, round(100 * n_PA/valid_tests, 1), NA),
         pct_below_bsc = ifelse(n_below_bsc == 0 & pct_below_bsc != 0, 0, pct_below_bsc),
         pct_prof_adv = pct_prof_adv/100,
-        upper_bound_ci_PA = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_prof_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) + 
+        upper_bound_ci_PA = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_prof_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) +
             qnorm(0.975) * sqrt((pct_prof_adv * (1 - pct_prof_adv))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
         pct_prof_adv = 100 * pct_prof_adv,
         pct_below_bsc = pct_below_bsc/100,
-        lower_bound_ci_BB = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_below_bsc + ((qnorm(0.975)^2)/(2 * valid_tests)) - 
+        lower_bound_ci_BB = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_below_bsc + ((qnorm(0.975)^2)/(2 * valid_tests)) -
             qnorm(0.975) * sqrt((pct_below_bsc * (1 - pct_below_bsc))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
         pct_below_bsc = 100 * pct_below_bsc) %>%
     select(-pct_bsc, -pct_prof, -pct_adv)
 
 prior <- success_rates %>%
     filter(year == 2014) %>%
-    transmute(system, system_name, subject, subgroup, valid_tests_prior = valid_tests,
+    select(system, system_name, subject, subgroup, valid_tests_prior = valid_tests,
         pct_below_prior = pct_below_bsc, pct_prof_adv_prior = pct_prof_adv)
 
 # Minimum Performance Keys
@@ -62,7 +62,7 @@ minimum_performance_super <- success_rates %>%
 minimum_performance <- success_rates %>%
     filter(subgroup == "All Students", year == 2015) %>%
     left_join(prior, by = c("system", "system_name", "subject", "subgroup")) %>%
-    left_join(tvaas, by = c("year", "system", "system_name", "subject", "subgroup")) %>%
+    left_join(tvaas, by = c("year", "system", "subject", "subgroup")) %>%
     mutate(achievement_key = upper_bound_ci_PA >= pct_prof_adv_prior,
         value_added_key = tvaas_level %in% c("Level 3", "Level 4", "Level 5")) %>%
     full_join(minimum_performance_super, by = c("system", "system_name", "subject")) %>%
