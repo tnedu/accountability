@@ -43,11 +43,11 @@ absenteeism <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT F
     transmute(system = districtnumber, school = schoolnumber, subgroup, enrolled = total_students_w_abs,
         pct_chronically_absent = round(100 * (num_chronic + num_severe)/total_students_w_abs, 1)) %>%
     left_join(absenteeism14, by = c("system", "school", "subgroup")) %>%
-    mutate(grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 24, "F", NA),
-        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 17, "D", grade_absenteeism_absolute),
-        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 12, "C", grade_absenteeism_absolute),
-        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) > 8, "B", grade_absenteeism_absolute),
-        grade_absenteeism_absolute = ifelse(round(pct_chronically_absent, 1) <= 8, "A", grade_absenteeism_absolute),
+    mutate(grade_absenteeism_absolute = ifelse(pct_chronically_absent > 24, "F", NA),
+        grade_absenteeism_absolute = ifelse(pct_chronically_absent <= 24, "D", grade_absenteeism_absolute),
+        grade_absenteeism_absolute = ifelse(pct_chronically_absent <= 17, "C", grade_absenteeism_absolute),
+        grade_absenteeism_absolute = ifelse(pct_chronically_absent <= 12, "B", grade_absenteeism_absolute),
+        grade_absenteeism_absolute = ifelse(pct_chronically_absent < 8, "A", grade_absenteeism_absolute),
         grade_absenteeism_absolute = ifelse(enrolled < 30, NA, grade_absenteeism_absolute),
         pct_chronically_absent = pct_chronically_absent/100,
         lower_bound_ci = round(100 * (enrolled/(enrolled + qnorm(0.975)^2)) * (pct_chronically_absent + ((qnorm(0.975)^2)/(2 * enrolled)) - 
@@ -56,8 +56,8 @@ absenteeism <- haven::read_dta("K:/Research and Policy/data/data_attendance/IT F
         grade_absenteeism_reduction = ifelse(lower_bound_ci >= pct_chronically_absent_prior, "F", NA),
         grade_absenteeism_reduction = ifelse(lower_bound_ci < pct_chronically_absent_prior, "D", grade_absenteeism_reduction),
         grade_absenteeism_reduction = ifelse(lower_bound_ci <= AMO_target, "C", grade_absenteeism_reduction),
-        grade_absenteeism_reduction = ifelse(round(pct_chronically_absent, 1) < round(AMO_target, 1), "B", grade_absenteeism_reduction),
-        grade_absenteeism_reduction = ifelse(round(pct_chronically_absent, 1) <= round(AMO_target_4, 1), "A", grade_absenteeism_reduction),
+        grade_absenteeism_reduction = ifelse(pct_chronically_absent <= AMO_target, "B", grade_absenteeism_reduction),
+        grade_absenteeism_reduction = ifelse(pct_chronically_absent <= AMO_target_4, "A", grade_absenteeism_reduction),
         grade_absenteeism_reduction = ifelse(enrolled < 30, NA, grade_absenteeism_reduction)) %>%
     select(system, school, subgroup, grade_absenteeism_absolute, grade_absenteeism_reduction)
 
@@ -121,7 +121,7 @@ ach_growth <- school_accountability %>%
         grade_achievement_amo = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", NA),
         grade_achievement_amo = ifelse(upper_bound_ci_PA > pct_prof_adv_prior, "D", grade_achievement_amo),
         grade_achievement_amo = ifelse(upper_bound_ci_PA >= AMO_target_PA, "C", grade_achievement_amo),
-        grade_achievement_amo = ifelse(pct_prof_adv > AMO_target_PA, "B", grade_achievement_amo),
+        grade_achievement_amo = ifelse(pct_prof_adv >= AMO_target_PA, "B", grade_achievement_amo),
         grade_achievement_amo = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", grade_achievement_amo),
         grade_achievement_amo = ifelse(valid_tests < 30, NA, grade_achievement_amo),
         grade_tvaas = ifelse(TVAAS_level == "Level 5", "A", NA),
@@ -196,7 +196,7 @@ targeted_support <- AF_grades_metrics %>%
     mutate(denom = sum(!is.na(subgroup_average))) %>%
     group_by(subgroup, designation_ineligible, final_grade) %>%
     mutate(rank = rank(subgroup_average, na.last = "keep", ties.method = "min"),
-        targeted_support = ifelse(is.na(final_grade) & designation_ineligible == 0, rank/denom <= 0.05, NA)) %>%
+        targeted_support = ifelse(is.na(final_grade) & designation_ineligible == 0, rank <= ceiling(0.05 * denom), NA)) %>%
     ungroup() %>%
     select(system, system_name, school, school_name, subgroup, final_grade, targeted_support) %>%
     spread(subgroup, targeted_support) %>%
