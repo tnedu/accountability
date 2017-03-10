@@ -120,6 +120,11 @@ all_subjects <- bind_rows(achievement, absenteeism, grad, ELPA) %>%
 
 achievement_average <- all_subjects %>%
     group_by(system) %>%
-    summarise(achievement_average = mean(average, na.rm = TRUE))
+    summarise(achievement_average = mean(average, na.rm = TRUE)) %>%
+    mutate(achievement_designation = ifelse(achievement_average == 0, "In Need of Improvement", NA),
+        achievement_designation = ifelse(achievement_average > 0, "Marginal", achievement_designation),
+        achievement_designation = ifelse(achievement_average > 1, "Satisfactory", achievement_designation),
+        achievement_designation = ifelse(achievement_average > 2, "Advancing", achievement_designation),
+        achievement_designation = ifelse(achievement_average > 3, "Exemplary", achievement_designation))
 
 write_csv(achievement_average, path = "data/achievement_scores.csv", na = "")

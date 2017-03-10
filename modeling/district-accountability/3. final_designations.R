@@ -1,0 +1,27 @@
+## District Accountability - Final Designations
+
+library(tidyverse)
+
+subgroup <- read_csv("data/subgroup_scores.csv")
+
+achievement <- read_csv("data/achievement_scores.csv")
+
+final_designations <- read_csv("data/minimum_performance.csv") %>%
+    select(system, system_name, met_minimum_performance_goal) %>%
+    left_join(achievement, by = "system") %>%
+    left_join(subgroup, by = "system") %>%
+    rowwise() %>%
+    mutate(overall_average = ifelse(!is.na(achievement_average) & !is.na(subgroup_average),
+            sum(0.6 * achievement_average, 0.4 * subgroup_average, na.rm = TRUE), NA),
+        overall_average = ifelse(!is.na(achievement_average) & is.na(subgroup_average),
+            achievement_average, overall_average),
+        overall_average = ifelse(is.na(achievement_average) & !is.na(subgroup_average),
+            subgroup_average, overall_average)) %>%
+    ungroup() %>%
+    mutate(final_designation = ifelse(!met_minimum_performance_goal, "In Need of Improvement", NA),
+        final_designation = ifelse(is.na(final_designation) & overall_average <= 1, "Marginal", final_designation),
+        final_designation = ifelse(is.na(final_designation) & overall_average > 1 & overall_average <= 2, "Satisfactory", final_designation),
+        final_designation = ifelse(is.na(final_designation) & overall_average > 2 & overall_average <= 3, "Advancing", final_designation),
+        final_designation = ifelse(is.na(final_designation) & overall_average >= 3, "Exemplary", final_designation))
+
+write_csv(final_designations, path = "data/final_designations.csv", na = "")
