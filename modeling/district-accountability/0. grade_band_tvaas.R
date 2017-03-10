@@ -4,7 +4,9 @@ library(readxl)
 all_students <- read_excel("K:/ORP_accountability/data/2015_tvaas/District-Level Intra-Year NCE MRM and URM Results (All Students).xlsx") %>%
     mutate(Subgroup = "All Students")
 
-subgroups <- read_excel("K:/ORP_accountability/data/2015_tvaas/District-Level Intra-Year NCE MRM and URM Results (Subgroups).xlsx")
+subgroups <- read_excel("K:/ORP_accountability/data/2015_tvaas/District-Level Intra-Year NCE MRM and URM Results (Subgroups).xlsx") %>%
+    mutate(Subgroup = ifelse(Subgroup == "Students With Disabilities", "Students with Disabilities", Subgroup),
+        Subgroup = ifelse(Subgroup == "English Language Learners", "English Learners", Subgroup))
 
 super <- read_excel("K:/ORP_accountability/data/2015_tvaas/District-Level Intra-Year NCE MRM and URM Results (Super Subgroup).xlsx")
 

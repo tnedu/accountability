@@ -1,10 +1,11 @@
+library(haven)
 library(tidyverse)
 
 # Prior year
-grad_prior <- haven::read_dta("K:/ORP_accountability/data/2015_graduation_rate/district_grad_rate2015.dta") %>%
+grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/district_grad_rate2015.dta") %>%
     select(system, subgroup, grad_cohort_prior = grad_cohort, grad_rate_prior = grad_rate)
 
-ACT_grad_prior <- haven::read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2015.dta") %>%
+ACT_grad_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2015.dta") %>%
     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
         "English Language Learners with T1/T2", "Students with Disabilities")) %>%
     select(system, subgroup, valid_tests, pct_21_orhigher_modeling) %>%
@@ -15,10 +16,10 @@ ACT_grad_prior <- haven::read_dta("K:/ORP_accountability/data/2015_ACT/ACT_distr
         grad_AMO_target_4 = ifelse(grad_cohort_prior >= 30, round(grad_rate_prior + (100 - grad_rate_prior)/8, 1), NA))
 
 # Current year
-grad <- haven::read_dta("K:/ORP_accountability/data/2015_graduation_rate/district_grad_rate2016.dta") %>%
+grad <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/district_grad_rate2016.dta") %>%
     select(system, subgroup, grad_cohort, grad_rate)
 
-ACT_grad <- haven::read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2016.dta") %>%
+ACT_grad <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2016.dta") %>%
     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
         "English Language Learners with T1/T2", "Students with Disabilities")) %>%
     select(system, system_name, subgroup, valid_tests, pct_21_orhigher_modeling) %>%
@@ -29,6 +30,7 @@ ACT_grad <- haven::read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district201
             qnorm(0.975) * sqrt((grad_rate * (1 - grad_rate))/grad_cohort + (qnorm(0.975)^2)/(4 * grad_cohort^2))), 1),
         grad_rate = 100 * grad_rate) %>%
     left_join(ACT_grad_prior, by = c("system", "subgroup")) %>%
+    mutate(subgroup = ifelse(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
     group_by(subgroup) %>%
     mutate(
     # Grad quintiles

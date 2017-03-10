@@ -87,7 +87,8 @@ growth_standard <- read_dta("K:/ORP_accountability/projects/Title III/Output/201
             qnorm(0.975) * sqrt((pct_met_growth * (1 - pct_met_growth))/tested + (qnorm(0.975)^2)/(4 * tested^2))), 1),
         pct_met_growth = 100 * pct_met_growth) %>%
     left_join(growth_standard_prior, by = c("system", "subgroup")) %>%
-    mutate(growth_standard_AMO = ifelse(upper_bound_ci <= pct_met_growth_prior, 0, NA),
+    mutate(subgroup = ifelse(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
+        growth_standard_AMO = ifelse(upper_bound_ci <= pct_met_growth_prior, 0, NA),
         growth_standard_AMO = ifelse(upper_bound_ci > pct_met_growth_prior, 1, growth_standard_AMO),
         growth_standard_AMO = ifelse(upper_bound_ci >= AMO_target, 2, growth_standard_AMO),
         growth_standard_AMO = ifelse(pct_met_growth >= AMO_target, 3, growth_standard_AMO),

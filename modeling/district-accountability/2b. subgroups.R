@@ -9,7 +9,7 @@ success_rates <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output
     filter(!(grade %in% c("All Grades", "Missing Grade"))) %>%
     filter(!(subject %in% c("ACT Composite", "Graduation Rate"))) %>%
     mutate(grade = as.numeric(grade),
-        subgroup = ifelse(subgroup == "English Language Learners with T1/T2", "English Language Learners", subgroup),
+        subgroup = ifelse(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
         subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject),
         subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject),
@@ -44,7 +44,7 @@ AMOs <- success_rates %>%
 TVAAS <- read_csv("data/grade_band_tvaas.csv") %>%
     filter(year == 2015, 
         subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
-            "Students with Disabilities", "English Language Learners")) %>%
+            "Students with Disabilities", "English Learners")) %>%
     rename(subject = content_area)
 
 achievement <- success_rates %>%
@@ -78,24 +78,24 @@ rm(success_rates, TVAAS, AMOs)
 # Absenteeism
 absenteeism <- read_csv("data/cohort_absenteeism.csv") %>%
     filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
-        "Students with Disabilities", "English Language Learners")) %>%
+        "Students with Disabilities", "English Learners")) %>%
     transmute(system, subject = "Absenteeism", subgroup, CA_quintile, CA_AMO)
 
 # Grad
 grad <- read_csv("data/ready_grad_data.csv") %>%
     filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
-        "Students with Disabilities", "English Language Learners")) %>%
+        "Students with Disabilities", "English Learners")) %>%
     transmute(system, system_name, subject = "Graduation Rate", subgroup, grad_quintile, grad_AMO, ACT_grad_change_quintile)
 
 # ELPA
 ELPA_growth_standard <- read_csv("data/elpa_growth_standard.csv") %>%
     filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
-        "Students with Disabilities", "English Language Learners")) %>%
+        "Students with Disabilities", "English Learners")) %>%
     select(system, subgroup, growth_standard_AMO)
 
 ELPA <- read_csv("data/elpa_exit.csv") %>%
     filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
-        "Students with Disabilities", "English Language Learners")) %>%
+        "Students with Disabilities", "English Learners")) %>%
     select(system, subgroup, exit_quintile) %>%
     full_join(ELPA_growth_standard, by = c("system", "subgroup")) %>%
     mutate(subject = "ELPA")
