@@ -1,0 +1,129 @@
+## District Accountability - Subgroups
+
+library(tidyverse)
+
+success_rates <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/system_base_with_super_subgroup_2016.csv") %>%
+    filter(year %in% c(2014, 2015),
+        subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
+            "Students with Disabilities", "English Language Learners with T1/T2")) %>%
+    filter(!(grade %in% c("All Grades", "Missing Grade"))) %>%
+    filter(!(subject %in% c("ACT Composite", "Graduation Rate"))) %>%
+    mutate(grade = as.numeric(grade),
+        subgroup = ifelse(subgroup == "English Language Learners with T1/T2", "English Language Learners", subgroup),
+        subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject),
+        subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
+        subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject),
+        subject = ifelse(grade %in% c(3, 4, 5), paste("3-5", subject), subject),
+        subject = ifelse(grade %in% c(6, 7, 8), paste("6-8", subject), subject),
+        subject = ifelse(subject %in% c("Algebra I", "Algebra II"), "HS Math", subject),
+        subject = ifelse(subject %in% c("English I", "English II", "English III"), "HS English", subject),
+        subject = ifelse(subject %in% c("Biology I", "Chemistry"), "HS Science", subject)) %>%
+    group_by(year, system, system_name, subject, subgroup) %>%
+    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_prof, n_adv) %>%
+    ungroup() %>%
+    mutate_each(funs(ifelse(valid_tests < 30, 0, .)), valid_tests, n_prof, n_adv) %>%
+    mutate(subject = ifelse(subject %in% c("3-5 Math", "3-5 ELA", "3-5 Science"), "3-5 Success Rate", subject),
+        subject = ifelse(subject %in% c("6-8 Math", "6-8 ELA", "6-8 Science"), "6-8 Success Rate", subject),
+        subject = ifelse(subject %in% c("HS Math", "HS English", "HS Science"), "HS Success Rate", subject)) %>%
+    group_by(year, system, system_name, subject, subgroup) %>%
+    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_prof, n_adv) %>%
+    ungroup() %>%
+    mutate(n_PA = n_prof + n_adv,
+        pct_prof_adv = ifelse(valid_tests != 0, round(n_PA/valid_tests, 3), NA),
+        upper_bound_ci_PA = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_prof_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) +
+            qnorm(0.975) * sqrt((pct_prof_adv * (1 - pct_prof_adv))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
+        pct_prof_adv = 100 * pct_prof_adv)
+
+AMOs <- success_rates %>%
+    filter(year == 2014) %>%
+    transmute(year = 2015, system, system_name, subject, subgroup, 
+        valid_tests_prior = valid_tests, pct_prof_adv_prior = pct_prof_adv,
+        AMO_target_PA = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16, 1), NA),
+        AMO_target_PA_4 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA))
+
+TVAAS <- read_csv("data/grade_band_tvaas.csv") %>%
+    filter(year == 2015, 
+        subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
+            "Students with Disabilities", "English Language Learners")) %>%
+    rename(subject = content_area)
+
+achievement <- success_rates %>%
+    filter(year == 2015) %>%
+    left_join(AMOs, by = c("year", "system", "system_name", "subject", "subgroup")) %>%
+    left_join(TVAAS, by = c("year", "system", "system_name", "subject", "subgroup")) %>%
+    group_by(subject, subgroup) %>%
+    mutate(rank_PA = ifelse(valid_tests >= 30, rank(pct_prof_adv, ties.method = "max"), NA),
+        PA_denom = sum(valid_tests >= 30, na.rm = TRUE),
+        achievement_quintile = ifelse(rank_PA/PA_denom < 0.2, 0, NA),
+        achievement_quintile = ifelse(rank_PA/PA_denom >= 0.2, 1, achievement_quintile),
+        achievement_quintile = ifelse(rank_PA/PA_denom >= 0.4, 2, achievement_quintile),
+        achievement_quintile = ifelse(rank_PA/PA_denom >= 0.6, 3, achievement_quintile),
+        achievement_quintile = ifelse(rank_PA/PA_denom >= 0.8, 4, achievement_quintile),
+        achievement_AMO = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, 0, NA),
+        achievement_AMO = ifelse(upper_bound_ci_PA > pct_prof_adv_prior, 1, achievement_AMO),
+        achievement_AMO = ifelse(upper_bound_ci_PA >= AMO_target_PA, 2, achievement_AMO),
+        achievement_AMO = ifelse(pct_prof_adv >= AMO_target_PA, 3, achievement_AMO),
+        achievement_AMO = ifelse(pct_prof_adv >= AMO_target_PA_4, 4, achievement_AMO),
+        achievement_AMO = ifelse(valid_tests < 30, NA, achievement_AMO),
+        TVAAS = ifelse(tvaas_level == "Level 1", 0, NA),
+        TVAAS = ifelse(tvaas_level == "Level 2", 1, TVAAS),
+        TVAAS = ifelse(tvaas_level == "Level 3", 2, TVAAS),
+        TVAAS = ifelse(tvaas_level == "Level 4", 3, TVAAS),
+        TVAAS = ifelse(tvaas_level == "Level 5", 4, TVAAS)) %>%
+    ungroup() %>%
+    select(system, system_name, subject, subgroup, achievement_quintile, achievement_AMO, TVAAS)
+
+rm(success_rates, TVAAS, AMOs)
+
+# Absenteeism
+absenteeism <- read_csv("data/cohort_absenteeism.csv") %>%
+    filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
+        "Students with Disabilities", "English Language Learners")) %>%
+    transmute(system, subject = "Absenteeism", subgroup, CA_quintile, CA_AMO)
+
+# Grad
+grad <- read_csv("data/ready_grad_data.csv") %>%
+    filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
+        "Students with Disabilities", "English Language Learners")) %>%
+    transmute(system, system_name, subject = "Graduation Rate", subgroup, grad_quintile, grad_AMO, ACT_grad_change_quintile)
+
+# ELPA
+ELPA_growth_standard <- read_csv("data/elpa_growth_standard.csv") %>%
+    filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
+        "Students with Disabilities", "English Language Learners")) %>%
+    select(system, subgroup, growth_standard_AMO)
+
+ELPA <- read_csv("data/elpa_exit.csv") %>%
+    filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
+        "Students with Disabilities", "English Language Learners")) %>%
+    select(system, subgroup, exit_quintile) %>%
+    full_join(ELPA_growth_standard, by = c("system", "subgroup")) %>%
+    mutate(subject = "ELPA")
+
+rm(ELPA_growth_standard)
+
+# Combine all content areas
+all_subjects <- bind_rows(achievement, absenteeism, grad, ELPA) %>%
+    mutate(
+    # Success Rates
+        achievement = ifelse(subject %in% c("3-5 Success Rate", "6-8 Success Rate", "HS Success Rate"),
+            pmax(achievement_quintile, achievement_AMO, na.rm = TRUE), NA),
+        value_added = ifelse(subject %in% c("3-5 Success Rate", "6-8 Success Rate", "HS Success Rate"), TVAAS, NA),
+    # Absenteeism
+        achievement = ifelse(subject == "Absenteeism", pmax(CA_quintile, CA_AMO), achievement),
+    # Grad
+        achievement = ifelse(subject == "Graduation Rate", pmax(grad_quintile, grad_AMO), achievement),
+        value_added = ifelse(subject == "Graduation Rate", ACT_grad_change_quintile, value_added),
+    # ELPA
+        achievement = ifelse(subject == "ELPA", pmax(exit_quintile, growth_standard_AMO), achievement)) %>%
+    rowwise() %>%
+    # Overall
+    mutate(content_area_average = mean(c(achievement, value_added), na.rm = TRUE)) %>%
+    ungroup() %>%
+    group_by(system, subgroup) %>%
+    summarise(subgroup_average = mean(content_area_average, na.rm = TRUE)) %>%
+    ungroup()
+
+subgroup_average <- all_subjects %>%
+    group_by(system) %>%
+    summarise(subgroup_average = mean(subgroup_average, na.rm = TRUE))

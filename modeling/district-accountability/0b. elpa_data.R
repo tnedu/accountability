@@ -1,39 +1,37 @@
+library(haven)
 library(tidyverse)
 
-# Percent Meeting Growth Standard
-elpa15 <- haven::read_dta("K:/ORP_accountability/data/2015_WIDA_Access/2015_State_Student_Data_File_ACH.dta") %>%
-    transmute(student_id = unique_student_id, composite_prior = as.numeric(compositeproficiencylevel)) %>%
-    filter(!is.na(student_id)) %>%
-    group_by(student_id) %>%
-# Dedup first by max prior composite score
-    mutate(max = max(composite_prior)) %>%
-    ungroup() %>%
-    filter(!composite_prior != max) %>%
-    select(-max) %>%
-# Force drop duplicates on student ID, proficiency level
-    filter(!duplicated(.))
-
+# Quintiles of percent exit by subgroup
 econ_dis <- read_csv("K:/ORP_accountability/projects/2016_acct_modeling/sc_ed_lw.csv") %>% 
     rename(student_id = state_id)
 
-elpa16 <- haven::read_dta("K:/ORP_accountability/data/2016_WIDA_Access/2016_State_Student_Data_File_ACH.dta") %>%
-    transmute(system = as.numeric(substr(districtcode, 3, length(districtcode))), student_id = statestudentid, 
-        swd = iepstatus, time_in_esl = as.numeric(timeinlepellinus),
+elpa16 <- read_dta("K:/ORP_accountability/data/2016_WIDA_Access/2016_State_Student_Data_File_ACH.dta") %>%
+    mutate(timeinlepellinus = ifelse(timeinlepellinus %in% c("<1", "0.1", "0.3", "0.5", "0.7", "3m", "8M"), "0", timeinlepellinus),
+        timeinlepellinus = ifelse(timeinlepellinus %in% c("1y", "1+"), "1", timeinlepellinus),
+        timeinlepellinus = ifelse(timeinlepellinus %in% c("2y", "2Y", "2+"), "2", timeinlepellinus),
+        timeinlepellinus = ifelse(timeinlepellinus %in% c("3y", "3+"), "3", timeinlepellinus),
+        timeinlepellinus = ifelse(timeinlepellinus %in% c("4y", "4+"), "4", timeinlepellinus),
+        timeinlepellinus = ifelse(timeinlepellinus %in% c("5y", "5+"), "5", timeinlepellinus),
+        timeinlepellinus = ifelse(timeinlepellinus == "6y", "6", timeinlepellinus),
+        timeinlepellinus = ifelse(timeinlepellinus == "7y", "7", timeinlepellinus),
+        timeinlepellinus = ifelse(timeinlepellinus == "8y", "8", timeinlepellinus),
+        timeinlepellinus = ifelse(timeinlepellinus == "  ", grade, timeinlepellinus)) %>% 
+    transmute(system = as.numeric(substr(districtcode, 3, length(districtcode))), school = schoolcode, 
+        student_id = statestudentid, swd = iepstatus, time_in_esl = as.numeric(timeinlepellinus),
         hispanic = ethnicityhispaniclatino, native = raceamericanindianalaskanative, black = raceblack, 
-        composite = as.numeric(performancelevelcomposite)) %>%
+        literacy = as.numeric(literacyperformancelevel), composite = as.numeric(performancelevelcomposite)) %>%
     left_join(econ_dis, by = "student_id") %>% 
-# Drop records with missing student ids or composite scores
-    filter(!is.na(student_id), !is.na(composite)) %>%
-    group_by(system, student_id) %>%
+# Drop missing student ids and records with missing literacy and composite scores
+    filter(!is.na(student_id)) %>%
+    filter(!(is.na(literacy) & is.na(composite))) %>%
+    group_by(system, school, student_id) %>%
 # Dedup first by max composite score
     mutate(max = max(composite)) %>%
     ungroup() %>%
     filter(composite == max | is.na(max)) %>%
-    select(-max) %>%
-    # Merge on prior proficiency
-    left_join(elpa15, by = "student_id")
+    select(-max)
 
-# All Students entries
+# Observations by subgroup
 elpa_all <- elpa16 %>%
     mutate(subgroup = "All Students")
 
@@ -50,65 +48,49 @@ elpa_swd <- elpa16 %>%
     mutate(subgroup = "Students with Disabilities")
 
 elpa_el <- elpa16 %>% 
-    mutate(subgroup = "English Language Learners with T1/T2")
+    mutate(subgroup = "English Learners")
 
-growth_standard <- bind_rows(elpa_all, elpa_ed, elpa_bhn, elpa_swd, elpa_el) %>% 
-    mutate(valid_tests = !is.na(composite),
-        growth_standard_denom = !is.na(composite) & !is.na(composite_prior),
-        met_growth_standard = (composite - composite_prior) >= 0.7) %>%
+exit <- bind_rows(elpa_all, elpa_ed, elpa_bhn, elpa_swd, elpa_el) %>% 
+    mutate(valid_tests = !is.na(literacy) & !is.na(composite),
+        exit_count = ifelse(valid_tests, literacy >= 5.0 & composite >= 5.0, NA),
+        denom = ifelse(time_in_esl == 0, 0.2, NA),
+        denom = ifelse(time_in_esl == 1, 0.4, denom),
+        denom = ifelse(time_in_esl == 2, 0.6, denom),
+        denom = ifelse(time_in_esl == 3, 0.8, denom),
+        denom = ifelse(time_in_esl == 4, 1.0, denom),
+        denom = ifelse(time_in_esl >= 5 | is.na(time_in_esl), 1.2, denom)) %>%
     group_by(system, subgroup) %>%
-    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, growth_standard_denom, met_growth_standard) %>%
-    ungroup() %>%
-    mutate(pct_met_growth_standard = 100 * met_growth_standard/growth_standard_denom)
+    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, exit_count, denom) %>%
+    group_by(subgroup) %>%
+    mutate(pct_exit = ifelse(valid_tests >= 10, round(100 * exit_count/denom, 1), NA),
+        rank_pct_exit = ifelse(!is.na(pct_exit), rank(pct_exit, ties.method = "max"), NA),
+        exit_denom = sum(!is.na(pct_exit)),
+        exit_quintile = ifelse(rank_pct_exit/exit_denom < 0.2, 0, NA),
+        exit_quintile = ifelse(rank_pct_exit/exit_denom >= 0.2, 1, exit_quintile),
+        exit_quintile = ifelse(rank_pct_exit/exit_denom >= 0.4, 2, exit_quintile),
+        exit_quintile = ifelse(rank_pct_exit/exit_denom >= 0.6, 3, exit_quintile),
+        exit_quintile = ifelse(rank_pct_exit/exit_denom >= 0.8, 4, exit_quintile))
 
-write_csv(growth_standard, path = "data/elpa_growth_standard.csv")
+write_csv(exit, path = "data/elpa_exit.csv", na = "")
 
-rm(elpa15, elpa16, elpa_all, elpa_bhn, elpa_ed, elpa_el, elpa_swd, growth_standard)
+# AMOs of Percent Meeting Growth Standard
+growth_standard_prior <- readxl::read_excel("K:/ORP_accountability/projects/Title III/Output/AMAO_I_2015_w_subgroups.xlsx") %>%
+    select(system, subgroup, tested_prior = tested_both_years, met_growth_prior = improved) %>%
+    mutate(pct_met_growth_prior = ifelse(tested_prior >= 10, round(100 * met_growth_prior/tested_prior, 1), NA),
+        AMO_target = ifelse(tested_prior >= 10, round(pct_met_growth_prior + (100 + pct_met_growth_prior)/16, 1), NA),
+        AMO_target_4 = ifelse(tested_prior >= 10, round(pct_met_growth_prior + (100 + pct_met_growth_prior)/8, 1), NA))
 
-# Long Term ELs
-long_term_15 <- haven::read_dta("K:/ORP_accountability/data/2015_WIDA_Access/2015_State_Student_Data_File_ACH.dta") %>%
-    transmute(system = systemnumber, student_id = unique_student_id, composite_prior = as.numeric(compositeproficiencylevel),
-        long_term_el = as.numeric(lengthoftimeinlepprogram) > 5) %>%
-    filter(!is.na(student_id)) %>%
-    group_by(student_id) %>%
-    # Dedup first by max prior composite score
-    mutate(max = max(composite_prior)) %>%
-    ungroup() %>%
-    filter(!composite_prior != max) %>%
-    # Keep duplicates on student ID, proficiency level
-    mutate(count = 1) %>%
-    group_by(system) %>%
-    summarise(n_long_term_el_prior = sum(long_term_el), n_students_prior = sum(count)) %>%
-    mutate(pct_long_term_el_prior = 100 * n_long_term_el_prior/n_students_prior)
+growth_standard <- read_dta("K:/ORP_accountability/projects/Title III/Output/2016_district_level_growth_standard_w_subgroups.dta") %>%
+    select(system, subgroup, tested = valid_tests, met_growth) %>%
+    mutate(pct_met_growth = ifelse(tested >= 10, round(met_growth/tested, 3), NA),
+        upper_bound_ci = round(100 * (tested/(tested + qnorm(0.975)^2)) * (pct_met_growth + ((qnorm(0.975)^2)/(2 * tested)) +
+            qnorm(0.975) * sqrt((pct_met_growth * (1 - pct_met_growth))/tested + (qnorm(0.975)^2)/(4 * tested^2))), 1),
+        pct_met_growth = 100 * pct_met_growth) %>%
+    left_join(growth_standard_prior, by = c("system", "subgroup")) %>%
+    mutate(growth_standard_AMO = ifelse(upper_bound_ci <= pct_met_growth_prior, 0, NA),
+        growth_standard_AMO = ifelse(upper_bound_ci > pct_met_growth_prior, 1, growth_standard_AMO),
+        growth_standard_AMO = ifelse(upper_bound_ci >= AMO_target, 2, growth_standard_AMO),
+        growth_standard_AMO = ifelse(pct_met_growth >= AMO_target, 3, growth_standard_AMO),
+        growth_standard_AMO = ifelse(pct_met_growth >= AMO_target_4, 4, growth_standard_AMO))
 
-long_term_els <- haven::read_dta("K:/ORP_accountability/data/2016_WIDA_Access/2016_State_Student_Data_File_ACH.dta") %>%
-    mutate(timeinlepellinus = ifelse(timeinlepellinus %in% c("<1", "0.1", "0.3", "0.5", "0.7", "3m", "8M"), "0", timeinlepellinus),
-        timeinlepellinus = ifelse(timeinlepellinus %in% c("1y", "1+"), "1", timeinlepellinus),
-        timeinlepellinus = ifelse(timeinlepellinus %in% c("2y", "2Y", "2+"), "2", timeinlepellinus),
-        timeinlepellinus = ifelse(timeinlepellinus %in% c("3y", "3+"), "3", timeinlepellinus),
-        timeinlepellinus = ifelse(timeinlepellinus %in% c("4y", "4+"), "4", timeinlepellinus),
-        timeinlepellinus = ifelse(timeinlepellinus %in% c("5y", "5+"), "5", timeinlepellinus),
-        timeinlepellinus = ifelse(timeinlepellinus == "6y", "6", timeinlepellinus),
-        timeinlepellinus = ifelse(timeinlepellinus == "7y", "7", timeinlepellinus),
-        timeinlepellinus = ifelse(timeinlepellinus == "8y", "8", timeinlepellinus),
-        timeinlepellinus = ifelse(timeinlepellinus == "  ", grade, timeinlepellinus)) %>%
-    transmute(system = as.numeric(substr(districtcode, 3, length(districtcode))), student_id = statestudentid,
-        swd = iepstatus, hispanic = ethnicityhispaniclatino, native = raceamericanindianalaskanative, black = raceblack,
-        composite = as.numeric(performancelevelcomposite), long_term_el = as.numeric(timeinlepellinus) > 5) %>%
-    left_join(econ_dis, by = "student_id") %>%
-# Drop missing student ids and records with missing literacy and composite scores
-    filter(!is.na(student_id), !is.na(composite)) %>%
-    group_by(system, student_id) %>%
-# Dedup first by max composite score
-    mutate(max = max(composite)) %>%
-    ungroup() %>%
-    filter(composite == max | is.na(max)) %>%
-    select(-max) %>%
-    mutate(count = 1) %>%
-    group_by(system) %>%
-    summarise(n_long_term_el = sum(long_term_el, na.rm = TRUE), n_students = sum(count, na.rm = TRUE)) %>%
-    ungroup() %>%
-    mutate(pct_long_term_el = 100 * n_long_term_el/n_students) %>%
-    left_join(long_term_15, by = "system")
-
-write_csv(long_term_els, path = "data/long_term_els.csv")
+write_csv(growth_standard, path = "data/elpa_growth_standard.csv", na = "")
