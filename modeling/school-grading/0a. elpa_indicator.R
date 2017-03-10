@@ -1,6 +1,9 @@
+## ELPA Indicator for A-F School Grading
+
+library(haven)
 library(tidyverse)
 
-elpa15 <- haven::read_dta("K:/ORP_accountability/data/2015_WIDA_Access/2015_State_Student_Data_File_ACH.dta") %>%
+elpa15 <- read_dta("K:/ORP_accountability/data/2015_WIDA_Access/2015_State_Student_Data_File_ACH.dta") %>%
     transmute(student_id = unique_student_id, composite_prior = as.numeric(compositeproficiencylevel)) %>%
     filter(!is.na(student_id)) %>%
     group_by(student_id) %>%
@@ -12,10 +15,10 @@ elpa15 <- haven::read_dta("K:/ORP_accountability/data/2015_WIDA_Access/2015_Stat
 # Force drop duplicates on student ID, proficiency level
     filter(!duplicated(.))
 
-econ_dis <- read_csv("K:/ORP_accountability/projects/2016_acct_modeling/sc_ed_lw.csv") %>% 
+econ_dis <- read_csv("K:/ORP_accountability/projects/2016_acct_modeling/sc_ed_lw.csv") %>%
     rename(student_id = state_id)
 
-elpa16 <- haven::read_dta("K:/ORP_accountability/data/2016_WIDA_Access/2016_State_Student_Data_File_ACH.dta") %>%
+elpa16 <- read_dta("K:/ORP_accountability/data/2016_WIDA_Access/2016_State_Student_Data_File_ACH.dta") %>%
     mutate(timeinlepellinus = ifelse(timeinlepellinus %in% c("<1", "0.1", "0.3", "0.5", "0.7", "3m", "8M"), "0", timeinlepellinus),
         timeinlepellinus = ifelse(timeinlepellinus %in% c("1y", "1+"), "1", timeinlepellinus),
         timeinlepellinus = ifelse(timeinlepellinus %in% c("2y", "2Y", "2+"), "2", timeinlepellinus),
@@ -25,12 +28,12 @@ elpa16 <- haven::read_dta("K:/ORP_accountability/data/2016_WIDA_Access/2016_Stat
         timeinlepellinus = ifelse(timeinlepellinus == "6y", "6", timeinlepellinus),
         timeinlepellinus = ifelse(timeinlepellinus == "7y", "7", timeinlepellinus),
         timeinlepellinus = ifelse(timeinlepellinus == "8y", "8", timeinlepellinus),
-        timeinlepellinus = ifelse(timeinlepellinus == "  ", grade, timeinlepellinus)) %>% 
-    transmute(system = as.numeric(substr(districtcode, 3, length(districtcode))), school = schoolcode, 
+        timeinlepellinus = ifelse(timeinlepellinus == "  ", grade, timeinlepellinus)) %>%
+    transmute(system = as.numeric(substr(districtcode, 3, length(districtcode))), school = schoolcode,
         student_id = statestudentid, swd = iepstatus, time_in_esl = as.numeric(timeinlepellinus),
-        hispanic = ethnicityhispaniclatino, native = raceamericanindianalaskanative, black = raceblack, 
+        hispanic = ethnicityhispaniclatino, native = raceamericanindianalaskanative, black = raceblack,
         literacy = as.numeric(literacyperformancelevel), composite = as.numeric(performancelevelcomposite)) %>%
-    left_join(econ_dis, by = "student_id") %>% 
+    left_join(econ_dis, by = "student_id") %>%
 # Drop missing student ids and records with missing literacy and composite scores
     filter(!is.na(student_id)) %>%
     filter(!(is.na(literacy) & is.na(composite))) %>%
@@ -43,12 +46,12 @@ elpa16 <- haven::read_dta("K:/ORP_accountability/data/2016_WIDA_Access/2016_Stat
 # Merge on prior proficiency
     left_join(elpa15, by = "student_id")
 
-# All Students entries
+# Observations by subgroup
 elpa_all <- elpa16 %>%
     mutate(subgroup = "All Students")
 
 elpa_ed <- elpa16 %>%
-    filter(ed == 1) %>% 
+    filter(ed == 1) %>%
     mutate(subgroup = "Economically Disadvantaged")
 
 elpa_bhn <- elpa16 %>%
@@ -56,10 +59,10 @@ elpa_bhn <- elpa16 %>%
     mutate(subgroup = "Black/Hispanic/Native American")
 
 elpa_swd <- elpa16 %>%
-    filter(swd == "Y") %>% 
+    filter(swd == "Y") %>%
     mutate(subgroup = "Students with Disabilities")
 
-elpa_el <- elpa16 %>% 
+elpa_el <- elpa16 %>%
     mutate(subgroup = "English Language Learners with T1/T2")
 
 elpa_indicator <- bind_rows(elpa_all, elpa_ed, elpa_bhn, elpa_swd, elpa_el) %>% 
@@ -77,27 +80,18 @@ elpa_indicator <- bind_rows(elpa_all, elpa_ed, elpa_bhn, elpa_swd, elpa_el) %>%
     group_by(system, school, subgroup) %>%
     summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, exit_count, exit_denom, growth_standard_denom, met_growth_standard) %>%
     ungroup() %>%
-    mutate(exit_percent = round(100 * exit_count/exit_denom, 1),
-        exit_points = ifelse(exit_percent < 6, 0, NA),
-        exit_points = ifelse(exit_percent >= 6 & exit_percent < 12, 1, exit_points),
-        exit_points = ifelse(exit_percent >= 12 & exit_percent < 24, 2, exit_points),
-        exit_points = ifelse(exit_percent >= 24 & exit_percent < 36, 3, exit_points),
-        exit_points = ifelse(exit_percent >= 36, 4, exit_points),
-        exit_points = ifelse(valid_tests < 10, NA, exit_points),
-        met_growth_percent = round(100 * met_growth_standard/growth_standard_denom, 1),
-        growth_points = ifelse(met_growth_percent < 30, 0, NA),
-        growth_points = ifelse(met_growth_percent >= 30 & met_growth_percent < 45, 1, growth_points),
-        growth_points = ifelse(met_growth_percent >= 45 & met_growth_percent < 60, 2, growth_points),
-        growth_points = ifelse(met_growth_percent >= 60 & met_growth_percent < 70, 3, growth_points),
-        growth_points = ifelse(met_growth_percent >= 70, 4, growth_points),
-        growth_points = ifelse(growth_standard_denom < 10, NA, growth_points)) %>%
-    rowwise() %>%
-    mutate(points = mean(c(exit_points, growth_points), na.rm = TRUE)) %>%
-    ungroup() %>%
-    mutate(grade_elpa = ifelse(points < 0.5, "F", NA),
-        grade_elpa = ifelse(points >= 0.5 & points < 1.5, "D", grade_elpa),
-        grade_elpa = ifelse(points >= 1.5 & points < 2.5, "C", grade_elpa),
-        grade_elpa = ifelse(points >= 2.5 & points < 3.5, "B", grade_elpa),
-        grade_elpa = ifelse(points >= 3.5, "A", grade_elpa))
+    mutate(exit_percent = ifelse(valid_tests >= 10, round(100 * exit_count/exit_denom, 1), NA),
+        exit_grade = ifelse(exit_percent < 6, "F", NA),
+        exit_grade = ifelse(exit_percent >= 6, "D", exit_grade),
+        exit_grade = ifelse(exit_percent >= 12, "C", exit_grade),
+        exit_grade = ifelse(exit_percent >= 24, "B", exit_grade),
+        exit_grade = ifelse(exit_percent >= 36, "A", exit_grade),
+        met_growth_percent = ifelse(growth_standard_denom >= 10, round(100 * met_growth_standard/growth_standard_denom, 1), NA),
+        growth_standard_grade = ifelse(met_growth_percent < 30, "F", NA),
+        growth_standard_grade = ifelse(met_growth_percent >= 30, "D", growth_standard_grade),
+        growth_standard_grade = ifelse(met_growth_percent >= 45, "C", growth_standard_grade),
+        growth_standard_grade = ifelse(met_growth_percent >= 60, "B", growth_standard_grade),
+        growth_standard_grade = ifelse(met_growth_percent >= 70, "A", growth_standard_grade),
+        grade_elpa = pmin(exit_grade, growth_standard_grade, na.rm = TRUE))
 
 write_csv(elpa_indicator, path = "data/elpa_indicator.csv", na = "")
