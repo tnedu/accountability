@@ -2,49 +2,10 @@
 
 library(tidyverse)
 
-success_rates <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/system_base_with_super_subgroup_2016.csv") %>%
-    filter(year %in% c(2014, 2015), subgroup == "All Students") %>%
-    filter(!(grade %in% c("All Grades", "Missing Grade"))) %>%
-    filter(!(subject %in% c("ACT Composite", "Graduation Rate"))) %>%
-    mutate(grade = as.numeric(grade),
-        subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject),
-        subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
-        subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject),
-        subject = ifelse(grade %in% c(3, 4, 5), paste("3-5", subject), subject),
-        subject = ifelse(grade %in% c(6, 7, 8), paste("6-8", subject), subject),
-        subject = ifelse(subject %in% c("Algebra I", "Algebra II"), "HS Math", subject),
-        subject = ifelse(subject %in% c("English I", "English II", "English III"), "HS English", subject),
-        subject = ifelse(subject %in% c("Biology I", "Chemistry"), "HS Science", subject)) %>%
-    group_by(year, system, system_name, subject) %>%
-    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_prof, n_adv) %>%
-    ungroup() %>%
-    mutate_each(funs(ifelse(valid_tests < 30, 0, .)), valid_tests, n_prof, n_adv) %>%
-    mutate(subject = ifelse(subject %in% c("3-5 Math", "3-5 ELA", "3-5 Science"), "3-5 Success Rate", subject),
-        subject = ifelse(subject %in% c("6-8 Math", "6-8 ELA", "6-8 Science"), "6-8 Success Rate", subject),
-        subject = ifelse(subject %in% c("HS Math", "HS English", "HS Science"), "HS Success Rate", subject)) %>%
-    group_by(year, system, system_name, subject) %>%
-    summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_prof, n_adv) %>%
-    ungroup() %>%
-    mutate(n_PA = n_prof + n_adv,
-        pct_prof_adv = ifelse(valid_tests != 0, round(n_PA/valid_tests, 3), NA),
-        upper_bound_ci_PA = round(100 * (valid_tests/(valid_tests + qnorm(0.975)^2)) * (pct_prof_adv + ((qnorm(0.975)^2)/(2 * valid_tests)) +
-            qnorm(0.975) * sqrt((pct_prof_adv * (1 - pct_prof_adv))/valid_tests + (qnorm(0.975)^2)/(4 * valid_tests^2))), 1),
-        pct_prof_adv = 100 * pct_prof_adv)
-
-AMOs <- success_rates %>%
-    filter(year == 2014) %>%
-    transmute(year = 2015, system, system_name, subject, valid_tests_prior = valid_tests, pct_prof_adv_prior = pct_prof_adv,
-        AMO_target_PA = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16, 1), NA),
-        AMO_target_PA_4 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA))
-
-TVAAS <- read_csv("data/grade_band_tvaas.csv") %>%
-    filter(subgroup == "All Students", year == 2015) %>%
-    rename(subject = content_area)
+success_rates <- read_csv("data/success_rates_TVAAS.csv")
 
 achievement <- success_rates %>%
-    filter(year == 2015) %>%
-    left_join(AMOs, by = c("year", "system", "system_name", "subject")) %>%
-    left_join(TVAAS, by = c("year", "system", "system_name", "subject")) %>%
+    filter(subgroup == "All Students") %>%
     group_by(subject) %>%
     mutate(rank_PA = ifelse(valid_tests >= 30, rank(pct_prof_adv, ties.method = "max"), NA),
         PA_denom = sum(valid_tests >= 30, na.rm = TRUE),
@@ -59,15 +20,13 @@ achievement <- success_rates %>%
         achievement_AMO = ifelse(pct_prof_adv >= AMO_target_PA, 3, achievement_AMO),
         achievement_AMO = ifelse(pct_prof_adv >= AMO_target_PA_4, 4, achievement_AMO),
         achievement_AMO = ifelse(valid_tests < 30, NA, achievement_AMO),
-        TVAAS = ifelse(tvaas_level == "Level 1", 0, NA),
-        TVAAS = ifelse(tvaas_level == "Level 2", 1, TVAAS),
-        TVAAS = ifelse(tvaas_level == "Level 3", 2, TVAAS),
-        TVAAS = ifelse(tvaas_level == "Level 4", 3, TVAAS),
-        TVAAS = ifelse(tvaas_level == "Level 5", 4, TVAAS)) %>%
+        TVAAS = ifelse(TVAAS_level == "Level 1", 0, NA),
+        TVAAS = ifelse(TVAAS_level == "Level 2", 1, TVAAS),
+        TVAAS = ifelse(TVAAS_level == "Level 3", 2, TVAAS),
+        TVAAS = ifelse(TVAAS_level == "Level 4", 3, TVAAS),
+        TVAAS = ifelse(TVAAS_level == "Level 5", 4, TVAAS)) %>%
     ungroup() %>%
     select(system, system_name, subject, achievement_quintile, achievement_AMO, TVAAS)
-
-rm(success_rates, TVAAS, AMOs)
 
 # Absenteeism
 absenteeism_VA <- read_csv("data/student_match_absenteeism.csv") %>%
@@ -77,8 +36,6 @@ absenteeism <- read_csv("data/cohort_absenteeism.csv") %>%
     filter(subgroup == "All Students") %>%
     transmute(system, subject = "Absenteeism", CA_quintile, CA_AMO) %>%
     full_join(absenteeism_VA, by = "system")
-
-rm(absenteeism_VA)
 
 # Grad
 grad <- read_csv("data/ready_grad_data.csv") %>%
@@ -95,8 +52,6 @@ ELPA <- read_csv("data/elpa_exit.csv") %>%
     select(system, exit_quintile) %>%
     full_join(ELPA_growth_standard, by = "system") %>%
     mutate(subject = "ELPA")
-
-rm(ELPA_growth_standard)
 
 # Combine all content areas
 all_subjects <- bind_rows(achievement, absenteeism, grad, ELPA) %>%
