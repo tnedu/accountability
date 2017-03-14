@@ -64,29 +64,29 @@ absenteeism <- read_dta("K:/Research and Policy/data/data_attendance/IT Files - 
 write_csv(absenteeism, path = "data/cohort_absenteeism.csv", na = "")
 
 # Student Match Absenteeism
+
 student_absenteeism_14 <- read_dta("K:/Research and Policy/ORP_Data/Student_Information/Attendance/data_attendance/IT Files - Enrollment and Demographic/2014 CA enr race.dta") %>%
-    transmute(studentid, chronic = gt10lt20 + gt20, severe = gt20) %>%
+    transmute(studentid, chronic = gt10lt20 + gt20) %>%
+    filter(chronic == 1) %>%
     group_by(studentid) %>%
-    mutate(temp_chronic = max(chronic), temp_severe = max(severe)) %>%
+    mutate(temp_chronic = max(chronic)) %>%
     ungroup() %>%
-# If duplicates on student id, keep if severe or chronic
-    filter(severe == temp_severe) %>%
+# If duplicates on student id, keep if chronic
     filter(chronic == temp_chronic) %>%
 # Force drop duplicates
     mutate(temp = duplicated(studentid)) %>%
     filter(!temp) %>%
-    select(studentid, chronic_prior = chronic, severe_prior = severe)
+    select(studentid, chronic_prior = chronic)
 
 district_CA_reduction <- read_dta("K:/Research and Policy/ORP_Data/Student_Information/Attendance/data_attendance/IT Files - Enrollment and Demographic/2015 CA enr race.dta") %>%
     transmute(studentid, system = districtnumber, system_name = districtname, school = schoolnumber, school_name = schoolname,
         n_days = totaldaysenrolled, chronic = gt10lt20 + gt20, severe = gt20) %>%
     left_join(student_absenteeism_14, by = "studentid") %>%
-    filter(chronic_prior == 1) %>%
     mutate(no_longer_chronic = chronic_prior == 1 & chronic == 0) %>%
     group_by(system, system_name) %>%
-    summarise_each(funs(sum), chronic_prior, no_longer_chronic) %>%
+    summarise_each(funs(sum(., na.rm = TRUE)), chronic_prior, no_longer_chronic) %>%
     ungroup() %>%
-    mutate(pct_no_longer_chronic = round(100 * no_longer_chronic/chronic_prior, 1),
+    mutate(pct_no_longer_chronic = ifelse(chronic_prior >= 30, round(100 * no_longer_chronic/chronic_prior, 1), NA),
         rank_CA_reduction = ifelse(chronic_prior >= 30, rank(pct_no_longer_chronic, ties.method = "max"), NA),
         CA_reduction_denom = sum(chronic_prior >= 30, na.rm = TRUE),
         CA_reduction_quintile = ifelse(rank_CA_reduction/CA_reduction_denom < 0.2, 0, NA),
@@ -98,7 +98,7 @@ district_CA_reduction <- read_dta("K:/Research and Policy/ORP_Data/Student_Infor
 write_csv(district_CA_reduction, path = "data/student_match_absenteeism.csv", na = "")
 
 # Check how chronic reduction maps against percent ED
-profile <- readxl::read_excel("data/data_2015_district_profile.xlsx") %>% 
+profile <- readxl::read_excel("data/data_2015_district_profile.xlsx") %>%
     select(system = DISTRICT, pct_ED = ECONOMICALLY_DISADVANTAGED_PCT)
 
 left_join(district_CA_reduction, profile, by = "system") %>%
