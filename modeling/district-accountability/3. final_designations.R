@@ -18,10 +18,10 @@ final_designations <- read_csv("data/minimum_performance.csv") %>%
         overall_average = ifelse(is.na(achievement_average) & !is.na(subgroup_average),
             subgroup_average, overall_average)) %>%
     ungroup() %>%
-    mutate(final_designation = ifelse(!met_minimum_performance_goal, "In Need of Improvement", NA),
-        final_designation = ifelse(is.na(final_designation) & overall_average <= 1, "Marginal", final_designation),
-        final_designation = ifelse(is.na(final_designation) & overall_average > 1 & overall_average <= 2, "Satisfactory", final_designation),
-        final_designation = ifelse(is.na(final_designation) & overall_average > 2 & overall_average <= 3, "Advancing", final_designation),
-        final_designation = ifelse(is.na(final_designation) & overall_average >= 3, "Exemplary", final_designation))
+    mutate(final_designation = ifelse(overall_average <= 1, "Marginal", NA),
+        final_designation = ifelse(overall_average > 1, "Satisfactory", final_designation),
+        final_designation = ifelse(overall_average > 2, "Advancing", final_designation),
+        final_designation = ifelse(overall_average > 3, "Exemplary", final_designation),
+        final_designation = ifelse(!met_minimum_performance_goal, "In Need of Improvement", final_designation))
 
 write_csv(final_designations, path = "data/final_designations.csv", na = "")

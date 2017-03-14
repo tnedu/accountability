@@ -1,4 +1,4 @@
-## Success and Below Basic Rates for District Accountability
+## Success and Below Basic Rates + TVAAS for District Accountability
 
 library(tidyverse)
 
@@ -55,9 +55,20 @@ AMOs <- percent_PA_BB %>%
         AMO_target_PA = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16, 1), NA),
         AMO_target_PA_4 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA))
 
-TVAAS <- read_csv("data/grade_band_TVAAS.csv") %>%
-    filter(year == 2015) %>%
-    select(system, subject, subgroup, TVAAS_level)
+TVAAS_subgroups <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/TNTDE-2015-Subgroup-Measures-Across-Subjects-20170313.xlsx") %>%
+    mutate(Subgroup = ifelse(Subgroup == "English Language Learners", "English Learners", Subgroup),
+        Subgroup = ifelse(Subgroup == "Students With Disabilities", "Students with Disabilities", Subgroup),
+        Subject = ifelse(Subject == "4-5 Composite", "3-5 Success Rate", Subject),
+        Subject = ifelse(Subject == "6-8 Composite", "6-8 Success Rate", Subject),
+        Subject = ifelse(Subject == "HS Composite", "HS Success Rate", Subject)) %>%
+    transmute(system = as.numeric(`System Number`), subject = Subject, subgroup = Subgroup, TVAAS_level = Level)
+
+TVAAS <- readxl::read_excel("K:/ORP_accountability/data/2015_tvaas/TNTDE-2015-All-Students-Across-Subjects-20170314.xlsx") %>%
+    mutate(Subject = ifelse(Subject == "4-5 Composite", "3-5 Success Rate", Subject),
+        Subject = ifelse(Subject == "6-8 Composite", "6-8 Success Rate", Subject),
+        Subject = ifelse(Subject == "HS Composite", "HS Success Rate", Subject)) %>%
+    transmute(system = as.numeric(`System Number`), subject = Subject, subgroup = Subgroup, TVAAS_level = Level) %>%
+    bind_rows(TVAAS_subgroups)
 
 success_rates <- percent_PA_BB %>%
     filter(year == 2015) %>%
