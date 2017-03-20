@@ -76,13 +76,13 @@ write_csv(exit, path = "data/elpa_exit.csv", na = "")
 # AMOs of Percent Meeting Growth Standard
 growth_standard_prior <- readxl::read_excel("K:/ORP_accountability/projects/Title III/Output/AMAO_I_2015_w_subgroups.xlsx") %>%
     select(system, subgroup, tested_prior = tested_both_years, met_growth_prior = improved) %>%
-    mutate(pct_met_growth_prior = ifelse(tested_prior >= 10, round(100 * met_growth_prior/tested_prior, 1), NA),
-        AMO_target = ifelse(tested_prior >= 10, round(pct_met_growth_prior + (100 + pct_met_growth_prior)/16, 1), NA),
-        AMO_target_4 = ifelse(tested_prior >= 10, round(pct_met_growth_prior + (100 + pct_met_growth_prior)/8, 1), NA))
+    mutate(pct_met_growth_prior = ifelse(tested_prior >= 30, round(100 * met_growth_prior/tested_prior, 1), NA),
+        AMO_target = ifelse(tested_prior >= 30, round(pct_met_growth_prior + (100 - pct_met_growth_prior)/16, 1), NA),
+        AMO_target_4 = ifelse(tested_prior >= 30, round(pct_met_growth_prior + (100 - pct_met_growth_prior)/8, 1), NA))
 
 growth_standard <- read_dta("K:/ORP_accountability/projects/Title III/Output/2016_district_level_growth_standard_w_subgroups.dta") %>%
     select(system, subgroup, tested = valid_tests, met_growth) %>%
-    mutate(pct_met_growth = ifelse(tested >= 10, round(met_growth/tested, 3), NA),
+    mutate(pct_met_growth = ifelse(tested >= 30, round(met_growth/tested, 3), NA),
         upper_bound_ci = round(100 * (tested/(tested + qnorm(0.975)^2)) * (pct_met_growth + ((qnorm(0.975)^2)/(2 * tested)) +
             qnorm(0.975) * sqrt((pct_met_growth * (1 - pct_met_growth))/tested + (qnorm(0.975)^2)/(4 * tested^2))), 1),
         pct_met_growth = 100 * pct_met_growth) %>%
