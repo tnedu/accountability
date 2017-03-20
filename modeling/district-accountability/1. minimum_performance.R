@@ -7,14 +7,15 @@ success_rates <- read_csv("data/success_rates_TVAAS.csv")
 # Minimum Performance Keys
 minimum_performance_super <- success_rates %>%
     filter(subgroup == "Super Subgroup") %>%
-    transmute(system, system_name, subject, BB_reduction_key = lower_bound_ci_BB <= pct_below_prior)
+    transmute(system, system_name, subject, BB_reduction_key = lower_bound_ci_BB < pct_below_prior)
 
 minimum_performance <- success_rates %>%
     filter(subgroup == "All Students") %>%
-    mutate(achievement_key = upper_bound_ci_PA >= pct_prof_adv_prior,
+    mutate(achievement_key = upper_bound_ci_PA > pct_prof_adv_prior,
         value_added_key = TVAAS_level %in% c("Level 3", "Level 4", "Level 5")) %>%
     full_join(minimum_performance_super, by = c("system", "system_name", "subject")) %>%
     group_by(system, system_name) %>%
+# Count Met for Achievement, VA, and BB Reduction
     summarise(achievement_met = sum(achievement_key, na.rm = TRUE),
         achievement_eligible = sum(!is.na(achievement_key), na.rm = TRUE),
         value_added_met = sum(value_added_key, na.rm = TRUE),
