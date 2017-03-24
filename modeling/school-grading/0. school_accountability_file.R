@@ -1,19 +1,27 @@
 ## School Accountability File with Super Subgroup and Science
 
+library(haven)
 library(readxl)
 library(tidyverse)
 
-# Grade pools
-grade_pools <- haven::read_dta("K:/ORP_accountability/projects/2016_pre_coding/Output/grade_pools_designation_immune_2016.dta") %>%
-    transmute(system = as.numeric(system), school = as.numeric(school), designation_ineligible, pool)
+# Designation Ineligible
+designation_ineligible <- read_dta("K:/ORP_accountability/projects/2016_pre_coding/Output/grade_pools_designation_immune_2016.dta") %>%
+    transmute(system = as.numeric(system), system_name, school = as.numeric(school), school_name, designation_ineligible)
+
+grade_pools <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_base_with_super_subgroup_2016.csv") %>%
+    filter(year == 2015, subject == "Graduation Rate", subgroup == "All Students") %>%
+    transmute(system, school, pool = ifelse(grad_cohort >= 30, "HS", "K8")) %>%
+    right_join(designation_ineligible, by = c("system", "school")) %>%
+    mutate(pool = ifelse(is.na(pool), "K8", pool))
 
 # School base + merge on grade pools
 school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_base_with_super_subgroup_2016.csv") %>%
     filter(year %in% c(2014, 2015),
         subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
             "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
-# Reassign counts for grad and ACT
-    mutate(grade = ifelse(subject %in% c("ACT Composite", "Graduation Rate"), "12", grade),
+    mutate(subgroup = ifelse(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
+    # Reassign counts for grad and ACT
+        grade = ifelse(subject %in% c("ACT Composite", "Graduation Rate"), "12", grade),
         valid_tests = ifelse(subject == "Graduation Rate", grad_cohort, valid_tests),
         n_prof = ifelse(subject == "Graduation Rate", grad_count, n_prof),
         n_prof = ifelse(subject == "ACT Composite", n_21_and_above, n_prof)) %>%
@@ -22,7 +30,7 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
         subject = ifelse(subject %in% c("Algebra I", "Algebra II") & grade <= 8, "Math", subject),
         subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject)) %>%
-    inner_join(grade_pools, by = c("system", "school")) %>%
+    inner_join(grade_pools, by = c("system", "system_name", "school", "school_name")) %>%
     filter(!(pool == "K8" & subject %in% c("Algebra I", "Algebra II", "Biology I", "Chemistry", "English I", "English II", "English III", "Graduation Rate"))) %>%
 # Aggregate across grades
     group_by(year, system, system_name, school, school_name, pool, subject, subgroup, designation_ineligible) %>%
@@ -34,16 +42,38 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
         subject = ifelse(subject %in% c("English I", "English II", "English III"), "HS English", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry"), "HS Science", subject))
 
-# One year success rates without ACT/Grad
+# ACT for Success Rates (with all test takers as denominator)
+ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2015.dta") %>%
+    filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
+        "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
+    transmute(year = 2014, system, school, subject = "ACT Composite",
+        subgroup = ifelse(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
+        valid_tests = valid_tests_nogradcohort, n_prof = num_21_orhigher_nogradcohort) %>%
+    mutate_each(funs(ifelse(valid_tests < 30, 0, .)), valid_tests, n_prof) %>%
+    inner_join(grade_pools, by = c("system", "school"))
+
+ACT <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") %>%
+    filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
+        "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
+    transmute(year = 2015, system, school, subject = "ACT Composite",
+        subgroup = ifelse(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
+        valid_tests = valid_tests_nogradcohort, n_prof = num_21_orhigher_nogradcohort) %>%
+    mutate_each(funs(ifelse(valid_tests < 30, 0, .)), valid_tests, n_prof) %>%
+    inner_join(grade_pools, by = c("system", "school"))
+
+# One year success rates with ACT
 success_rates_1yr <- school_base %>%
     filter(!(subject %in% c("ACT Composite", "Graduation Rate"))) %>%
+    bind_rows(ACT) %>%
     group_by(year, system, system_name, school, school_name, pool, subgroup, designation_ineligible) %>%
     summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_prof, n_adv) %>%
     ungroup() %>%
     mutate(year = as.character(year), subject = "Success Rate")
 
-# Three year success rates without ACT/Grad
-success_rates_3yr <- success_rates_1yr %>%
+# Three year success rates with ACT
+success_rates_3yr <- school_base %>%
+    filter(!(subject %in% c("ACT Composite", "Graduation Rate"))) %>%
+    bind_rows(ACT, ACT_prior) %>%
     group_by(system, system_name, school, school_name, pool, subgroup, designation_ineligible) %>%
     summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_prof, n_adv) %>%
     ungroup() %>%
@@ -60,10 +90,10 @@ success_rates_all <- bind_rows(success_rates_1yr, success_rates_3yr, ACT_grad) %
 # AMOs
 AMOs <- success_rates_all %>%
     filter(year == "2014") %>%
-    mutate(AMO_target_PA = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16, 1), NA),
-        AMO_target_PA_4 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA)) %>%
-    transmute(year = "2015", system, system_name, school, school_name, subject, subgroup, 
-        valid_tests_prior = valid_tests, pct_prof_adv_prior = pct_prof_adv, AMO_target_PA, AMO_target_PA_4)
+    transmute(year = "2015", system, system_name, school, school_name, subject, subgroup,
+        valid_tests_prior = valid_tests, pct_prof_adv_prior = pct_prof_adv,
+        AMO_target_PA = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16, 1), NA),
+        AMO_target_PA_4 = ifelse(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8, 1), NA))
 
 # School Composite TVAAS
 TVAAS_prior <- read_csv("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2013-14/URM School Value-Added and Composites.csv") %>%
