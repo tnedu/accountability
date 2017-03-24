@@ -137,7 +137,7 @@ all_students_grades_final <- AF_grades_metrics %>%
 # Targeted support schools
 targeted_support <- AF_grades_metrics %>%
     filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
-        "English Language Learners with T1/T2", "Students with Disabilities")) %>%
+        "English Learners", "Students with Disabilities")) %>%
     select(system, school, subgroup, designation_ineligible, subgroup_average) %>%
     full_join(F_schools, by = c("system", "school")) %>%
     group_by(subgroup) %>%
@@ -152,7 +152,7 @@ targeted_support <- AF_grades_metrics %>%
         targeted_support_BHN = `Black/Hispanic/Native American`,
         targeted_support_ED = `Economically Disadvantaged`,
         targeted_support_SWD = `Students with Disabilities`,
-        targeted_support_EL = `English Language Learners with T1/T2`,
+        targeted_support_EL = `English Learners`,
         targeted_support = ifelse(is.na(final_grade), pmax(targeted_support_BHN, targeted_support_ED,
             targeted_support_SWD, targeted_support_EL, na.rm = TRUE), NA))
 
@@ -198,7 +198,7 @@ AF_grades_final <- all_students_grades_final %>%
         priority_grad = ifelse(is.na(priority_grad), FALSE, priority_grad),
         targeted_support = ifelse(priority_grad, NA, targeted_support),
         targeted_support = ifelse(is.na(targeted_support), FALSE, targeted_support)) %>%
-    select(system, system_name, school, school_name, designation_ineligible, priority_grad,
+    select(system, system_name, school, school_name, pool, designation_ineligible, priority_grad,
         achievement_average, achievement_grade, gap_closure_average, gap_closure_grade, overall_average,
         contains("targeted_support"), final_grade)
 
