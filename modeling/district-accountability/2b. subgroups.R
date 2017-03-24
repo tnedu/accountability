@@ -2,10 +2,11 @@
 
 library(tidyverse)
 
+# Success Rates, AMOs and TVAAS
 success_rates <- read_csv("data/success_rates_TVAAS.csv")
 
 achievement <- success_rates %>%
-    filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged", 
+    filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
         "Students with Disabilities", "English Learners")) %>%
     group_by(subject, subgroup) %>%
     mutate(rank_PA = ifelse(valid_tests >= 30, rank(pct_prof_adv, ties.method = "max"), NA),
@@ -55,11 +56,12 @@ ELPA <- read_csv("data/elpa_exit.csv") %>%
     mutate(subject = "ELPA")
 
 # Combine all content areas
+# Not setting na.rm = TRUE so that districts are only evaluated if they have absolute, AMO, and TVAAS
 all_subjects <- bind_rows(achievement, absenteeism, grad, ELPA) %>%
     mutate(
     # Success Rates
         achievement = ifelse(subject %in% c("3-5 Success Rate", "6-8 Success Rate", "HS Success Rate"),
-            pmax(achievement_quintile, achievement_AMO, na.rm = TRUE), NA),
+            pmax(achievement_quintile, achievement_AMO), NA),
         value_added = ifelse(subject %in% c("3-5 Success Rate", "6-8 Success Rate", "HS Success Rate"), TVAAS, NA),
     # Absenteeism
         achievement = ifelse(subject == "Absenteeism", pmax(CA_quintile, CA_AMO), achievement),
@@ -67,19 +69,25 @@ all_subjects <- bind_rows(achievement, absenteeism, grad, ELPA) %>%
         achievement = ifelse(subject == "Graduation Rate", pmax(grad_quintile, grad_AMO), achievement),
         value_added = ifelse(subject == "Graduation Rate", ACT_grad_change_quintile, value_added),
     # ELPA
-        achievement = ifelse(subject == "ELPA", pmax(exit_quintile, growth_standard_AMO), achievement)) %>%
-    rowwise() %>%
+        achievement = ifelse(subject == "ELPA", pmax(exit_quintile, growth_standard_AMO), achievement),
     # Overall
-    mutate(content_area_average = mean(c(achievement, value_added), na.rm = TRUE)) %>%
-    ungroup() %>%
+        content_area_average = (achievement + value_added)/2,
+    # For now, ELPA doesn't have a VA metric
+        content_area_average = ifelse(subject == "ELPA", achievement, content_area_average),
+        content_area_count = ifelse(!is.na(content_area_average), 1, 0)) %>%
     group_by(system, subgroup) %>%
-    summarise(subgroup_average = mean(content_area_average, na.rm = TRUE)) %>%
+    summarise(subgroup_average = mean(content_area_average, na.rm = TRUE),
+        content_area_count = sum(content_area_count)) %>%
     ungroup()
 
 subgroup_average <- all_subjects %>%
+    mutate(subgroup_average_weighted = subgroup_average * content_area_count) %>%
     group_by(system) %>%
-    summarise(subgroup_average = mean(subgroup_average, na.rm = TRUE)) %>%
-    mutate(subgroup_designation = ifelse(subgroup_average == 0, "In Need of Improvement", NA),
+    summarise_each(funs(sum(., na.rm = TRUE)), subgroup_average_weighted, content_area_count) %>%
+    ungroup() %>%
+    transmute(system,
+        subgroup_average = subgroup_average_weighted/content_area_count,
+        subgroup_designation = ifelse(subgroup_average == 0, "In Need of Improvement", NA),
         subgroup_designation = ifelse(subgroup_average > 0, "Marginal", subgroup_designation),
         subgroup_designation = ifelse(subgroup_average > 1, "Satisfactory", subgroup_designation),
         subgroup_designation = ifelse(subgroup_average > 2, "Advancing", subgroup_designation),

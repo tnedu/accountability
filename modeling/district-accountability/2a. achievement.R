@@ -2,6 +2,7 @@
 
 library(tidyverse)
 
+# Success Rates, AMOs and TVAAS
 success_rates <- read_csv("data/success_rates_TVAAS.csv")
 
 achievement <- success_rates %>%
@@ -54,24 +55,25 @@ ELPA <- read_csv("data/elpa_exit.csv") %>%
     mutate(subject = "ELPA")
 
 # Combine all content areas
+# Not setting na.rm = TRUE so that districts are only evaluated if they have absolute, AMO, and TVAAS
 all_subjects <- bind_rows(achievement, absenteeism, grad, ELPA) %>%
     mutate(
     # Success Rates
         achievement = ifelse(subject %in% c("3-5 Success Rate", "6-8 Success Rate", "HS Success Rate"),
-            pmax(achievement_quintile, achievement_AMO, na.rm = TRUE), NA),
+            pmax(achievement_quintile, achievement_AMO), NA),
         value_added = ifelse(subject %in% c("3-5 Success Rate", "6-8 Success Rate", "HS Success Rate"), TVAAS, NA),
     # Absenteeism
-        achievement = ifelse(subject == "Absenteeism", pmax(CA_quintile, CA_AMO, na.rm = TRUE), achievement),
+        achievement = ifelse(subject == "Absenteeism", pmax(CA_quintile, CA_AMO), achievement),
         value_added = ifelse(subject == "Absenteeism", CA_reduction_quintile, value_added),
     # Grad
-        achievement = ifelse(subject == "Graduation Rate", pmax(grad_quintile, grad_AMO, na.rm = TRUE), achievement),
+        achievement = ifelse(subject == "Graduation Rate", pmax(grad_quintile, grad_AMO), achievement),
         value_added = ifelse(subject == "Graduation Rate", ACT_grad_change_quintile, value_added),
     # ELPA
-        achievement = ifelse(subject == "ELPA", pmax(exit_quintile, growth_standard_AMO, na.rm = TRUE), achievement)) %>%
-    rowwise() %>%
+        achievement = ifelse(subject == "ELPA", pmax(exit_quintile, growth_standard_AMO), achievement),
     # Overall
-    mutate(average = mean(c(achievement, value_added), na.rm = TRUE)) %>%
-    ungroup()
+        average = (achievement + value_added)/2,
+    # For now, ELPA doesn't have a VA metric
+        average = ifelse(subject == "ELPA", achievement, average))
 
 achievement_average <- all_subjects %>%
     group_by(system) %>%

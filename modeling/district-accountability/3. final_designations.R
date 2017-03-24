@@ -2,21 +2,17 @@
 
 library(tidyverse)
 
+# Achievement and Subgroup Averages
+achievement <- read_csv("data/achievement_scores.csv")
 subgroup <- read_csv("data/subgroup_scores.csv")
 
-achievement <- read_csv("data/achievement_scores.csv")
-
+# Final Designations
 final_designations <- read_csv("data/minimum_performance.csv") %>%
     select(system, system_name, met_minimum_performance_goal) %>%
     left_join(achievement, by = "system") %>%
     left_join(subgroup, by = "system") %>%
     rowwise() %>%
-    mutate(overall_average = ifelse(!is.na(achievement_average) & !is.na(subgroup_average),
-            sum(0.6 * achievement_average, 0.4 * subgroup_average, na.rm = TRUE), NA),
-        overall_average = ifelse(!is.na(achievement_average) & is.na(subgroup_average),
-            achievement_average, overall_average),
-        overall_average = ifelse(is.na(achievement_average) & !is.na(subgroup_average),
-            subgroup_average, overall_average)) %>%
+    mutate(overall_average = sum(0.6 * achievement_average, 0.4 * subgroup_average, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate(final_designation = ifelse(overall_average <= 1, "Marginal", NA),
         final_designation = ifelse(overall_average > 1, "Satisfactory", final_designation),
