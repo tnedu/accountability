@@ -89,13 +89,14 @@ ach_growth <- school_accountability %>%
 full_heat_map <- ach_growth %>%
     left_join(ACT_grad, by = c("system", "school", "subgroup")) %>%
     left_join(absenteeism, by = c("system", "school", "subgroup")) %>%
-# Not setting na.rm = TRUE so that schools are only evaluated if they have absolute and AMO pathways
+# Not setting na.rm = TRUE for pmin so that schools with both absolute and AMO receive a grade
     mutate(grade_achievement = pmin(grade_relative_achievement, grade_achievement_AMO),
+        grade_growth = ifelse(subgroup == "All Students", grade_TVAAS, grade_growth),
         grade_readiness = pmin(grade_readiness_absolute, grade_readiness_target),
         grade_absenteeism = pmin(grade_absenteeism_absolute, grade_absenteeism_reduction),
         priority_grad = ifelse(subgroup == "All Students", !designation_ineligible & grad_cohort >= 30 & grad_rate < 67, NA)) %>%
     select(system, system_name, school, school_name, subgroup, pool, designation_ineligible, priority_grad, 
-        grade_achievement, grade_TVAAS, grade_growth, grade_readiness, grade_absenteeism, grade_elpa)
+        grade_achievement, grade_growth, grade_readiness, grade_absenteeism, grade_elpa)
 
 AF_grades_metrics <- full_heat_map %>%
     mutate_at(vars(starts_with("grade_")), funs(recode(., "A" = 4, "B" = 3, "C" = 2, "D" = 1, "F" = 0))) %>%
@@ -103,8 +104,8 @@ AF_grades_metrics <- full_heat_map %>%
     # Weights
         weight_achievement = ifelse(!is.na(grade_achievement) & pool == "K8", 0.45, NA),
         weight_achievement = ifelse(!is.na(grade_achievement) & pool == "HS", 0.3, weight_achievement),
-        weight_growth = ifelse((!is.na(grade_TVAAS) | !is.na(grade_growth)) & pool == "K8", 0.35, NA),
-        weight_growth = ifelse((!is.na(grade_TVAAS) | !is.na(grade_growth)) & pool == "HS", 0.25, weight_growth),
+        weight_growth = ifelse(!is.na(grade_growth)) & pool == "K8", 0.35, NA),
+        weight_growth = ifelse(!is.na(grade_growth)) & pool == "HS", 0.25, weight_growth),
         weight_readiness = ifelse(!is.na(grade_readiness) & pool == "HS", 0.25, NA),
         weight_opportunity = ifelse(!is.na(grade_absenteeism), 0.1, NA),
         weight_elpa = ifelse(!is.na(grade_elpa), 0.1, NA),
@@ -116,7 +117,6 @@ AF_grades_metrics <- full_heat_map %>%
     rowwise() %>%
     mutate(total_weight = sum(weight_achievement, weight_growth, weight_opportunity, weight_readiness, weight_elpa, na.rm = TRUE),
         subgroup_average = sum(weight_achievement * grade_achievement,
-            weight_growth * grade_TVAAS,
             weight_growth * grade_growth,
             weight_opportunity * grade_absenteeism,
             weight_readiness * grade_readiness,
@@ -266,13 +266,13 @@ slides <- addSlide(slides, "Body - TN Mark") %>%
     addPlot(fun = print, x = plot_sr_1yr)
 
 plot_tvaas <- AF_grades_metrics %>%
-    filter(!is.na(grade_TVAAS),
+    filter(!is.na(grade_growth),
         subgroup == "All Students") %>%
-    mutate(grade_TVAAS = paste("Level", 1 + grade_TVAAS),
-        grade_TVAAS = factor(grade_TVAAS, levels = c("Level 5", "Level 4", "Level 3", "Level 2", "Level 1"))) %>%
+    mutate(grade_growth = paste("Level", 1 + grade_growth),
+        grade_growth = factor(grade_growth, levels = c("Level 5", "Level 4", "Level 3", "Level 2", "Level 1"))) %>%
     inner_join(AF_grades_final, by = c("system", "system_name", "school", "school_name", "designation_ineligible", "pool")) %>%
     filter(!is.na(final_grade)) %>%
-    count(final_grade, grade_TVAAS) %>%
+    count(final_grade, grade_growth) %>%
     ggplot(aes(x = final_grade, y = n, fill = grade_TVAAS, label = n)) + 
         geom_bar(stat = "identity") +
         geom_text(position = position_stack(vjust = 0.5)) + 
