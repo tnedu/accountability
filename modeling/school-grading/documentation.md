@@ -2,7 +2,9 @@
 
 This page outlines our final model for A-F school grading.
 
-First, identify F Schools which are 5 percent of lowest performing schools based on a three year success rate without a Level 4 or 5 school composite TVAAS in each of the two most recent years AND schools with a graduation rate below 67 percent.
+First, identify F Schools which are 5 percent of lowest performing schools based on a three year success rate without a Level 4 or 5 school composite TVAAS in each of the two most recent years AND schools with a graduation rate below 67 percent. Success rates for this purpose includes percent of students earning an ACT composite score of 21 or above.
+
+Identify 5 percent of schools by grade pool, where High Schools are schools with at least 30 students in the graduating cohort, and K-8 schools are all others.
 
 ### Achievement Score
 
@@ -18,7 +20,7 @@ Next, assess schools based on the following indicators based on All Students per
 
 A school receives a grade corresponding to the highest condition met for each indicator. For instance, a school with a success rate at the 50th percentile but which shows 12.5% growth from the prior year receives an A grade for Achievement. Schools only receive a grade for Achievement, Readiness, ELPA and Absenteeism if they can be evaluated for both the absolute and AMO components.
 
-ELPA exit is weighted by time in ESL services.
+Success rates for the Achievement indicator includes percent of students earning an ACT composite score of 21 or above. ELPA exit is weighted by time in ESL services.
 
 For K-8 schools, indicators are weighted as follows: 45% Achievement, 35% Growth, 10% Opportunity to Learn, 10% ELPA. If a school does not meet a minimum n count for ELPA, the indicators are weighted as follows: 50% Achievement, 40% Growth, 10% Opportunity to Learn.
 
@@ -38,11 +40,13 @@ Next, assess schools based on the following indicators based on subgroup perform
 | D | 4th Quintile Success Rate OR Less than 6.25% Growth with Upper Bound CI | 4th Quintile in Moving Students to Higher Proficiency Band | (16, 28] OR Same as Prior Year | (17, 24] OR Less than 6.25% Reduction in Chronic Absence with Lower Bound CI | [6, 12) Percent Exit OR [30, 45) Meet Growth Standard |
 | F | Bottom Quintile Success Rate OR Upper Bound CI <= Prior Year % P/A | Bottom Quintile in Moving Students to Higher Proficiency Band | [0, 16] OR Less than Prior Year | (24, 100] OR Lower Bound CI >= Prior Year Chronic Absence | [0, 6) Percent Exit OR [0, 30) Meet Growth Standard |
 
-For K-8 schools, indicators are weighted as follows: 45% Achievement, 35% Growth, 10% Opportunity to Learn, 10% ELPA. If a school does not meet a minimum n count for ELPA, the indicators are weighted as follows: 50% Achievement, 40% Growth, 10% Opportunity to Learn.
+Indicators are weighted as for All Students. Each subgroup receives a score based on the weighted average of its indicators, where grades map to numerical values as follows: A = 4, B = 3, C = 2, D = 1, F = 0. A school's subgroup grades are averaged again, weighted by the total weight represented by the subgroup grade, to produce an overall subgroup score.
 
-For high schools, indicators are weighted as follows: 30% Achievement, 25% Growth, 25% Ready Graduate, 10% Opportunity to Learn, 10% ELPA. If a school does not meet a minimum n count for ELPA, the indicators are weighted as follows: 35% Achievement, 30% Growth, 25% Ready Graduate, 10% Opportunity to Learn.
+### Targeted Support Schools
 
-Each subgroup receives a score based on the weighted average of its indicators, where grades map to numerical values as follows: A = 4, B = 3, C = 2, D = 1, F = 0. A school's subgroup grades are averaged again, weighted by the total weight represented by the subgroup grade, to produce an overall subgroup score.
+Identify targeted support schools are 5 percent of schools with the lowest subgroup averages for each of BHN, ED, SWD, and EL subgroups. No corrections are made for overlap.
+
+### Final Grade
 
 A school's overall achievement and subgroup scores are weighted (60% achievement, 40% subgroup) and averaged to produce an overall average. The overall average maps to a final grade as follows:
 

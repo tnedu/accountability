@@ -81,17 +81,16 @@ elpa_indicator <- bind_rows(elpa_all, elpa_ed, elpa_bhn, elpa_swd, elpa_el) %>%
     summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, exit_count, exit_denom, growth_standard_denom, met_growth_standard) %>%
     ungroup() %>%
     mutate(exit_percent = ifelse(valid_tests >= 10, round(100 * exit_count/exit_denom, 1), NA),
-        exit_grade = ifelse(exit_percent < 6, "F", NA),
-        exit_grade = ifelse(exit_percent >= 6, "D", exit_grade),
-        exit_grade = ifelse(exit_percent >= 12, "C", exit_grade),
-        exit_grade = ifelse(exit_percent >= 24, "B", exit_grade),
-        exit_grade = ifelse(exit_percent >= 36, "A", exit_grade),
+        grade_exit = ifelse(exit_percent < 6, "F", NA),
+        grade_exit = ifelse(exit_percent >= 6, "D", grade_exit),
+        grade_exit = ifelse(exit_percent >= 12, "C", grade_exit),
+        grade_exit = ifelse(exit_percent >= 24, "B", grade_exit),
+        grade_exit = ifelse(exit_percent >= 36, "A", grade_exit),
         met_growth_percent = ifelse(growth_standard_denom >= 10, round(100 * met_growth_standard/growth_standard_denom, 1), NA),
-        growth_standard_grade = ifelse(met_growth_percent < 30, "F", NA),
-        growth_standard_grade = ifelse(met_growth_percent >= 30, "D", growth_standard_grade),
-        growth_standard_grade = ifelse(met_growth_percent >= 45, "C", growth_standard_grade),
-        growth_standard_grade = ifelse(met_growth_percent >= 60, "B", growth_standard_grade),
-        growth_standard_grade = ifelse(met_growth_percent >= 70, "A", growth_standard_grade),
-        grade_elpa = pmin(exit_grade, growth_standard_grade, na.rm = TRUE))
+        grade_growth_standard = ifelse(met_growth_percent < 30, "F", NA),
+        grade_growth_standard = ifelse(met_growth_percent >= 30, "D", grade_growth_standard),
+        grade_growth_standard = ifelse(met_growth_percent >= 45, "C", grade_growth_standard),
+        grade_growth_standard = ifelse(met_growth_percent >= 60, "B", grade_growth_standard),
+        grade_growth_standard = ifelse(met_growth_percent >= 70, "A", grade_growth_standard))
 
 write_csv(elpa_indicator, path = "data/elpa_indicator.csv", na = "")
