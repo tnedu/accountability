@@ -31,7 +31,6 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
         subject = ifelse(subject %in% c("English I", "English II", "English III") & grade <= 8, "ELA", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry") & grade <= 8, "Science", subject)) %>%
     inner_join(grade_pools, by = c("system", "system_name", "school", "school_name")) %>%
-    filter(!(pool == "K8" & subject %in% c("Algebra I", "Algebra II", "Biology I", "Chemistry", "English I", "English II", "English III", "Graduation Rate"))) %>%
 # Aggregate across grades
     group_by(year, system, system_name, school, school_name, pool, subject, subgroup, designation_ineligible) %>%
     summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_prof, n_adv) %>%
@@ -122,7 +121,7 @@ school_accountability <- success_rates_all %>%
         pctile_rank_PA = round(100 * rank_PA/denom, 1)) %>%
     ungroup() %>%
     select(year, system, system_name, school, school_name, pool, subject, subgroup, designation_ineligible,
-        valid_tests_prior, valid_tests, pct_prof_adv_prior, pct_prof_adv, upper_bound_ci_PA, 
+        valid_tests_prior, valid_tests, pct_prof_adv_prior, pct_prof_adv, upper_bound_ci_PA,
         AMO_target_PA, AMO_target_PA_4, pctile_rank_PA, TVAAS_level, TVAAS_level_lag) %>%
     arrange(system, system_name, school, school_name, subject, subgroup)
 
