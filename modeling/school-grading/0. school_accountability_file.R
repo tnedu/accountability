@@ -8,6 +8,7 @@ library(tidyverse)
 designation_ineligible <- read_dta("K:/ORP_accountability/projects/2016_pre_coding/Output/grade_pools_designation_immune_2016.dta") %>%
     transmute(system = as.numeric(system), system_name, school = as.numeric(school), school_name, designation_ineligible)
 
+# Grade pools based on grad
 grade_pools <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/school_base_with_super_subgroup_2016.csv") %>%
     filter(year == 2015, subject == "Graduation Rate", subgroup == "All Students") %>%
     transmute(system, school, pool = ifelse(grad_cohort >= 30, "HS", "K8")) %>%
@@ -41,8 +42,8 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
         subject = ifelse(subject %in% c("English I", "English II", "English III"), "HS English", subject),
         subject = ifelse(subject %in% c("Biology I", "Chemistry"), "HS Science", subject))
 
-# ACT for Success Rates (with all test takers as denominator)
-ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2015.dta") %>%
+# ACT for success rates (with all test takers as denominator)
+ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2014.dta") %>%
     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
         "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
     transmute(year = 2014, system, school, subject = "ACT Composite",
@@ -51,7 +52,7 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2015.dta") 
     mutate_each(funs(ifelse(valid_tests < 30, 0, .)), valid_tests, n_prof) %>%
     inner_join(grade_pools, by = c("system", "school"))
 
-ACT <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") %>%
+ACT <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2015.dta") %>%
     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
         "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
     transmute(year = 2015, system, school, subject = "ACT Composite",
