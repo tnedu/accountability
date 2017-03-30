@@ -87,7 +87,7 @@ ach_growth <- school_accountability %>%
         grade_relative_achievement, grade_achievement_AMO, grade_TVAAS, grade_growth)
 
 # Full Heat Map
-full_heat_map <- ach_growth %>%
+AF_grades_metrics <- ach_growth %>%
     left_join(ACT_grad, by = c("system", "school", "subgroup")) %>%
     left_join(absenteeism, by = c("system", "school", "subgroup")) %>%
     left_join(ELPA, by = c("system", "school", "subgroup")) %>%
@@ -98,13 +98,10 @@ full_heat_map <- ach_growth %>%
         grade_growth = ifelse(subgroup == "All Students", grade_TVAAS, grade_growth),
         grade_readiness = pmin(grade_readiness_absolute, grade_readiness_target),
         grade_absenteeism = pmin(grade_absenteeism_absolute, grade_absenteeism_reduction),
-        grade_ELPA = pmin(grade_exit, grade_growth_standard))
-
-AF_grades_metrics <- full_heat_map %>%
+        grade_ELPA = pmin(grade_exit, grade_growth_standard)) %>%
     mutate_at(vars(starts_with("grade_")), funs(recode(., "A" = 4, "B" = 3, "C" = 2, "D" = 1, "F" = 0))) %>%
-    mutate(
-    # Weights
-        weight_achievement = ifelse(!is.na(grade_achievement) & pool == "K8", 0.45, NA),
+# Weights
+    mutate(weight_achievement = ifelse(!is.na(grade_achievement) & pool == "K8", 0.45, NA),
         weight_achievement = ifelse(!is.na(grade_achievement) & pool == "HS", 0.3, weight_achievement),
         weight_growth = ifelse(!is.na(grade_growth) & pool == "K8", 0.35, NA),
         weight_growth = ifelse(!is.na(grade_growth) & pool == "HS", 0.25, weight_growth),
@@ -161,15 +158,17 @@ targeted_support <- AF_grades_metrics %>%
 # Gap closure grades
 subgroup_grades_final <- AF_grades_metrics %>%
     filter(subgroup != "All Students") %>%
-    # Drop Super Subgroup observation if other subgroups are present
+# Drop Super Subgroup observation if other subgroups are present
     mutate(temp = !is.na(subgroup_average)) %>%
     group_by(system, system_name, school, school_name) %>%
     mutate(subgroups_count = sum(temp)) %>%
     filter(!(subgroup == "Super Subgroup" & subgroups_count > 1)) %>%
+# Weight by total weight of the indicators represented by each subgroup
     mutate(subgroup_average_weighted = total_weight * subgroup_average) %>%
     summarise_each(funs(sum(., na.rm = TRUE)), total_weight, subgroup_average_weighted) %>%
     ungroup() %>%
-    transmute(system, system_name, school, school_name, gap_closure_average = subgroup_average_weighted/total_weight,
+    transmute(system, system_name, school, school_name, 
+        gap_closure_average = subgroup_average_weighted/total_weight,
         gap_closure_grade = ifelse(gap_closure_average == 0, "F", NA),
         gap_closure_grade = ifelse(gap_closure_average > 0, "D", gap_closure_grade),
         gap_closure_grade = ifelse(gap_closure_average > 1, "C", gap_closure_grade),
@@ -182,6 +181,7 @@ AF_grades_final <- all_students_grades_final %>%
     full_join(targeted_support, by = c("system", "school")) %>%
     mutate(final_grade = ifelse(is.na(final_grade) & priority_grad, "F", final_grade),
         overall_average = round(0.6 * achievement_average + 0.4 * gap_closure_average, 1),
+        overall_average = ifelse(is.na(overall_average), achievement_average, overall_average),
         final_grade = ifelse(is.na(final_grade) & overall_average <= 1, "D", final_grade),
         final_grade = ifelse(is.na(final_grade) & overall_average > 1 & overall_average <= 2, "C", final_grade),
         final_grade = ifelse(is.na(final_grade) & overall_average > 2 & overall_average <= 3, "B", final_grade),
@@ -244,7 +244,7 @@ slides <- addFlexTable(slides, final_distribution) %>%
     addPlot(fun = print, x = plot_sr_3yr)
 
 plot_sr_1yr <- school_accountability %>%
-    filter(subgroup == "All Students" & subject == "Success Rate" & year == "2015") %>%
+    filter(subgroup == "All Students", subject == "Success Rate", year == "2015") %>%
     full_join(AF_grades_final, by = c("system", "system_name", "school", "school_name", "designation_ineligible", "pool")) %>%
     ggplot(aes(x = final_grade, y = pct_prof_adv)) +
         geom_boxplot(outlier.shape = NA) +
@@ -259,25 +259,24 @@ slides <- addSlide(slides, "Body - TN Mark") %>%
     addTitle("Distribution of 1-Year Success Rates by Final Grade") %>%
     addPlot(fun = print, x = plot_sr_1yr)
 
-plot_tvaas <- AF_grades_metrics %>%
-    filter(!is.na(grade_growth),
-        subgroup == "All Students") %>%
+plot_TVAAS <- AF_grades_metrics %>%
+    filter(subgroup == "All Students", !is.na(grade_growth)) %>%
     mutate(grade_growth = paste("Level", 1 + grade_growth),
         grade_growth = factor(grade_growth, levels = c("Level 5", "Level 4", "Level 3", "Level 2", "Level 1"))) %>%
     inner_join(AF_grades_final, by = c("system", "system_name", "school", "school_name", "designation_ineligible", "pool")) %>%
     filter(!is.na(final_grade)) %>%
     count(final_grade, grade_growth) %>%
-    ggplot(aes(x = final_grade, y = n, fill = grade_TVAAS, label = n)) + 
+    ggplot(aes(x = final_grade, y = n, fill = grade_growth, label = n)) +
         geom_bar(stat = "identity") +
-        geom_text(position = position_stack(vjust = 0.5)) + 
-        theme_hc() + 
+        geom_text(position = position_stack(vjust = 0.5)) +
+        theme_hc() +
         scale_x_discrete(limits = c("F", "D", "C", "B", "A")) +
-        scale_fill_manual(values = c("#00b050", "#92d050", "#f6f7dd", "#ff9f99", "#ff0000")) + 
+        scale_fill_manual(values = c("#00b050", "#92d050", "#f6f7dd", "#ff9f99", "#ff0000")) +
         labs(fill = "TVAAS", y = "Count") +
         theme(axis.title.x = element_blank())
 
 slides <- addSlide(slides, "Body - TN Mark") %>%
     addTitle("Distribution of TVAAS by Final Grade") %>%
-    addPlot(fun = print, x = plot_tvaas)
+    addPlot(fun = print, x = plot_TVAAS)
 
 writeDoc(slides, paste0("school_grading_", format(Sys.Date(), "%b%d"), ".pptx"))

@@ -9,7 +9,7 @@ absenteeism14 <- read_dta("K:/Research and Policy/data/data_attendance/IT Files 
     mutate_at("subgroup", funs(recode(.,
         "BHN" = "Black/Hispanic/Native American",
         "ED" = "Economically Disadvantaged",
-        "EL/T1/T2" = "English Language Learners with T1/T2",
+        "EL/T1/T2" = "English Learners",
         "SWD" = "Students with Disabilities",
         "Super" = "Super Subgroup"))) %>%
     mutate(pct_chronically_absent_prior = round(100 * (num_chronic + num_severe)/total_students_w_abs, 1),
@@ -28,7 +28,7 @@ absenteeism <- read_dta("K:/Research and Policy/data/data_attendance/IT Files - 
     mutate_at("subgroup", funs(recode(.,
         "BHN" = "Black/Hispanic/Native American",
         "ED" = "Economically Disadvantaged",
-        "EL/T1/T2" = "English Language Learners with T1/T2",
+        "EL/T1/T2" = "English Learners",
         "SWD" = "Students with Disabilities",
         "Super" = "Super Subgroup"))) %>%
     transmute(system = districtnumber, school = schoolnumber, subgroup, enrolled = total_students_w_abs,
@@ -38,7 +38,7 @@ absenteeism <- read_dta("K:/Research and Policy/data/data_attendance/IT Files - 
         grade_absenteeism_absolute = ifelse(pct_chronically_absent <= 24, "D", grade_absenteeism_absolute),
         grade_absenteeism_absolute = ifelse(pct_chronically_absent <= 17, "C", grade_absenteeism_absolute),
         grade_absenteeism_absolute = ifelse(pct_chronically_absent <= 12, "B", grade_absenteeism_absolute),
-        grade_absenteeism_absolute = ifelse(pct_chronically_absent < 8, "A", grade_absenteeism_absolute),
+        grade_absenteeism_absolute = ifelse(pct_chronically_absent <= 8, "A", grade_absenteeism_absolute),
         grade_absenteeism_absolute = ifelse(enrolled < 30, NA, grade_absenteeism_absolute),
         pct_chronically_absent = pct_chronically_absent/100,
         lower_bound_ci = round(100 * (enrolled/(enrolled + qnorm(0.975)^2)) * (pct_chronically_absent + ((qnorm(0.975)^2)/(2 * enrolled)) - 

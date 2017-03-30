@@ -63,7 +63,7 @@ elpa_swd <- elpa16 %>%
     mutate(subgroup = "Students with Disabilities")
 
 elpa_el <- elpa16 %>%
-    mutate(subgroup = "English Language Learners with T1/T2")
+    mutate(subgroup = "English Learners")
 
 elpa_indicator <- bind_rows(elpa_all, elpa_ed, elpa_bhn, elpa_swd, elpa_el) %>% 
     mutate(valid_tests = !is.na(literacy) & !is.na(composite),

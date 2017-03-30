@@ -64,7 +64,7 @@ ACT <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2015.dta") %>%
 # One year success rates with ACT
 success_rates_1yr <- school_base %>%
     filter(!(subject %in% c("ACT Composite", "Graduation Rate"))) %>%
-    bind_rows(ACT) %>%
+    bind_rows(ACT, ACT_prior) %>%
     group_by(year, system, system_name, school, school_name, pool, subgroup, designation_ineligible) %>%
     summarise_each(funs(sum(., na.rm = TRUE)), valid_tests, n_prof, n_adv) %>%
     ungroup() %>%
@@ -116,10 +116,10 @@ school_accountability <- success_rates_all %>%
         upper_bound_ci_PA = round(100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_prof_adv + (qnorm(0.975)^2/(2 * valid_tests)) +
             qnorm(0.975) * sqrt((pct_prof_adv * (1 - pct_prof_adv))/valid_tests + qnorm(0.975)^2/(4 * valid_tests^2))), 1),
         pct_prof_adv = 100 * pct_prof_adv) %>%
-    group_by(year, subject, subgroup, pool) %>%
+    group_by(year, subject, subgroup, designation_ineligible, pool) %>%
     mutate(rank_PA = ifelse(valid_tests >= 30, rank(pct_prof_adv, ties.method = "max"), NA),
         denom = sum(valid_tests >= 30, na.rm = TRUE),
-        pctile_rank_PA = round(100 * rank_PA/denom, 1)) %>%
+        pctile_rank_PA = ifelse(!designation_ineligible, 100 * rank_PA/denom, NA)) %>%
     ungroup() %>%
     select(year, system, system_name, school, school_name, pool, subject, subgroup, designation_ineligible,
         valid_tests_prior, valid_tests, pct_prof_adv_prior, pct_prof_adv, upper_bound_ci_PA,

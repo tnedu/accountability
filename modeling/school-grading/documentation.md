@@ -44,7 +44,7 @@ Indicators are weighted as for All Students. Each subgroup receives a score base
 
 ### Targeted Support Schools
 
-Identify targeted support schools are 5 percent of schools with the lowest subgroup averages for each of BHN, ED, SWD, and EL subgroups. No corrections are made for overlap.
+Targeted support schools are 5 percent of schools with the lowest subgroup averages for each of BHN, ED, SWD, and EL subgroups. No corrections are made for overlap.
 
 ### Final Grade
 
