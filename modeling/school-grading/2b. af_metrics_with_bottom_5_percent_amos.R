@@ -66,15 +66,15 @@ ACT_grad <- school_accountability %>%
 # Achievement and growth
 ach_growth <- school_accountability %>%
     filter(year == "2015", subject == "Success Rate") %>%
-    mutate(grade_relative_achievement = ifelse(pctile_rank_PA < 20, "F", NA),
-        grade_relative_achievement = ifelse(pctile_rank_PA >= 20, "D", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank_PA >= 40, "C", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank_PA >= 60, "B", grade_relative_achievement),
-        grade_relative_achievement = ifelse(pctile_rank_PA >= 80, "A", grade_relative_achievement),
+    mutate(grade_relative_achievement = ifelse(pctile_rank_PA <= 20, "F", NA),
+        grade_relative_achievement = ifelse(pctile_rank_PA > 20, "D", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank_PA > 40, "C", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank_PA > 60, "B", grade_relative_achievement),
+        grade_relative_achievement = ifelse(pctile_rank_PA > 80, "A", grade_relative_achievement),
         grade_achievement_AMO = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, "F", NA),
         grade_achievement_AMO = ifelse(upper_bound_ci_PA > pct_prof_adv_prior, "D", grade_achievement_AMO),
         grade_achievement_AMO = ifelse(upper_bound_ci_PA >= AMO_target_PA, "C", grade_achievement_AMO),
-        grade_achievement_AMO = ifelse(pct_prof_adv >= AMO_target_PA, "B", grade_achievement_AMO),
+        grade_achievement_AMO = ifelse(pct_prof_adv > AMO_target_PA, "B", grade_achievement_AMO),
         grade_achievement_AMO = ifelse(pct_prof_adv >= AMO_target_PA_4, "A", grade_achievement_AMO),
         grade_achievement_AMO = ifelse(valid_tests < 30, NA, grade_achievement_AMO),
         grade_TVAAS = ifelse(TVAAS_level == "Level 5", "A", NA),
@@ -152,8 +152,8 @@ targeted_support <- AF_grades_metrics %>%
         targeted_support_ED = `Economically Disadvantaged`,
         targeted_support_SWD = `Students with Disabilities`,
         targeted_support_EL = `English Learners`,
-        targeted_support = ifelse(is.na(final_grade), pmax(targeted_support_BHN, targeted_support_ED,
-            targeted_support_SWD, targeted_support_EL, na.rm = TRUE), NA))
+        targeted_support = ifelse(is.na(final_grade), 
+            pmax(targeted_support_BHN, targeted_support_ED, targeted_support_SWD, targeted_support_EL, na.rm = TRUE), NA))
 
 # Gap closure grades
 subgroup_grades_final <- AF_grades_metrics %>%

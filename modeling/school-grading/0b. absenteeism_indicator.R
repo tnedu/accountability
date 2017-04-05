@@ -47,7 +47,7 @@ absenteeism <- read_dta("K:/Research and Policy/data/data_attendance/IT Files - 
         grade_absenteeism_reduction = ifelse(lower_bound_ci >= pct_chronically_absent_prior, "F", NA),
         grade_absenteeism_reduction = ifelse(lower_bound_ci < pct_chronically_absent_prior, "D", grade_absenteeism_reduction),
         grade_absenteeism_reduction = ifelse(lower_bound_ci <= AMO_target, "C", grade_absenteeism_reduction),
-        grade_absenteeism_reduction = ifelse(pct_chronically_absent <= AMO_target, "B", grade_absenteeism_reduction),
+        grade_absenteeism_reduction = ifelse(pct_chronically_absent < AMO_target, "B", grade_absenteeism_reduction),
         grade_absenteeism_reduction = ifelse(pct_chronically_absent <= AMO_target_4, "A", grade_absenteeism_reduction),
         grade_absenteeism_reduction = ifelse(enrolled < 30, NA, grade_absenteeism_reduction))
 

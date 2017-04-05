@@ -1,3 +1,5 @@
+## ELPA for District Accountability
+
 library(haven)
 library(tidyverse)
 
@@ -21,11 +23,10 @@ elpa16 <- read_dta("K:/ORP_accountability/data/2016_WIDA_Access/2016_State_Stude
         hispanic = ethnicityhispaniclatino, native = raceamericanindianalaskanative, black = raceblack, 
         literacy = as.numeric(literacyperformancelevel), composite = as.numeric(performancelevelcomposite)) %>%
     left_join(econ_dis, by = "student_id") %>% 
-# Drop missing student ids and records with missing literacy and composite scores
-    filter(!is.na(student_id)) %>%
-    filter(!(is.na(literacy) & is.na(composite))) %>%
+# Drop records with missing student ids, missing literacy and composite scores
+    filter(!is.na(student_id), !(is.na(literacy) & is.na(composite))) %>%
     group_by(system, school, student_id) %>%
-# Dedup first by max composite score
+# Dedup by max composite score
     mutate(max = max(composite)) %>%
     ungroup() %>%
     filter(composite == max | is.na(max)) %>%
@@ -65,11 +66,11 @@ exit <- bind_rows(elpa_all, elpa_ed, elpa_bhn, elpa_swd, elpa_el) %>%
     mutate(pct_exit = ifelse(valid_tests >= 10, round(100 * exit_count/denom, 1), NA),
         rank_pct_exit = ifelse(!is.na(pct_exit), rank(pct_exit, ties.method = "max"), NA),
         exit_denom = sum(!is.na(pct_exit)),
-        exit_quintile = ifelse(rank_pct_exit/exit_denom < 0.2, 0, NA),
-        exit_quintile = ifelse(rank_pct_exit/exit_denom >= 0.2, 1, exit_quintile),
-        exit_quintile = ifelse(rank_pct_exit/exit_denom >= 0.4, 2, exit_quintile),
-        exit_quintile = ifelse(rank_pct_exit/exit_denom >= 0.6, 3, exit_quintile),
-        exit_quintile = ifelse(rank_pct_exit/exit_denom >= 0.8, 4, exit_quintile))
+        exit_quintile = ifelse(rank_pct_exit/exit_denom <= 0.2, 0, NA),
+        exit_quintile = ifelse(rank_pct_exit/exit_denom > 0.2, 1, exit_quintile),
+        exit_quintile = ifelse(rank_pct_exit/exit_denom > 0.4, 2, exit_quintile),
+        exit_quintile = ifelse(rank_pct_exit/exit_denom > 0.6, 3, exit_quintile),
+        exit_quintile = ifelse(rank_pct_exit/exit_denom > 0.8, 4, exit_quintile))
 
 write_csv(exit, path = "data/elpa_exit.csv", na = "")
 
@@ -91,7 +92,7 @@ growth_standard <- read_dta("K:/ORP_accountability/projects/Title III/Output/201
         growth_standard_AMO = ifelse(upper_bound_ci <= pct_met_growth_prior, 0, NA),
         growth_standard_AMO = ifelse(upper_bound_ci > pct_met_growth_prior, 1, growth_standard_AMO),
         growth_standard_AMO = ifelse(upper_bound_ci >= AMO_target, 2, growth_standard_AMO),
-        growth_standard_AMO = ifelse(pct_met_growth >= AMO_target, 3, growth_standard_AMO),
+        growth_standard_AMO = ifelse(pct_met_growth > AMO_target, 3, growth_standard_AMO),
         growth_standard_AMO = ifelse(pct_met_growth >= AMO_target_4, 4, growth_standard_AMO))
 
 write_csv(growth_standard, path = "data/elpa_growth_standard.csv", na = "")

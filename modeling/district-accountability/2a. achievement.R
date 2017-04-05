@@ -10,15 +10,15 @@ achievement <- success_rates %>%
     group_by(subject) %>%
     mutate(rank_PA = ifelse(valid_tests >= 30, rank(pct_prof_adv, ties.method = "max"), NA),
         PA_denom = sum(valid_tests >= 30, na.rm = TRUE),
-        achievement_quintile = ifelse(rank_PA/PA_denom < 0.2, 0, NA),
-        achievement_quintile = ifelse(rank_PA/PA_denom >= 0.2, 1, achievement_quintile),
-        achievement_quintile = ifelse(rank_PA/PA_denom >= 0.4, 2, achievement_quintile),
-        achievement_quintile = ifelse(rank_PA/PA_denom >= 0.6, 3, achievement_quintile),
-        achievement_quintile = ifelse(rank_PA/PA_denom >= 0.8, 4, achievement_quintile),
+        achievement_quintile = ifelse(rank_PA/PA_denom <= 0.2, 0, NA),
+        achievement_quintile = ifelse(rank_PA/PA_denom > 0.2, 1, achievement_quintile),
+        achievement_quintile = ifelse(rank_PA/PA_denom > 0.4, 2, achievement_quintile),
+        achievement_quintile = ifelse(rank_PA/PA_denom > 0.6, 3, achievement_quintile),
+        achievement_quintile = ifelse(rank_PA/PA_denom > 0.8, 4, achievement_quintile),
         achievement_AMO = ifelse(upper_bound_ci_PA <= pct_prof_adv_prior, 0, NA),
         achievement_AMO = ifelse(upper_bound_ci_PA > pct_prof_adv_prior, 1, achievement_AMO),
         achievement_AMO = ifelse(upper_bound_ci_PA >= AMO_target_PA, 2, achievement_AMO),
-        achievement_AMO = ifelse(pct_prof_adv >= AMO_target_PA, 3, achievement_AMO),
+        achievement_AMO = ifelse(pct_prof_adv > AMO_target_PA, 3, achievement_AMO),
         achievement_AMO = ifelse(pct_prof_adv >= AMO_target_PA_4, 4, achievement_AMO),
         achievement_AMO = ifelse(valid_tests < 30, NA, achievement_AMO),
         TVAAS = ifelse(TVAAS_level == "Level 1", 0, NA),
@@ -54,12 +54,11 @@ ELPA <- read_csv("data/elpa_exit.csv") %>%
     full_join(ELPA_growth_standard, by = "system") %>%
     mutate(subject = "ELPA")
 
-# Combine all content areas
-# Not setting na.rm = TRUE so that districts are only evaluated if they have absolute, AMO, and TVAAS
+# Combine content areas
 all_subjects <- bind_rows(achievement, absenteeism, grad, ELPA) %>%
-    mutate(
     # Success Rates
-        achievement = ifelse(subject %in% c("3-5 Success Rate", "6-8 Success Rate", "HS Success Rate"),
+    # Not setting na.rm = TRUE for pmax so that districts are only evaluated if they have absolute, AMO, and TVAAS
+    mutate(achievement = ifelse(subject %in% c("3-5 Success Rate", "6-8 Success Rate", "HS Success Rate"),
             pmax(achievement_quintile, achievement_AMO), NA),
         value_added = ifelse(subject %in% c("3-5 Success Rate", "6-8 Success Rate", "HS Success Rate"), TVAAS, NA),
     # Absenteeism
@@ -78,6 +77,7 @@ all_subjects <- bind_rows(achievement, absenteeism, grad, ELPA) %>%
 achievement_average <- all_subjects %>%
     group_by(system) %>%
     summarise(achievement_average = mean(average, na.rm = TRUE)) %>%
+    ungroup() %>%
     mutate(achievement_designation = ifelse(achievement_average == 0, "In Need of Improvement", NA),
         achievement_designation = ifelse(achievement_average > 0, "Marginal", achievement_designation),
         achievement_designation = ifelse(achievement_average > 1, "Satisfactory", achievement_designation),

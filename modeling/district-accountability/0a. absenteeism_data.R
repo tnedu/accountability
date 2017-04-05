@@ -1,3 +1,5 @@
+## Chronic Absenteeism for District Accountability
+
 library(haven)
 library(tidyverse)
 
@@ -39,7 +41,7 @@ absenteeism <- read_dta("K:/Research and Policy/data/data_attendance/IT Files - 
     group_by(system, subgroup) %>%
     summarise_each(funs(sum(., na.rm = TRUE)), n_students = total_students_w_abs, n_chronic = num_chronic, n_severe = num_severe) %>%
     ungroup() %>%
-    mutate(pct_chronically_absent = round((n_chronic + n_severe)/n_students, 3),
+    mutate(pct_chronically_absent = ifelse(n_students >= 30, round((n_chronic + n_severe)/n_students, 3), NA),
         lower_bound_ci = round(100 * (n_students/(n_students + qnorm(0.975)^2)) * (pct_chronically_absent + ((qnorm(0.975)^2)/(2 * n_students)) -
             qnorm(0.975) * sqrt((pct_chronically_absent * (1 - pct_chronically_absent))/n_students + (qnorm(0.975)^2)/(4 * n_students^2))), 1),
         pct_chronically_absent = 100 * pct_chronically_absent) %>%
@@ -48,15 +50,15 @@ absenteeism <- read_dta("K:/Research and Policy/data/data_attendance/IT Files - 
     group_by(subgroup) %>%
     mutate(rank_CA = ifelse(n_students >= 30, rank(pct_chronically_absent, ties.method = "min"), NA),
         CA_denom = sum(n_students >= 30, na.rm = TRUE),
-        CA_quintile = ifelse(rank_CA/CA_denom < 0.2, 4, NA),
-        CA_quintile = ifelse(rank_CA/CA_denom >= 0.2, 3, CA_quintile),
-        CA_quintile = ifelse(rank_CA/CA_denom >= 0.4, 2, CA_quintile),
-        CA_quintile = ifelse(rank_CA/CA_denom >= 0.6, 1, CA_quintile),
-        CA_quintile = ifelse(rank_CA/CA_denom >= 0.8, 0, CA_quintile),
+        CA_quintile = ifelse(rank_CA/CA_denom <= 0.2, 4, NA),
+        CA_quintile = ifelse(rank_CA/CA_denom > 0.2, 3, CA_quintile),
+        CA_quintile = ifelse(rank_CA/CA_denom > 0.4, 2, CA_quintile),
+        CA_quintile = ifelse(rank_CA/CA_denom > 0.6, 1, CA_quintile),
+        CA_quintile = ifelse(rank_CA/CA_denom > 0.8, 0, CA_quintile),
         CA_AMO = ifelse(lower_bound_ci >= pct_chronically_absent_prior, 0, NA),
         CA_AMO = ifelse(lower_bound_ci < pct_chronically_absent_prior, 1, CA_AMO),
         CA_AMO = ifelse(lower_bound_ci <= AMO_target, 2, CA_AMO),
-        CA_AMO = ifelse(pct_chronically_absent <= AMO_target, 3, CA_AMO),
+        CA_AMO = ifelse(pct_chronically_absent < AMO_target, 3, CA_AMO),
         CA_AMO = ifelse(pct_chronically_absent <= AMO_target_4, 4, CA_AMO),
         CA_AMO = ifelse(n_students < 30, NA, CA_AMO)) %>%
     ungroup()
@@ -64,7 +66,6 @@ absenteeism <- read_dta("K:/Research and Policy/data/data_attendance/IT Files - 
 write_csv(absenteeism, path = "data/cohort_absenteeism.csv", na = "")
 
 # Student Match Absenteeism
-
 student_absenteeism_14 <- read_dta("K:/Research and Policy/ORP_Data/Student_Information/Attendance/data_attendance/IT Files - Enrollment and Demographic/2014 CA enr race.dta") %>%
     transmute(studentid, chronic = gt10lt20 + gt20) %>%
     filter(chronic == 1) %>%
@@ -80,7 +81,7 @@ student_absenteeism_14 <- read_dta("K:/Research and Policy/ORP_Data/Student_Info
 
 district_CA_reduction <- read_dta("K:/Research and Policy/ORP_Data/Student_Information/Attendance/data_attendance/IT Files - Enrollment and Demographic/2015 CA enr race.dta") %>%
     transmute(studentid, system = districtnumber, system_name = districtname, school = schoolnumber, school_name = schoolname,
-        n_days = totaldaysenrolled, chronic = gt10lt20 + gt20, severe = gt20) %>%
+        n_days = totaldaysenrolled, chronic = gt10lt20 + gt20) %>%
     left_join(student_absenteeism_14, by = "studentid") %>%
     mutate(no_longer_chronic = chronic_prior == 1 & chronic == 0) %>%
     group_by(system, system_name) %>%
