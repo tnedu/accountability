@@ -35,7 +35,7 @@ layout <- tribble(
     157, 206, "school_name",
     328, 329, "content_area_code",
     339, 339, "modified_format",
-    360, 360, "ri_status",
+    360, 360, "ri_status_part_1",
 
     # Part 2
     # 362, 366, "system",
@@ -44,7 +44,7 @@ layout <- tribble(
     # 421, 470, "school_name",
     # 592, 593, "content_area_code",
     # 603, 603, "modified_format",
-    # 624, 624, "ri_status",
+    624, 624, "ri_status_part_2",
     
     625, 625, "invalid_score",
     713, 713, "performance_level",
@@ -53,7 +53,7 @@ layout <- tribble(
     720, 722, "scale_score_ub_ci"
 )
 
-# Read in cdf according to above layout
+# Read in cdf according to layout
 cdf <- read_fwf(file = "K:/ORP_accountability/data/2017_cdf/2016 EOC Fall CDF_Public20170526.txt",
     col_positions = fwf_positions(
         start = layout$start,
