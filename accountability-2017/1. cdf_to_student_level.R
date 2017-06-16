@@ -4,8 +4,7 @@ fall_cdf <- read_csv("K:/ORP_accountability/projects/2017_dictionary_coding/fall
 # Student level file variables
     mutate(test = "EOC",
         semester = "Fall",
-        ri_status = ri_status_part_2,
-        ri_status = if_else(ri_status_part_1 == 5, ri_status_part_1, ri_status),
+        ri_status = if_else(ri_status_part_1 %in% c(0, 5), ri_status_part_2, ri_status_part_1),
         ri_status = if_else(is.na(ri_status), ri_status_part_1, ri_status),
         absent = as.numeric(ri_status  == 5),
         did_not_attempt = as.numeric(ri_status == 4),
@@ -36,6 +35,7 @@ student_level <- bind_rows(fall_cdf) %>%
         enrolled = 1,
         tested = 1,
         valid_test = NA_integer_,
+        grade = as.numeric(grade),
         race = if_else(reported_race == 4, "Hispanic/Latino", NA_character_),
         race = if_else(reported_race == 3, "Black or African American", race),
         race = if_else(reported_race == 1, "American Indian/Alaska Native", race),
@@ -43,7 +43,7 @@ student_level <- bind_rows(fall_cdf) %>%
         race = if_else(reported_race == 2, "Asian", race),
         race = if_else(reported_race == 6, "White", race),
         race = if_else(reported_race == 0, "Unknown", race),
-        bhn_group = as.numeric(race %in% c("Black or African American", "Hispanic/Latino", "Native Hawaiian/Pac. Islander")),
+        bhn_group = as.numeric(race %in% c("Black or African American", "Hispanic/Latino", "American Indian/Alaska Native")),
         economically_disadvantaged = if_else(economically_disadvantaged == 2, 0L, economically_disadvantaged),
         el_t1_t2 = if_else(el_t1_t2 == 2, 1L, el_t1_t2),
         special_ed = as.numeric(special_ed %in% c(1, 2, 3)),
@@ -123,5 +123,11 @@ output <- dedup %>%
         bhn_group, functionally_delayed, special_ed, economically_disadvantaged, el, el_t1_t2, el_excluded, greater_than_60_pct,
         homebound, absent, did_not_attempt, nullify_flag, residential_facility) %>%
     arrange(system, school)
+    # Drop duplicates for match
+    # group_by(system, school, unique_student_id, test, subject, grade) %>%
+    # mutate(dup = n()) %>%
+    # ungroup() %>%
+    # filter(!dup > 1) %>%
+    # select(-dup)
 
 write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017.csv", na = "")
