@@ -12,10 +12,10 @@ Do File description:  School Base to Numeric
 
 Edited last by:  Alexander Poon
 
-Date edited last:  11/4/2016
+Date edited last:  6/9/2017
 ***************************************************************/
 
-use "K:\ORP_accountability\projects\2016_state_results/school_base_with_super_subgroup_2016.dta", clear;
+use "K:\ORP_accountability\data\2016_accountability/school_base_with_unaka_correction_2016.dta", clear;
 
 * Keep only subjects, subgroups in accountability;
 keep if subgroup == "All Students" | subgroup == "Black/Hispanic/Native American" | subgroup == "Economically Disadvantaged" |
@@ -82,5 +82,5 @@ order year system school subject grade subgroup participation_rate enrolled enro
 
 compress;
 
-save "K:\ORP_accountability\data\2016_accountability/school_numeric_with_super_subgroup_2016.dta", replace;
-export excel using "K:\ORP_accountability\data\2016_accountability/school_numeric_with_super_subgroup_2016.xlsx", firstrow(var) replace;
+save "K:\ORP_accountability\data\2016_accountability/school_numeric_with_unaka_correction_2016.dta", replace;
+export excel using "K:\ORP_accountability\data\2016_accountability/school_numeric_with_unaka_correction_2016.xlsx", firstrow(var) replace;

@@ -47,10 +47,14 @@ student_level <- bind_rows(fall_cdf) %>%
         economically_disadvantaged = if_else(economically_disadvantaged == 2, 0L, economically_disadvantaged),
         el_t1_t2 = if_else(el_t1_t2 == 2, 1L, el_t1_t2),
         special_ed = as.numeric(special_ed %in% c(1, 2, 3)),
-        original_proficiency_level = if_else(performance_level == 1, "1. Below", NA_character_),
-        original_proficiency_level = if_else(performance_level == 2, "2. Approaching", original_proficiency_level),
-        original_proficiency_level = if_else(performance_level == 3, "3. On Track", original_proficiency_level),
-        original_proficiency_level = if_else(performance_level == 4, "4. Mastered", original_proficiency_level),
+        original_proficiency_level = if_else(original_subject %in% c(english_eoc, math_eoc) & performance_level == 1, "1. Below", NA_character_),
+        original_proficiency_level = if_else(original_subject %in% c(english_eoc, math_eoc) & performance_level == 2, "2. Approaching", original_proficiency_level),
+        original_proficiency_level = if_else(original_subject %in% c(english_eoc, math_eoc) & performance_level == 3, "3. On Track", original_proficiency_level),
+        original_proficiency_level = if_else(original_subject %in% c(english_eoc, math_eoc) & performance_level == 4, "4. Mastered", original_proficiency_level),
+        original_proficiency_level = if_else(original_subject %in% science_eoc & performance_level == 1, "1. Below Basic", original_proficiency_level),
+        original_proficiency_level = if_else(original_subject %in% science_eoc & performance_level == 2, "2. Basic", original_proficiency_level),
+        original_proficiency_level = if_else(original_subject %in% science_eoc & performance_level == 3, "3. Proficient", original_proficiency_level),
+        original_proficiency_level = if_else(original_subject %in% science_eoc & performance_level == 4, "4. Advanced", original_proficiency_level),
         proficiency_level = original_proficiency_level,
         subject = original_subject) %>%
     select(system, system_name, school, school_name, test, original_subject, subject, original_proficiency_level, proficiency_level,
@@ -83,11 +87,11 @@ student_level <- bind_rows(fall_cdf) %>%
             "Algebra I", subject),
         subject = if_else(original_subject == "ELA" & test == "MSAA" & grade >= 9, "English II", subject),
     # Convert subjects per accountability rules
-        subject = if_else(grade < 9 & original_subject %in% math_eoc, "Math", subject),
-        subject = if_else(grade < 9 & original_subject %in% english_eoc, "ELA", subject),
-        subject = if_else(grade < 9 & original_subject %in% science_eoc, "Science", subject),
-        subject = if_else(grade < 9 & original_subject == "US History", "Social Studies", subject),
-        test = if_else(grade < 9 & original_subject %in% c(math_eoc, english_eoc, science_eoc, "US History"), "Achievement", test))
+        subject = if_else(grade %in% 3:8 & original_subject %in% math_eoc, "Math", subject),
+        subject = if_else(grade %in% 3:8 & original_subject %in% english_eoc, "ELA", subject),
+        subject = if_else(grade %in% 3:8 & original_subject %in% science_eoc, "Science", subject),
+        subject = if_else(grade %in% 3:8 & original_subject == "US History", "Social Studies", subject),
+        test = if_else(grade %in% 3:8 & original_subject %in% c(math_eoc, english_eoc, science_eoc, "US History"), "Achievement", test))
 
 dedup <- student_level %>%
     # For students with multiple records across test types, MSAA has priority, then TCAP/EOC
@@ -119,12 +123,12 @@ dedup <- student_level %>%
 output <- dedup %>%
     filter(!is.na(state_student_id)) %>%
     select(system, system_name, school, school_name, test, original_subject, subject, original_proficiency_level, proficiency_level,
-        scale_score, enrolled, tested, valid_test, unique_student_id = state_student_id, last_name, first_name, grade, race,
-        bhn_group, functionally_delayed, special_ed, economically_disadvantaged, el, el_t1_t2, el_excluded, greater_than_60_pct,
+        scale_score, enrolled, tested, valid_test, state_student_id, last_name, first_name, grade, race, bhn_group,
+        functionally_delayed, special_ed, economically_disadvantaged, el, el_t1_t2, el_excluded, greater_than_60_pct,
         homebound, absent, did_not_attempt, nullify_flag, residential_facility) %>%
-    arrange(system, school)
+    arrange(system, school, state_student_id)
     # Drop duplicates for match
-    # group_by(system, school, unique_student_id, test, subject, grade) %>%
+    # group_by(system, school, state_student_id, test, subject, grade) %>%
     # mutate(dup = n()) %>%
     # ungroup() %>%
     # filter(!dup > 1) %>%

@@ -12,10 +12,27 @@ Do File description:  Student Level to System Numeric
 
 Edited last by:  Alexander Poon
 
-Date edited last:  11/18/2016
+Date edited last:  6/9/2017
 ***************************************************************/
 
 use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
+
+drop if subject == "Integrated Math I" & (unique_student_id == 3288069 | unique_student_id == 3288078 |
+	unique_student_id == 3288082 | unique_student_id == 3292339 | unique_student_id == 3288107 |
+	unique_student_id == 3170748 | unique_student_id == 3288120 | unique_student_id == 3258979 |
+	unique_student_id == 3288132 | unique_student_id == 3288148 | unique_student_id == 3288162 |
+	unique_student_id == 3288188 | unique_student_id == 3288191 | unique_student_id == 3288202 |
+	unique_student_id == 3288215 | unique_student_id == 4328806 | unique_student_id == 3170837 |
+	unique_student_id == 3288228 | unique_student_id == 3288239 | unique_student_id == 3292127 |
+	unique_student_id == 4444607 | unique_student_id == 3288279 | unique_student_id == 3170752 |
+	unique_student_id == 3288307 | unique_student_id == 3288314 | unique_student_id == 3288336 |
+	unique_student_id == 3288337 | unique_student_id == 3291564 | unique_student_id == 3288355 |
+	unique_student_id == 3288368 | unique_student_id == 4130583 | unique_student_id == 3258975 |
+	unique_student_id == 3288397 | unique_student_id == 3805610 | unique_student_id == 3288443 |
+	unique_student_id == 3288505 | unique_student_id == 3288535 | unique_student_id == 3749220 |
+	unique_student_id == 3288556 | unique_student_id == 3291903 | unique_student_id == 3917581 |
+	unique_student_id == 3247449 | unique_student_id == 3288594 | unique_student_id == 3120833 |
+	unique_student_id == 3288612 | unique_student_id == 3288616);
 
 gen year = 2016;
 
@@ -81,11 +98,11 @@ foreach s in All BHN ED SWD EL_T1_T2 Super {;
 rename (original_subject valid_test) (subject valid_tests);
 
 * ACT Substitution;
-append using "K:\ORP_accountability\data\2016_accountability/system_act_substitution.dta";
+* append using "K:\ORP_accountability\data\2016_accountability/system_act_substitution.dta";
 
-replace subgroup = "All" if subgroup == "All Students";
-replace n_approaching = n_did_not_meet_benchmark if subject == "ACT Math" | subject == "ACT English";
-replace n_on_track = n_met_benchmark if subject == "ACT Math" | subject == "ACT English";
+* replace subgroup = "All" if subgroup == "All Students";
+* replace n_approaching = n_did_not_meet_benchmark if subject == "ACT Math" | subject == "ACT English";
+* replace n_on_track = n_met_benchmark if subject == "ACT Math" | subject == "ACT English";
 
 * Numeric will only include high school subjects, so drop grade we would normally reassign;
 drop if grade == 6 | grade == 7 | grade == 8;
@@ -227,5 +244,5 @@ order year system system_name subject grade subgroup participation_rate enrolled
 
 compress;
 
-save "K:\ORP_accountability\data\2016_accountability/system_numeric_with_act_substitution_2016.dta", replace;
-export excel using "K:\ORP_accountability\data\2016_accountability/system_numeric_with_act_substitution_2016.xlsx", firstrow(var) replace;
+save "K:\ORP_accountability\data\2016_accountability/system_numeric_with_unaka_correction_2016.dta", replace;
+export excel using "K:\ORP_accountability\data\2016_accountability/system_numeric_with_unaka_correction_2016.xlsx", firstrow(var) replace;
