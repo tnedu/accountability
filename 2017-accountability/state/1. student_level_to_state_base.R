@@ -6,11 +6,11 @@ student_level <- read_csv("K:/ORP_accountability/projects/2017_student_level_fil
     # MSAA tests above grade 9 are reassigned to EOCs
     original_subject = if_else(original_subject == "Math" & test == "MSAA" & grade >= 9 &
         system %in% c(30, 60, 80, 100, 110, 140, 150, 190, 440, 580, 590, 710, 800, 821, 850, 890, 930),
-        "Integrated Math I", subject),
+        "Integrated Math I", original_subject),
     original_subject = if_else(original_subject == "Math" & test == "MSAA" & grade >= 9 &
         !system %in% c(30, 60, 80, 100, 110, 140, 150, 190, 440, 580, 590, 710, 800, 821, 850, 890, 930),
-        "Algebra I", subject),
-    original_subject = if_else(original_subject == "ELA" & test == "MSAA" & grade >= 9, "English II", subject)) %>%
+        "Algebra I", original_subject),
+    original_subject = if_else(original_subject == "ELA" & test == "MSAA" & grade >= 9, "English II", original_subject)) %>%
     # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1_T2 = el_t1_t2) %>%
     mutate(n_below = if_else(proficiency_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
@@ -98,8 +98,8 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_state2017.dta") %>%
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
         subgroup = if_else(subgroup == "Non-English Language Learners", "Non-English Learners", subgroup),
         enrolled, tested, valid_tests,
-        n_on_track = n_21_orhigher,
         n_below = n_below19,
+        n_on_track = n_21_orhigher,
         ACT_21_and_above = pct_21_orhigher,
         ACT_18_and_below = pct_below19)
 
@@ -109,12 +109,15 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_state2016.dta") %
         subgroup = if_else(subgroup == "Non-English Language Learners", "Non-English Learners", subgroup),
         enrolled, tested, valid_tests,
         n_below = n_below19,
-        n_on_track = n_21_orhigher, 
+        n_on_track = n_21_orhigher,
         ACT_21_and_above = pct_21_orhigher_reporting,
         ACT_18_and_below = pct_below19)
 
 grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/state_grad_rate2016.dta") %>%
     transmute(year = 2016, subject, grade,
+        subgroup = if_else(subgroup == "Black", "Black or African American", subgroup),
+        subgroup = if_else(subgroup == "Hawaiian or Pacific Islander", "Native Hawaiian or Other Pacific Islander", subgroup),
+        subgroup = if_else(subgroup == "Native American", "American Indian or Alaska Native", subgroup),
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
         subgroup = if_else(subgroup == "Non-English Language Learners with T1/T2", "Non-English Learners/T1 or T2", subgroup),
         grad_cohort, grad_count, grad_rate,
@@ -123,10 +126,12 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/state_gr
 
 grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/State_grad_rate2017_JP.dta") %>%
     transmute(year, subject, grade,
+        subgroup = if_else(subgroup == "Hawaiian or Pacific Islander", "Native Hawaiian or Other Pacific Islander", subgroup),
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
-        grad_count, grad_cohort, grad_rate)
+        subgroup = if_else(subgroup == "Non-English Language Learners with T1/T2", "Non-English Learners/T1 or T2", subgroup),
+        grad_count, grad_cohort, grad_rate, dropout_count = drop_count, dropout_rate)
 
-base_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/state_base_with_super_subgroup_2016.xlsx") %>%
+base_2016 <- read_csv("K:/ORP_accountability/data/2016_accountability/state_base_with_super_subgroup_2016.csv") %>%
     select(year, subject, grade, subgroup,
         enrolled, enrolled_part_1 = enrolled_part_1_only, enrolled_part_2 = enrolled_part_2_only, enrolled_both,
         tested, tested_part_1 = tested_part_1_only, tested_part_2 = tested_part_2_only, tested_both,

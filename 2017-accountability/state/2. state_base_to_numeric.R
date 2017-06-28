@@ -21,10 +21,14 @@ collapse <- state_base %>%
     mutate(grade = if_else(grade %in% c("3", "4", "5"), "3rd through 5th", grade),
         grade = if_else(grade %in% c("6", "7", "8"), "6th through 8th", grade),
         grade = if_else(grade %in% c("Missing Grade", "9", "10", "11", "12"), "9th through 12th", grade),
-        subject = if_else(subject %in% c("Algebra I", "Algebra II", "Geometry",
-            "Integrated Math I", "Integrated Math II", "Integrated Math III"), "HS Math", subject),
-        subject = if_else(subject %in% c("English I", "English II", "English III"), "HS English", subject),
-        subject = if_else(subject %in% c("Biology I", "Chemistry"), "HS Science", subject)) %>%
+        subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% math_eoc, "Math", subject),
+        subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc, "ELA", subject),
+        subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% science_eoc, "Science", subject),
+        subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject == "US History", "Social Studies", subject),
+        subject = if_else(grade == "9th through 12th" & subject %in% math_eoc, "HS Math", subject),
+        subject = if_else(grade == "9th through 12th" & subject %in% english_eoc, "HS English", subject),
+        subject = if_else(grade == "9th through 12th" & subject %in% science_eoc, "HS Science", subject),
+        subject = if_else(grade == "9th through 12th" & subject == "US History", "HS Social Studies", subject)) %>%
     group_by(year, system, system_name, subject, grade, subgroup) %>%
     summarise_at(c("enrolled", "tested", "valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE)
 
@@ -52,7 +56,7 @@ participation_rate_2yr <- state_numeric %>%
         participation_rate_2yr = if_else(enrolled != 0, round(100 * tested/enrolled + 1e-10), NA_real_))
 
 output <- state_numeric %>%
-    left_join(participation_rate_2yr, by = c("year", "system", "subject", "grade", "subgroup")) %>%
+    full_join(participation_rate_2yr, by = c("year", "system", "subject", "grade", "subgroup")) %>%
     bind_rows(grad, ACT) %>%
     mutate(subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup)) %>%
     select(year, system, system_name, subject, grade, subgroup,
@@ -62,4 +66,4 @@ output <- state_numeric %>%
         ACT_21_and_above, ACT_18_and_below,
         grad_cohort, grad_count, grad_rate, dropout_count, dropout_rate)
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017.csv", na = "")
