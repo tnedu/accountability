@@ -25,12 +25,35 @@ fall_cdf <- read_csv("K:/ORP_accountability/projects/2017_dictionary_coding/fall
     # Drop void and medically exempt
     filter(!ri_status %in% c(9, 3))
 
+spring_cdf <- read_csv("K:/ORP_accountability/projects/2017_dictionary_coding/spring_eoc_cdf.csv") %>%
+    # Student level file variables
+    mutate(test = "EOC",
+        semester = "Spring",
+        absent = as.numeric(ri_status == 5),
+        did_not_attempt = as.numeric(ri_status == 4),
+        residential_facility = as.numeric(ri_status == 1),
+        nullify_flag = as.numeric(ri_status == 2),
+        original_subject = if_else(content_area_code == "A1", "Algebra I", NA_character_),
+        original_subject = if_else(content_area_code == "A2", "Algebra II", original_subject),
+        original_subject = if_else(content_area_code == "B1", "Biology I", original_subject),
+        original_subject = if_else(content_area_code == "C1", "Chemistry", original_subject),
+        original_subject = if_else(content_area_code == "E1", "English I", original_subject),
+        original_subject = if_else(content_area_code == "E2", "English II", original_subject),
+        original_subject = if_else(content_area_code == "E3", "English III", original_subject),
+        original_subject = if_else(content_area_code == "G1", "Geometry", original_subject),
+        original_subject = if_else(content_area_code == "M1", "Integrated Math I", original_subject),
+        original_subject = if_else(content_area_code == "M2", "Integrated Math II", original_subject),
+        original_subject = if_else(content_area_code == "M3", "Integrated Math III", original_subject),
+        original_subject = if_else(content_area_code == "U1", "US History", original_subject)) %>%
+    # Drop void and medically exempt
+    filter(!ri_status %in% c(9, 3))
+
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
 # Student level file
-student_level <- bind_rows(fall_cdf) %>%
+student_level <- bind_rows(fall_cdf, spring_cdf) %>%
     mutate(system_name = stringr::str_to_title(system_name),
         enrolled = 1,
         tested = 1,
@@ -95,11 +118,11 @@ student_level <- bind_rows(fall_cdf) %>%
         test = if_else(grade %in% 3:8 & original_subject %in% c(math_eoc, english_eoc, science_eoc, "US History"), "Achievement", test))
 
 dedup <- student_level %>%
-    # For students with multiple records across test types, MSAA has priority, then TCAP/EOC
+    # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
     mutate(test_priority = ifelse(test == "MSAA", 2, 1)) %>%
     group_by(state_student_id, subject, grade) %>%
-    mutate(temp = max(test_priority)) %>%
-    filter(test_priority == temp | is.na(temp)) %>%
+    mutate(temp = max(test_priority, na.rm = TRUE)) %>%
+    filter(test_priority == temp | temp == -Inf) %>%
     select(-test_priority, -temp) %>%
     ungroup() %>%
     # For students with multiple records within the same test, take highest proficiency level
@@ -114,8 +137,8 @@ dedup <- student_level %>%
         semester_priority = if_else(test == "EOC" & semester == "Fall", 2, semester_priority),
         semester_priority = if_else(test == "EOC" & semester == "Summer", 1, semester_priority)) %>%
     group_by(state_student_id, subject, grade, test) %>%
-    mutate(temp = max(semester_priority)) %>%
-    filter(semester_priority == temp | is.na(temp)) %>%
+    mutate(temp = max(semester_priority, na.rm = TRUE)) %>%
+    filter(semester_priority == temp | temp == -Inf) %>%
     select(-semester_priority, -temp) %>%
     ungroup() %>%
     # Valid test if there is a proficiency level
