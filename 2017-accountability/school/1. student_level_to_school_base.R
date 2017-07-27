@@ -9,6 +9,7 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
     # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
+        original_subject = if_else(test == "MSAA", subject, original_subject),
         n_below = if_else(performance_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
         n_approaching = if_else(performance_level %in% c("2. Approaching", "2. Basic"), 1L, NA_integer_),
         n_on_track = if_else(performance_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),

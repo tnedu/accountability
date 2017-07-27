@@ -4,16 +4,17 @@ numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Econom
     "English Learners with T1/T2", "Students with Disabilities", "Super Subgroup")
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
 english_eoc <- c("English I", "English II", "English III")
-science_eoc <- c("Biology I", "Chemistry")
 
-state_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017.csv") %>%
-    filter(subgroup %in% c(numeric_subgroups))
+state_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017.csv",
+        col_types = c("iiccccddddddddddddddddddddddddd")) %>%
+    filter(subgroup %in% numeric_subgroups, 
+        subject %in% c(math_eoc, english_eoc, "Graduation Rate", "ACT Composite"))
 
 grad <- filter(state_base, subject == "Graduation Rate")
-ACT <- filter(state_base, subject == "ACT")
+ACT <- filter(state_base, subject == "ACT Composite")
 
 collapse <- state_base %>%
-    filter(grade != "All Grades", !subject %in% c("Graduation Rate", "ACT")) %>%
+    filter(grade != "All Grades", !subject %in% c("Graduation Rate", "ACT Composite")) %>%
     rowwise() %>%
     mutate(enrolled = sum(enrolled, enrolled_part_1, enrolled_part_2, enrolled_both, na.rm = TRUE),
         tested = sum(tested, tested_part_1, tested_part_2, tested_both, na.rm = TRUE)) %>%
@@ -23,12 +24,8 @@ collapse <- state_base %>%
         grade = if_else(grade %in% c("Missing Grade", "9", "10", "11", "12"), "9th through 12th", grade),
         subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% math_eoc, "Math", subject),
         subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc, "ELA", subject),
-        subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% science_eoc, "Science", subject),
-        subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject == "US History", "Social Studies", subject),
         subject = if_else(grade == "9th through 12th" & subject %in% math_eoc, "HS Math", subject),
-        subject = if_else(grade == "9th through 12th" & subject %in% english_eoc, "HS English", subject),
-        subject = if_else(grade == "9th through 12th" & subject %in% science_eoc, "HS Science", subject),
-        subject = if_else(grade == "9th through 12th" & subject == "US History", "HS Social Studies", subject)) %>%
+        subject = if_else(grade == "9th through 12th" & subject %in% english_eoc, "HS English", subject)) %>%
     group_by(year, system, system_name, subject, grade, subgroup) %>%
     summarise_at(c("enrolled", "tested", "valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE)
 

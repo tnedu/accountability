@@ -1,4 +1,5 @@
 library(haven)
+library(readxl)
 library(tidyverse)
 
 numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
@@ -100,8 +101,10 @@ base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/sch
     select(year, system, school, subject, grade, subgroup, matches("enrolled|tested")) %>%
     mutate_at(vars(matches("enrolled|tested")), as.numeric) %>%
     mutate(subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup),
-        subject = if_else(subject %in% c("ACT Math", math_eoc), "HS Math", subject),
-        subject = if_else(subject %in% c("ACT English", english_eoc), "HS English", subject))
+        subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% math_eoc, "Math", subject),
+        subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc, "ELA", subject),
+        subject = if_else(grade == "9th through 12th" & subject %in% c("ACT Math", math_eoc), "HS Math", subject),
+        subject = if_else(grade == "9th through 12th" & subject %in% c("ACT English", english_eoc), "HS English", subject))
 
 participation_1yr <- base %>%
     rowwise() %>%
@@ -140,7 +143,7 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/school_g
     filter(subgroup %in% numeric_subgroups)
 
 # 2016 numeric
-numeric_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/school_numeric_with_unaka_correction_2016.xlsx") %>%
+numeric_2016 <- read_excel("K:/ORP_accountability/data/2016_accountability/school_numeric_with_unaka_correction_2016.xlsx") %>%
     transmute(year, system, school, subject, grade,
         subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup),
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
@@ -148,11 +151,12 @@ numeric_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountabili
     bind_rows(ACT_prior, grad_prior)
 
 # 2016 AMO targets
-AMOs <- readxl::read_excel("K:/ORP_accountability/data/2016_AMOs/2016_school_eoc_amos.xlsx") %>%
+AMOs <- read_excel("K:/ORP_accountability/data/2016_AMOs/2016_school_eoc_amos.xlsx") %>%
     filter(subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
         subgroup != "English Learners") %>%
     mutate(subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup)) %>%
-    transmute(year = 2016, system, school, subject, grade, subgroup, AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4)
+    transmute(year = 2016, system, school, subject, grade, subgroup,
+        AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4)
 
 # Put everything together
 numeric_2017 <- school_numeric %>%
