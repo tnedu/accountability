@@ -81,7 +81,7 @@ rename act_math act_subscore;
 
 gen subject = "ACT Math";
 gen n_met_benchmark = (act_subscore >= 22);
-gen n_did_not_meet_benchmark = (act_subscore < 22);
+gen n_not_met_benchmark = (act_subscore < 22);
 gen valid_tests = 1;
 
 tempfile math;
@@ -100,25 +100,26 @@ rename act_read act_subscore;
 
 gen subject = "ACT Reading";
 gen n_met_benchmark = (act_subscore >= 22);
-gen n_did_not_meet_benchmark = (act_subscore < 22);
+gen n_not_met_benchmark = (act_subscore < 22);
 gen valid_tests = 1;
 
 append using `math';
 
-collapse (sum) n_met_benchmark n_did_not_meet_benchmark valid_tests, by(system subject);
+collapse (sum) n_met_benchmark n_not_met_benchmark valid_tests, by(system subject);
 
 gen subgroup = "All Students";
 gen grade = "11";
 
-gen pct_met_benchmark = round(100 * n_met_benchmark/valid_tests, 0.1);
+gen pct_met_benchmark = round(1000 * n_met_benchmark/valid_tests)/10;
+gen pct_not_met_benchmark = 100 - pct_met_benchmark;
 
 replace subject = "Reading" if subject == "ACT Reading";
 replace subject = "Math" if subject == "ACT Math";
 
-reshape wide valid_tests n_did_not_meet_benchmark n_met_benchmark pct_met_benchmark, i(system subgroup grade) j(subject) string;
+reshape wide valid_tests n_not_met_benchmark n_met_benchmark pct_not_met_benchmark pct_met_benchmark, i(system subgroup grade) j(subject) string;
 
-foreach v in valid_testsReading n_met_benchmarkReading n_did_not_meet_benchmarkReading pct_met_benchmarkReading
-	valid_testsMath n_met_benchmarkMath n_did_not_meet_benchmarkMath pct_met_benchmarkMath {;
+foreach v in valid_testsReading n_met_benchmarkReading n_not_met_benchmarkReading pct_not_met_benchmarkReading pct_met_benchmarkReading
+	valid_testsMath n_met_benchmarkMath n_not_met_benchmarkMath pct_not_met_benchmarkMath pct_met_benchmarkMath {;
 
 	replace `v' = 0 if `v' == .;
 
@@ -131,15 +132,16 @@ replace subject = "ACT Math" if subject == "Math";
 
 gen year = 2017;
 
-order year system subject subgroup grade valid_tests n_did_not_meet_benchmark n_met_benchmark pct_met_benchmark;
+order year system subject subgroup grade valid_tests n_not_met_benchmark n_met_benchmark pct_not_met_benchmark pct_met_benchmark;
 
 save "K:\ORP_accountability\data\2017_ACT\system_act_substitution_2017.dta", replace;
 export delim using "K:\ORP_accountability\data\2017_ACT\system_act_substitution_2017.csv", delim(",") replace;
 
 * State;
-collapse (sum) valid_tests n_did_not_meet_benchmark n_met_benchmark, by(year subject subgroup grade);
+collapse (sum) valid_tests n_not_met_benchmark n_met_benchmark, by(year subject subgroup grade);
 
-gen pct_met_benchmark = round(100 * n_met_benchmark/valid_tests, 0.1);
+gen pct_met_benchmark = round(1000 * n_met_benchmark/valid_tests)/10;
+gen pct_not_met_benchmark = 100 - pct_met_benchmark;
 
-save "K:\ORP_accountability\data\2017_ACT/state_act_substitution.dta", replace;
-export delim using "K:\ORP_accountability\data\2017_ACT/state_act_substitution.csv", delim(",") replace;
+save "K:\ORP_accountability\data\2017_ACT/state_act_substitution_2017.dta", replace;
+export delim using "K:\ORP_accountability\data\2017_ACT/state_act_substitution_2017.csv", delim(",") replace;
