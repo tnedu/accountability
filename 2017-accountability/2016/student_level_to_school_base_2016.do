@@ -183,6 +183,20 @@ replace subgroup = "Black or African American" if subgroup == "Black";
 replace subgroup = "Native Hawaiian or Other Pacific Islander" if subgroup == "Hawaiian";
 replace subgroup = "American Indian or Alaska Native" if subgroup == "Native";
 
+* ACT Substitution;
+preserve;
+
+use "K:\ORP_accountability\data\2016_ACT/school_act_substitution_2016.dta", clear;
+
+rename (n_not_met_benchmark n_met_benchmark pct_not_met_benchmark pct_met_benchmark) (n_approaching n_on_track pct_approaching pct_on_track);
+
+tempfile act_sub;
+save `act_sub', replace;
+
+restore;
+
+append using `act_sub';
+
 * Clean and output base file;
 gsort system school subject grade subgroup;
 

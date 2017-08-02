@@ -99,13 +99,32 @@ foreach s in All BHN ED SWD EL_T1_T2 Super {;
 
 rename (original_subject valid_test) (subject valid_tests);
 
+* ACT Substitution;
+preserve;
+
+use "K:\ORP_accountability\data\2016_ACT/school_act_substitution_2016.dta", clear;
+
+destring grade, replace;
+
+replace subgroup = "All";
+rename (n_not_met_benchmark n_met_benchmark) (n_approaching n_on_track);
+
+drop pct_not_met_benchmark pct_met_benchmark;
+
+tempfile act_sub;
+save `act_sub', replace;
+
+restore;
+
+append using `act_sub';
+
 * Numeric will only include high school subjects, so drop grade we would normally reassign;
 drop if grade == 6 | grade == 7 | grade == 8;
 
 gen grade_band = "9th through 12th";
 
-replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math");
-replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III";
+replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math") | subject == "ACT Math";
+replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III" | subject == "ACT Reading";
 
 drop if subject == "Biology I" | subject == "Chemistry" | subject == "US History";
 

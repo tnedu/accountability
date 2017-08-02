@@ -7,6 +7,15 @@ numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Econom
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
 english_eoc <- c("English I", "English II", "English III")
 
+# 2017 ACT Substitution
+ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_substitution_2017.csv") %>%
+    transmute(year, system, school,
+        subgroup = "All",
+        subject = if_else(subject == "ACT Reading", "HS English", subject),
+        subject = if_else(subject == "ACT Math", "HS Math", subject),
+        grade = "9th through 12th",
+        valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
+
 student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final.dta") %>%
     filter(!grade %in% c(1, 2), greater_than_60_pct == "Y") %>%
     mutate(year = 2017) %>%
@@ -48,6 +57,11 @@ for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Super")) {
 
 school_numeric <- collapse %>%
     rename(valid_tests = valid_test) %>%
+    # Add ACT substitution to HS Math and English
+    bind_rows(ACT_substitution) %>%
+    group_by(year, system, school, subject, grade, subgroup) %>%
+    summarise_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%    
+    ungroup() %>%
     mutate(pct_approaching = if_else(valid_tests != 0, round(100 * n_approaching/valid_tests + 1e-10, 1), NA_real_),
         pct_on_track = if_else(valid_tests != 0, round(100 * n_on_track/valid_tests + 1e-10, 1), NA_real_),
         pct_mastered = if_else(valid_tests != 0, round(100 * n_mastered/valid_tests + 1e-10, 1), NA_real_),

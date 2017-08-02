@@ -114,6 +114,11 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") 
         ACT_21_and_above = pct_21_orhigher_reporting,
         ACT_18_and_below = pct_below19)
 
+ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_substitution_2017.csv") %>%
+    mutate(grade = as.character(grade)) %>%
+    rename(n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark,
+        pct_approaching = pct_not_met_benchmark, pct_on_track = pct_met_benchmark)
+
 grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/school_grad_rate2016.dta") %>%
     filter(system != 90) %>%
     transmute(year = 2016, system, school, subject, grade = "All Grades",
@@ -140,7 +145,7 @@ base_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 # Output file
-base_2017 <- bind_rows(base_2016, school_base, ACT, ACT_prior, grad, grad_prior) %>%
+base_2017 <- bind_rows(base_2016, school_base, ACT, ACT_prior, ACT_substitution, grad, grad_prior) %>%
     arrange(desc(year), system, school, subject, grade, subgroup) %>%
     select(year, system, school, everything()) %>%
     mutate(grade = if_else(grade == "0", "Missing Grade", grade))
