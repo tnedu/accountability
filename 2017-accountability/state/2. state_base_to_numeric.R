@@ -8,7 +8,7 @@ english_eoc <- c("English I", "English II", "English III")
 state_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017.csv",
         col_types = c("iiccccddddddddddddddddddddddddd")) %>%
     filter(subgroup %in% numeric_subgroups, 
-        subject %in% c(math_eoc, english_eoc, "Graduation Rate", "ACT Composite"))
+        subject %in% c(math_eoc, english_eoc, "Graduation Rate", "ACT Composite", "ACT Reading", "ACT Math"))
 
 grad <- filter(state_base, subject == "Graduation Rate")
 ACT <- filter(state_base, subject == "ACT Composite")
@@ -24,8 +24,8 @@ collapse <- state_base %>%
         grade = if_else(grade %in% c("Missing Grade", "9", "10", "11", "12"), "9th through 12th", grade),
         subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% math_eoc, "Math", subject),
         subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc, "ELA", subject),
-        subject = if_else(grade == "9th through 12th" & subject %in% math_eoc, "HS Math", subject),
-        subject = if_else(grade == "9th through 12th" & subject %in% english_eoc, "HS English", subject)) %>%
+        subject = if_else(subject %in% c(math_eoc, "ACT Math"), "HS Math", subject),
+        subject = if_else(subject %in% c(english_eoc, "ACT Reading"), "HS English", subject)) %>%
     group_by(year, system, system_name, subject, grade, subgroup) %>%
     summarise_at(c("enrolled", "tested", "valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE)
 
@@ -60,7 +60,6 @@ output <- state_numeric %>%
         participation_rate_1yr, participation_rate_2yr, enrolled, tested, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered, pct_below,
         pct_approaching, pct_on_track, pct_mastered, pct_on_mastered,
-        ACT_21_and_above, ACT_18_and_below,
-        grad_cohort, grad_count, grad_rate, dropout_count, dropout_rate)
+        ACT_21_and_above, ACT_18_and_below, grad_cohort, grad_count, grad_rate, dropout_count, dropout_rate)
 
 write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017.csv", na = "")

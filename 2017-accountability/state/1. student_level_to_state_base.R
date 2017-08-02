@@ -87,7 +87,7 @@ state_base <- collapse %>%
     select(year, subject, grade, subgroup, enrolled, tested, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered, pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
-# Append ACT, grad, 2016 base
+# Append ACT, substitution, grad, 2016 base
 ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_state2017.dta") %>%
     transmute(year = 2017, subject = "ACT Composite", grade = "All Grades",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
@@ -107,6 +107,16 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_state2016.dta") %
         n_on_track = n_21_orhigher,
         ACT_21_and_above = pct_21_orhigher_reporting,
         ACT_18_and_below = pct_below19)
+
+ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/state_ACT_substitution_2017.csv") %>%
+    mutate(grade = as.character(grade)) %>%
+    rename(n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark,
+       pct_approaching = pct_not_met_benchmark, pct_on_track = pct_met_benchmark)
+
+ACT_substitution_prior <- read_csv("K:/ORP_accountability/data/2016_ACT/state_ACT_substitution_2016.csv") %>%
+    mutate(grade = as.character(grade)) %>%
+    rename(n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark,
+        pct_approaching = pct_not_met_benchmark, pct_on_track = pct_met_benchmark)
 
 grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/state_grad_rate2016.dta") %>%
     transmute(year = 2016, subject, grade,
@@ -134,7 +144,7 @@ base_2016 <- read_csv("K:/ORP_accountability/data/2016_accountability/state_base
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 # Output file
-base_2017 <- bind_rows(base_2016, state_base, ACT, ACT_prior, grad, grad_prior) %>%
+base_2017 <- bind_rows(base_2016, state_base, ACT, ACT_prior, ACT_substitution, ACT_substitution_prior, grad, grad_prior) %>%
     arrange(desc(year), subject, grade, subgroup) %>%
     mutate(grade = if_else(grade == "0", "Missing Grade", grade),
         system = 0,
