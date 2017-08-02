@@ -106,7 +106,7 @@ gen valid_tests = 1;
 
 append using `math';
 
-collapse (sum) n_met_benchmark n_not_met_benchmark valid_tests, by(system subject);
+collapse (sum) n_met_benchmark n_not_met_benchmark valid_tests, by(system school subject);
 
 gen subgroup = "All Students";
 gen grade = "11";
@@ -117,7 +117,7 @@ gen pct_not_met_benchmark = 100 - pct_met_benchmark;
 replace subject = "Reading" if subject == "ACT Reading";
 replace subject = "Math" if subject == "ACT Math";
 
-reshape wide valid_tests n_not_met_benchmark n_met_benchmark pct_not_met_benchmark pct_met_benchmark, i(system subgroup grade) j(subject) string;
+reshape wide valid_tests n_not_met_benchmark n_met_benchmark pct_not_met_benchmark pct_met_benchmark, i(system school subgroup grade) j(subject) string;
 
 foreach v in valid_testsReading n_met_benchmarkReading n_not_met_benchmarkReading pct_not_met_benchmarkReading pct_met_benchmarkReading
 	valid_testsMath n_met_benchmarkMath n_not_met_benchmarkMath pct_not_met_benchmarkMath pct_met_benchmarkMath {;
@@ -133,7 +133,17 @@ replace subject = "ACT Math" if subject == "Math";
 
 gen year = 2016;
 
-order year system subject subgroup grade valid_tests n_not_met_benchmark n_met_benchmark pct_not_met_benchmark pct_met_benchmark;
+order year system school subject subgroup grade valid_tests n_not_met_benchmark n_met_benchmark pct_not_met_benchmark pct_met_benchmark;
+
+save "K:\ORP_accountability\data\2016_ACT\school_act_substitution_2016.dta", replace;
+export delim using "K:\ORP_accountability\data\2016_ACT\school_act_substitution_2016.csv", delim(",") replace;
+
+* System;
+
+collapse (sum) valid_tests n_not_met_benchmark n_met_benchmark, by(year system subject subgroup grade);
+
+gen pct_met_benchmark = round(1000 * n_met_benchmark/valid_tests)/10;
+gen pct_not_met_benchmark = 100 - pct_met_benchmark;
 
 save "K:\ORP_accountability\data\2016_ACT\system_act_substitution_2016.dta", replace;
 export delim using "K:\ORP_accountability\data\2016_ACT\system_act_substitution_2016.csv", delim(",") replace;
