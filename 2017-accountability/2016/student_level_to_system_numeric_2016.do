@@ -8,7 +8,7 @@ program drop _all;
 estimates drop _all;
 
 /***************************************************************
-Do File description:  Student Level to System Base
+Do File description:  Student Level to System Numeric
 
 Edited last by:  Alexander Poon
 
@@ -17,6 +17,7 @@ Date edited last:  6/9/2017
 
 use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
 
+* Unaka High School Correction;
 drop if subject == "Integrated Math I" & (unique_student_id == 3288069 | unique_student_id == 3288078 |
 	unique_student_id == 3288082 | unique_student_id == 3292339 | unique_student_id == 3288107 |
 	unique_student_id == 3170748 | unique_student_id == 3288120 | unique_student_id == 3258979 |
@@ -36,6 +37,9 @@ drop if subject == "Integrated Math I" & (unique_student_id == 3288069 | unique_
 
 gen year = 2016;
 
+* Omit < 60% Enrollment;
+drop if greater_than_60_pct == "N";
+
 * MSAA tests above grade 9 are reassigned to EOCs;
 replace original_subject = "Algebra I" if original_subject == "Math" & test == "MSAA" & grade >= 9 &
 	(system != 30 & system != 60 & system != 80 & system != 100 & system != 110 & system != 140 & system != 150 &
@@ -43,8 +47,8 @@ replace original_subject = "Algebra I" if original_subject == "Math" & test == "
 	system != 850 & system != 890 & system != 930);
 
 replace original_subject = "Integrated Math I" if original_subject == "Math" & test == "MSAA" & grade >= 9 &
-	(system == 30 | system == 60 | system == 80 | system == 100 | system == 110 | system == 140 | system == 150 | 
-	system == 190 | system == 440 | system == 580 | system == 590 | system == 710 | system == 800 | system == 821 | 
+	(system == 30 | system == 60 | system == 80 | system == 100 | system == 110 | system == 140 | system == 150 |
+	system == 190 | system == 440 | system == 580 | system == 590 | system == 710 | system == 800 | system == 821 |
 	system == 850 | system == 890 | system == 930);
 
 replace original_subject = "English II" if test == "MSAA" & original_subject == "ELA";
@@ -60,42 +64,13 @@ gen n_mastered = 1 if proficiency_level == "4. Mastered" | proficiency_level == 
 
 * Create subgroup variables for collapse;
 gen All = 1;
-gen Asian = (race == "Asian");
-gen Black = (race == "Black or African American");
-gen Hispanic = (race == "Hispanic/Latino");
-gen Hawaiian = (race == "Native Hawaiian/Pac. Islander");
-gen Native = (race == "American Indian/Alaska Native");
-gen White = (race == "White");
-
 rename (bhn_group economically_disadvantaged special_ed el el_t1_t2) (BHN ED SWD EL EL_T1_T2);
 replace EL_T1_T2 = 1 if EL == 1;
-gen Non_BHN = (BHN == 0);
-gen Non_ED = (ED == 0);
-gen Non_SWD = (SWD == 0);
-gen Non_EL = (EL == 0);
-gen Non_EL_T1_T2 = (EL == 0 & EL_T1_T2 == 0);
-gen Super = (BHN == 1 | ED == 1 | SWD == 1 | EL == 1 | EL_T1_T2 == 1);
+gen Super = (BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1);
 
 * Collapse test proficiency by subject and subgroup;
-quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD EL EL_T1_T2 Non_BHN Non_ED Non_SWD Non_EL Non_EL_T1_T2 Super {;
+quietly foreach s in All BHN ED SWD EL_T1_T2 Super {;
 
-	* All Grades;
-
-	preserve;
-
-	keep if `s' == 1;
-	gen subgroup = "`s'";
-
-	collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1 tested_part_2 tested_both 
-		valid_test n_below n_approaching n_on_track n_mastered, by(year system original_subject subgroup);
-
-	gen grade = "All Grades";
-
-	tempfile `s'_all_grades;
-	save ``s'_all_grades', replace;
-
-	restore;
-	
 	* Individual Grades;
 	
 	preserve;
@@ -105,8 +80,6 @@ quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD E
 
 	collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1 tested_part_2 tested_both 
 		valid_test n_below n_approaching n_on_track n_mastered, by(year system original_subject grade subgroup);
-	
-	tostring grade, replace;
 
 	tempfile `s'_ind_grades;
 	save ``s'_ind_grades', replace;
@@ -117,17 +90,49 @@ quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD E
 
 clear;
 
-foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD EL EL_T1_T2 Non_BHN Non_ED Non_SWD Non_EL Non_EL_T1_T2 Super {;
+foreach s in All BHN ED SWD EL_T1_T2 Super {;
 
-	append using ``s'_all_grades';
 	append using ``s'_ind_grades';
 
 };
 
-* File Cleaning/Formatting;
 rename (original_subject valid_test) (subject valid_tests);
 
-* Generate %BB, B, P, A, BB+B, P+A;
+* ACT Substitution;
+preserve;
+
+use "K:\ORP_accountability\data\2016_ACT/system_act_substitution_2016.dta", clear;
+
+destring grade, replace;
+
+replace subgroup = "All";
+rename (n_not_met_benchmark n_met_benchmark) (n_approaching n_on_track);
+
+drop pct_not_met_benchmark pct_met_benchmark;
+
+tempfile act_sub;
+save `act_sub', replace;
+
+restore;
+
+append using `act_sub';
+
+* Numeric will only include high school subjects, so drop grade we would normally reassign;
+drop if grade == 6 | grade == 7 | grade == 8;
+
+gen grade_band = "9th through 12th";
+
+replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math") | subject == "ACT Math";
+replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III" | subject == "ACT Reading";
+
+drop if subject == "Biology I" | subject == "Chemistry" | subject == "US History";
+
+collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both
+	valid_tests n_below n_approaching n_on_track n_mastered, by(year system subject subgroup grade_band);
+
+rename grade_band grade;
+
+* Generate %B, A, O, M, O+M;
 foreach p in approaching on_track mastered {;
 
 	gen pct_`p' = round(1000 * n_`p'/valid_tests, 1)/10;
@@ -135,6 +140,8 @@ foreach p in approaching on_track mastered {;
 };
 
 gen pct_below = round(100 - pct_approaching - pct_on_track - pct_mastered, 0.1);
+order pct_below, before(pct_approaching);
+
 gen pct_on_mastered = round(100 * (n_on_track + n_mastered)/valid_tests, 0.1);
 
 * Fix % BB/B/P if there are no n_BB, n_B, n_P;
@@ -148,14 +155,6 @@ replace pct_approaching = 0 if flag_b_a == 1;
 
 drop flag_below flag_b_a;
 
-* Check everything sums to 100;
-egen pct_total = rowtotal(pct_below pct_approaching pct_on_track pct_mastered);
-replace pct_total = round(pct_total, 0.1);
-tab pct_total;
-* Should all be 0 (if no valid tests) or 100;
-
-drop pct_total;
-
 * Create New Entries for missing subgroups (with 0 enrolled, valid tests, etc.);
 reshape wide enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both valid_tests 
 	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered,
@@ -164,7 +163,7 @@ reshape wide enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both te
 foreach v in enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both valid_tests 
 	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered {;
 
-	foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED SWD EL EL_T1_T2 Non_ED Non_SWD Non_EL Non_EL_T1_T2 Super {;
+	foreach s in All BHN ED SWD EL EL_T1_T2 Super {;
 
 		replace `v'`s' = 0 if `v'`s' ==.;
 
@@ -176,34 +175,16 @@ reshape long;
 replace subgroup = "All Students" if subgroup == "All";
 replace subgroup = "Black/Hispanic/Native American" if subgroup == "BHN";
 replace subgroup = "Economically Disadvantaged" if subgroup == "ED";
-replace subgroup = "English Learners" if subgroup == "EL";
-replace subgroup = "English Learners with T1/T2" if subgroup == "EL_T1_T2";
+replace subgroup = "English Learners" if subgroup == "EL_T1_T2";
 replace subgroup = "Students with Disabilities" if subgroup == "SWD";
-replace subgroup = "Non-Black/Hispanic/Native American" if subgroup == "Non_BHN";
-replace subgroup = "Non-Economically Disadvantaged" if subgroup == "Non_ED";
-replace subgroup = "Non-English Learners" if subgroup == "Non_EL";
-replace subgroup = "Non-English Learners/T1 or T2" if subgroup == "Non_EL_T1_T2";
-replace subgroup = "Non-Students with Disabilities" if subgroup == "Non_SWD";
 replace subgroup = "Super Subgroup" if subgroup == "Super";
-replace subgroup = "Black or African American" if subgroup == "Black";
-replace subgroup = "Native Hawaiian or Other Pacific Islander" if subgroup == "Hawaiian";
-replace subgroup = "American Indian or Alaska Native" if subgroup == "Native";
 
-* ACT Substitution;
-preserve;
+* Participation Rate;
+gen participation_rate_1yr = round(100 * (tested + tested_part_1_only + tested_part_2_only + tested_both)/(enrolled + enrolled_part_1_only + enrolled_part_2_only + enrolled_both));
 
-use "K:\ORP_accountability\data\2016_ACT/system_act_substitution_2016.dta", clear;
+* Output numeric file;
+gsort system subject subgroup;
 
-rename (n_not_met_benchmark n_met_benchmark pct_not_met_benchmark pct_met_benchmark) (n_approaching n_on_track pct_approaching pct_on_track);
-
-tempfile act_sub;
-save `act_sub', replace;
-
-restore;
-
-append using `act_sub';
-
-* Merge on names;
 preserve;
 
 import delim using "K:\ORP_accountability\data\2017_final_accountability_files/system_name_crosswalk.csv", clear;
@@ -217,14 +198,11 @@ mmerge system using `names', type(n:1);
 drop if _merge == 2;
 drop _merge;
 
-* Clean and output base file;
-gsort system subject grade subgroup;
-
-order year system system_name subject grade subgroup enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both 
+order year system system_name subject grade subgroup participation_rate_1yr enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both 
 	tested tested_part_1_only tested_part_2_only tested_both valid_tests n_below n_approaching n_on_track n_mastered 
 	pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 compress;
 
-save "K:\ORP_accountability\data\2016_accountability/system_base_with_unaka_correction_2016.dta", replace;
-export excel using "K:\ORP_accountability\data\2016_accountability/system_base_with_unaka_correction_2016.xlsx", firstrow(var) replace;
+save "K:\ORP_accountability\data\2016_accountability/system_numeric_with_unaka_correction_2016.dta", replace;
+export excel using "K:\ORP_accountability\data\2016_accountability/system_numeric_with_unaka_correction_2016.xlsx", firstrow(var) replace;

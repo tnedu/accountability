@@ -8,15 +8,16 @@ program drop _all;
 estimates drop _all;
 
 /***************************************************************
-Do File description:  Student Level to System Numeric
+Do File description:  Student Level to School Numeric
 
 Edited last by:  Alexander Poon
 
-Date edited last:  6/9/2017
+Date edited last:  8/1/2017
 ***************************************************************/
 
 use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
 
+* Unaka High School Correction;
 drop if subject == "Integrated Math I" & (unique_student_id == 3288069 | unique_student_id == 3288078 |
 	unique_student_id == 3288082 | unique_student_id == 3292339 | unique_student_id == 3288107 |
 	unique_student_id == 3170748 | unique_student_id == 3288120 | unique_student_id == 3258979 |
@@ -46,14 +47,15 @@ replace original_subject = "Algebra I" if original_subject == "Math" & test == "
 	system != 850 & system != 890 & system != 930);
 
 replace original_subject = "Integrated Math I" if original_subject == "Math" & test == "MSAA" & grade >= 9 &
-	(system == 30 | system == 60 | system == 80 | system == 100 | system == 110 | system == 140 | system == 150 |
-	system == 190 | system == 440 | system == 580 | system == 590 | system == 710 | system == 800 | system == 821 |
+	(system == 30 | system == 60 | system == 80 | system == 100 | system == 110 | system == 140 | system == 150 | 
+	system == 190 | system == 440 | system == 580 | system == 590 | system == 710 | system == 800 | system == 821 | 
 	system == 850 | system == 890 | system == 930);
 
 replace original_subject = "English II" if test == "MSAA" & original_subject == "ELA";
 
-* Residential Facility students are dropped from system level;
+* Residential Facility and Homebound students are dropped from school level;
 drop if residential_facility_part_1 == 1 | residential_facility_part_2 == 1;
+drop if homebound == 1;
 
 * Proficiency levels;
 gen n_below = 1 if proficiency_level == "1. Below" | proficiency_level == "1. Below Basic";
@@ -78,7 +80,7 @@ quietly foreach s in All BHN ED SWD EL_T1_T2 Super {;
 	gen subgroup = "`s'";
 
 	collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1 tested_part_2 tested_both 
-		valid_test n_below n_approaching n_on_track n_mastered, by(year system original_subject grade subgroup);
+		valid_test n_below n_approaching n_on_track n_mastered, by(year system school original_subject grade subgroup);
 
 	tempfile `s'_ind_grades;
 	save ``s'_ind_grades', replace;
@@ -97,44 +99,25 @@ foreach s in All BHN ED SWD EL_T1_T2 Super {;
 
 rename (original_subject valid_test) (subject valid_tests);
 
-* ACT Substitution;
-preserve;
-
-use "K:\ORP_accountability\data\2016_ACT/system_act_substitution_2016.dta", clear;
-
-destring grade, replace;
-
-replace subgroup = "All";
-rename (n_not_met_benchmark n_met_benchmark) (n_approaching n_on_track);
-
-drop pct_not_met_benchmark pct_met_benchmark;
-
-tempfile act_sub;
-save `act_sub', replace;
-
-restore;
-
-append using `act_sub';
-
 * Numeric will only include high school subjects, so drop grade we would normally reassign;
 drop if grade == 6 | grade == 7 | grade == 8;
 
 gen grade_band = "9th through 12th";
 
-replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math") | subject == "ACT Math";
-replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III" | subject == "ACT Reading";
+replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math");
+replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III";
 
 drop if subject == "Biology I" | subject == "Chemistry" | subject == "US History";
 
 collapse (sum) enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both
-	valid_tests n_below n_approaching n_on_track n_mastered, by(year system subject subgroup grade_band);
+	valid_tests n_below n_approaching n_on_track n_mastered, by(year system school subject subgroup grade_band);
 
 rename grade_band grade;
 
 * Generate %B, A, O, M, O+M;
 foreach p in approaching on_track mastered {;
 
-	gen pct_`p' = round(1000 * n_`p'/valid_tests, 1)/10;
+	gen pct_`p' = round(1000 * n_`p'/valid_tests)/10;
 
 };
 
@@ -154,18 +137,10 @@ replace pct_approaching = 0 if flag_b_a == 1;
 
 drop flag_below flag_b_a;
 
-* Check everything sums to 100;
-egen pct_total = rowtotal(pct_below pct_approaching pct_on_track pct_mastered);
-replace pct_total = round(pct_total, 0.1);
-tab pct_total;
-* Should all be 0 (if no valid tests) or 100;
-
-drop pct_total;
-
 * Create New Entries for missing subgroups (with 0 enrolled, valid tests, etc.);
 reshape wide enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both valid_tests 
 	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered,
-	i(year system subject grade) j(subgroup) string;
+	i(year system school subject grade) j(subgroup) string;
 
 foreach v in enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both valid_tests 
 	n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered {;
@@ -182,7 +157,7 @@ reshape long;
 replace subgroup = "All Students" if subgroup == "All";
 replace subgroup = "Black/Hispanic/Native American" if subgroup == "BHN";
 replace subgroup = "Economically Disadvantaged" if subgroup == "ED";
-replace subgroup = "English Learners with T1/T2" if subgroup == "EL_T1_T2";
+replace subgroup = "English Learners" if subgroup == "EL_T1_T2";
 replace subgroup = "Students with Disabilities" if subgroup == "SWD";
 replace subgroup = "Super Subgroup" if subgroup == "Super";
 
@@ -192,24 +167,11 @@ gen participation_rate_1yr = round(100 * (tested + tested_part_1_only + tested_p
 * Output numeric file;
 gsort system subject subgroup;
 
-preserve;
-
-import delim using "K:\ORP_accountability\data\2017_final_accountability_files/system_name_crosswalk.csv", clear;
-
-tempfile names;
-save `names', replace;
-
-restore;
-
-mmerge system using `names', type(n:1);
-drop if _merge == 2;
-drop _merge;
-
-order year system system_name subject grade subgroup participation_rate_1yr enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both 
+order year system school subject grade subgroup participation_rate_1yr enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both 
 	tested tested_part_1_only tested_part_2_only tested_both valid_tests n_below n_approaching n_on_track n_mastered 
 	pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered;
 
 compress;
 
-save "K:\ORP_accountability\data\2016_accountability/system_numeric_with_unaka_correction_2016.dta", replace;
-export excel using "K:\ORP_accountability\data\2016_accountability/system_numeric_with_unaka_correction_2016.xlsx", firstrow(var) replace;
+save "K:\ORP_accountability\data\2016_accountability/school_numeric_with_unaka_correction_2016.dta", replace;
+export excel using "K:\ORP_accountability\data\2016_accountability/school_numeric_with_unaka_correction_2016.xlsx", firstrow(var) replace;
