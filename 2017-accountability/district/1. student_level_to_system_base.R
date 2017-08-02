@@ -8,6 +8,7 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
     # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
+        original_subject = if_else(test == "MSAA", subject, original_subject),
         n_below = if_else(performance_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
         n_approaching = if_else(performance_level %in% c("2. Approaching", "2. Basic"), 1L, NA_integer_),
         n_on_track = if_else(performance_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
@@ -24,7 +25,7 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         Non_ED = ED == 0L,
         Non_SWD = SWD == 0L,
         Non_EL = EL == 0L,
-        Non_EL_T1_T2 = (EL == 0L & EL_T1_T2 == 0L),
+        Non_EL_T1_T2 = EL_T1_T2 == 0L,
         Super = (BHN == 1L | ED == 1L | SWD == 1L | EL_T1_T2 == 1L)) %>%
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD", "EL", "EL_T1_T2",
         "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Non_EL_T1_T2", "Super"), as.integer)
@@ -58,9 +59,9 @@ system_base <- collapse %>%
         pct_on_track = if_else(valid_tests != 0, round(100 * n_on_track/valid_tests + 1e-10, 1), NA_real_),
         pct_mastered = if_else(valid_tests != 0, round(100 * n_mastered/valid_tests + 1e-10, 1), NA_real_),
         pct_below = if_else(valid_tests != 0, round(100 - pct_approaching - pct_on_track - pct_mastered + 1e-10, 1), NA_real_),
-        pct_on_mastered = if_else(valid_tests != 0, round(100 * (n_on_track + n_mastered)/valid_tests + 1e-10, 1), NA_real_)) %>%
+        pct_on_mastered = if_else(valid_tests != 0, round(100 * (n_on_track + n_mastered)/valid_tests + 1e-10, 1), NA_real_),
     # Fix % B/A/O if there are no n_B/A/O
-    mutate(flag_below = as.integer(pct_below != 0 & n_below == 0),
+        flag_below = as.integer(pct_below != 0 & n_below == 0),
         pct_approaching = if_else(flag_below == 1L, 100 - pct_on_track - pct_mastered, pct_approaching),
         pct_below = if_else(flag_below == 1L, 0, pct_below),
         flag_approaching = as.integer(pct_approaching != 0 & n_approaching == 0),
@@ -89,7 +90,7 @@ system_base <- collapse %>%
     select(year, system, subject, grade, subgroup, enrolled, tested, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered, pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
-# Append ACT, grad, 2016 base
+# Append ACT, ACT Substitution, grad, 2016 base
 ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
     transmute(year = 2017, system, subject = "ACT Composite", grade = "All Grades",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
@@ -109,6 +110,11 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2016.dta"
         n_on_track = n_21_orhigher,
         ACT_21_and_above = pct_21_orhigher_reporting,
         ACT_18_and_below = pct_below19)
+
+ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_substitution_2017.csv") %>%
+    mutate(grade = as.character(grade)) %>%
+    rename(n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark,
+        pct_approaching = pct_not_met_benchmark, pct_on_track = pct_met_benchmark)
 
 grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/district_grad_rate2016.dta") %>%
     filter(system != 90) %>%
@@ -141,7 +147,7 @@ base_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/
 system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
 # Output file
-base_2017 <- bind_rows(base_2016, system_base, ACT, ACT_prior, grad, grad_prior) %>%
+base_2017 <- bind_rows(base_2016, system_base, ACT, ACT_prior, ACT_substitution, grad, grad_prior) %>%
     left_join(system_names, by = "system") %>%
     arrange(desc(year), system, subject, grade, subgroup) %>%
     select(year, system, system_name, everything()) %>%
