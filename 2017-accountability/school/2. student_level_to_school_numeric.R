@@ -40,6 +40,7 @@ for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Super")) {
         filter_(paste(s, "== 1")) %>%
         group_by(year, system, school, subject, grade) %>%
         summarise_at(c("valid_test", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
+        ungroup() %>%
         mutate(subgroup = s) %>%
         bind_rows(collapse, .)
     
@@ -73,7 +74,7 @@ school_numeric <- collapse %>%
 ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
     transmute(year = 2017, system, school, subject = "ACT Composite", grade = "All Grades", subgroup,
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
-        enrolled, participation_rate_1yr = participation_rate, valid_tests, 
+        enrolled, tested, participation_rate_1yr = participation_rate, valid_tests, 
         n_on_track = n_21_orhigher,
         n_below = n_below19,
         pct_on_mastered = pct_21_orhigher,
@@ -83,7 +84,7 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
 grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_rate2017_JP.dta") %>%
     transmute(year, system, school, subject, grade = "All Grades", 
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
-        grad_count, grad_cohort, grad_rate) %>%
+        grad_count, grad_cohort, grad_rate, dropout_count = drop_count, dropout_rate) %>%
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate from Base
@@ -129,9 +130,11 @@ participation <- participation_1yr %>%
 
 # 2016 ACT and Grad
 ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") %>%
+    filter(school != -9999) %>%
     transmute(year = 2016, system, school, subject = "ACT Composite", grade = "All Grades",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
-        valid_tests,
+        participation_rate_1yr = round(100 * tested/enrolled + 1e-10),
+        enrolled, tested, valid_tests,
         pct_below = pct_below19,
         pct_on_mastered = pct_21_orhigher_reporting) %>%
     filter(subgroup %in% numeric_subgroups)
@@ -139,8 +142,29 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") 
 grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/school_grad_rate2016.dta") %>%
     transmute(year = 2016, system, school, subject, grade = "All Grades",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
-        grad_cohort, grad_count, grad_rate) %>%
+        grad_cohort, grad_count, grad_rate, dropout_count = drop_count, dropout_rate = drop_rate) %>%
     filter(subgroup %in% numeric_subgroups)
+
+ACT_grad_amo <- bind_rows(ACT_prior, grad_prior) %>%
+    transmute(year = 2017, system, school, subject, grade, subgroup,
+        AMO_target = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_on_mastered + (100 - pct_on_mastered)/16 + 1e-10, 1), NA_real_),
+        AMO_target_4 = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_on_mastered + (100 - pct_on_mastered)/8 + 1e-10, 1), NA_real_),
+        AMO_target = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(grad_rate + (100 - grad_rate)/16 + 1e-10, 1), AMO_target),
+        AMO_target_4 = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(grad_rate + (100 - grad_rate)/8 + 1e-10, 1), AMO_target_4),
+        AMO_target_below = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_below - pct_below/8 + 1e-10, 1), NA_real_),
+        AMO_target_below_4 = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_below - pct_below/4 + 1e-10, 1), NA_real_),
+        AMO_target_below = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(dropout_rate - dropout_rate/8 + 1e-10, 1), AMO_target_below),
+        AMO_target_below_4 = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(dropout_rate - dropout_rate/4 + 1e-10, 1), AMO_target_below_4))
+
+# Two Year ACT participation rates
+ACT_participation_2yr <- bind_rows(ACT, ACT_prior) %>%
+    group_by(system, school, subject, grade, subgroup) %>%
+    summarise_at(c("enrolled", "tested"), sum) %>%
+    ungroup() %>%
+    transmute(year = 2017, system, school, subject, grade, subgroup,
+        participation_rate_2yr = round(100 * tested/enrolled + 1e-10))
+
+ACT <- left_join(ACT, ACT_participation_2yr, by = c("year", "system", "school", "subject", "grade", "subgroup"))
 
 # 2016 numeric
 numeric_2016 <- read_excel("K:/ORP_accountability/data/2016_accountability/school_numeric_with_unaka_correction_2016.xlsx") %>%
@@ -156,22 +180,28 @@ AMOs <- read_excel("K:/ORP_accountability/data/2016_AMOs/2016_school_eoc_amos.xl
         subgroup != "English Learners") %>%
     mutate(subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup)) %>%
     transmute(year = 2016, system, school, subject, grade, subgroup,
-        AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4)
+        AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4) %>%
+    bind_rows(ACT_grad_amo)
 
 # Put everything together
 numeric_2017 <- school_numeric %>%
     bind_rows(numeric_2016) %>%
     full_join(participation, by = c("year", "system", "school", "subgroup", "subject", "grade")) %>%
+    mutate(enrolled = if_else(subject == "ACT Composite", enrolled.x, enrolled.y),
+        participation_rate_1yr = if_else(subject == "ACT Composite", participation_rate_1yr.x, participation_rate_1yr.y)) %>% 
+    select(-enrolled.x, -enrolled.y, -participation_rate_1yr.x, -participation_rate_1yr.y) %>%
     bind_rows(ACT, grad) %>%
     left_join(AMOs, by = c("year", "system", "school", "subject", "grade", "subgroup"))
-    
+
 # Clean and output numeric file
 output <- numeric_2017 %>%
     arrange(desc(year), system, school, subject, grade, subgroup) %>%
     select(year, system, school, subject, grade, subgroup, enrolled, participation_rate_1yr, participation_rate_2yr,
         valid_tests, n_below, n_approaching, n_on_track, n_mastered, pct_below, pct_approaching, pct_on_track, pct_mastered,
         pct_on_mastered, AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4,
-        grad_count, grad_cohort, grad_rate)
+        grad_count, grad_cohort, grad_rate, dropout_count, dropout_rate) %>%
+    # For initial release on 8/1
+    filter(grade != "3rd through 5th" & grade != "6th through 8th")
 
 # Output file
 write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017.csv", na = "")

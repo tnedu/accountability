@@ -26,7 +26,7 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         Non_ED = ED == 0L,
         Non_SWD = SWD == 0L,
         Non_EL = EL == 0L,
-        Non_EL_T1_T2 = (EL == 0L & EL_T1_T2 == 0L),
+        Non_EL_T1_T2 = EL_T1_T2 == 0L,
         Super = (BHN == 1L | ED == 1L | SWD == 1L | EL_T1_T2 == 1L)) %>%
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD", "EL", "EL_T1_T2",
         "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Non_EL_T1_T2", "Super"), as.integer)
@@ -36,14 +36,14 @@ collapse <- tibble()
 # Collapse proficiency by subject and subgroup
 for (s in c("All", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD",
     "EL", "EL_T1_T2", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Non_EL_T1_T2", "Super")) {
-    
+
     collapse <- student_level %>%
         filter_(paste(s, "== 1L")) %>%
         group_by(year, system, school, original_subject) %>%
         summarise_at(c("enrolled", "tested", "valid_test", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
         mutate(subgroup = s, grade = "All Grades") %>%
         bind_rows(collapse, .)
-    
+
     collapse <- student_level %>%
         mutate(grade = as.character(grade)) %>%
         filter_(paste(s, "== 1L")) %>%
@@ -51,7 +51,7 @@ for (s in c("All", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", 
         summarise_at(c("enrolled", "tested", "valid_test", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
         mutate(subgroup = s) %>%
         bind_rows(collapse, .)
-    
+
 }
 
 school_base <- collapse %>%
@@ -104,6 +104,7 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
         ACT_18_and_below = pct_below19)
 
 ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") %>%
+    filter(school != -9999) %>%
     transmute(year = 2016, system, school, subject = "ACT Composite", grade = "All Grades",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
         subgroup = if_else(subgroup == "Non-English Language Learners", "Non-English Learners", subgroup),
@@ -121,9 +122,7 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/school_g
         subgroup = if_else(subgroup == "Non-English Language Learners with T1/T2", "Non-English Learners/T1 or T2", subgroup),
         subgroup = if_else(subgroup == "Hawaiian or Pacific Islander", "Native Hawaiian or Other Pacific Islander", subgroup),
         subgroup = if_else(subgroup == "Native American", "American Indian or Alaska Native", subgroup),
-        grad_cohort, grad_count, grad_rate,
-        dropout_count = drop_count,
-        dropout_rate = drop_rate)
+        grad_cohort, grad_count, grad_rate, dropout_count = drop_count, dropout_rate = drop_rate)
 
 grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_rate2017_JP.dta") %>%
     filter(system != 90) %>%
@@ -131,7 +130,7 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_ra
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
         subgroup = if_else(subgroup == "Non-English Language Learners with T1/T2", "Non-English Learners/T1 or T2", subgroup),
         subgroup = if_else(subgroup == "Hawaiian or Pacific Islander", "Native Hawaiian or Other Pacific Islander", subgroup),
-        grad_count, grad_cohort, grad_rate)
+        grad_count, grad_cohort, grad_rate, dropout_count = drop_count, dropout_rate)
 
 base_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/school_base_with_unaka_correction_2016.xlsx") %>%
     select(year, system, school, subject, grade, subgroup,
