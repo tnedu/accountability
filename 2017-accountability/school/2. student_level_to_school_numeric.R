@@ -9,6 +9,7 @@ english_eoc <- c("English I", "English II", "English III")
 
 # 2017 ACT Substitution
 ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_substitution_2017.csv") %>%
+    filter(school != -9999) %>%
     transmute(year, system, school,
         subgroup = "All",
         subject = if_else(subject == "ACT Reading", "HS English", subject),
@@ -193,7 +194,7 @@ AMOs <- read_excel("K:/ORP_accountability/data/2016_AMOs/2016_school_eoc_amos.xl
     filter(subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
         subgroup != "English Learners") %>%
     mutate(subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup)) %>%
-    transmute(year = 2016, system, school, subject, grade, subgroup,
+    transmute(year = 2017, system, school, subject, grade, subgroup,
         AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4) %>%
     bind_rows(ACT_grad_amo)
 
@@ -214,6 +215,7 @@ output <- numeric_2017 %>%
         valid_tests, n_below, n_approaching, n_on_track, n_mastered, pct_below, pct_approaching, pct_on_track, pct_mastered,
         pct_on_mastered, AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4,
         grad_count, grad_cohort, grad_rate, dropout_count, dropout_rate) %>%
+    mutate_all(funs(ifelse(is.nan(.), NA, .))) %>%
     # For initial release on 8/1
     filter(grade != "3rd through 5th" & grade != "6th through 8th")
 
