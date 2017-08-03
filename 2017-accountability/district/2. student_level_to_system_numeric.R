@@ -189,11 +189,12 @@ AMOs <- read_excel("K:/ORP_accountability/data/2016_AMOs/2016_system_eoc_amos.xl
     filter(subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
         subgroup != "English Learners") %>%
     mutate(subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup)) %>%
-    transmute(year = 2016, system, subject, grade, subgroup, AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4) %>%
+    transmute(year = 2017, system, subject, grade, subgroup, AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4) %>%
     bind_rows(ACT_grad_amo)
 
 # Put everything together
 numeric_2017 <- system_numeric %>%
+    bind_rows(numeric_2016) %>%
     # Upper bound confidence intervals
     mutate(pct_on_mastered = pct_on_mastered/100,
         upper_bound_ci_OM = round(100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_on_mastered + (qnorm(0.975)^2/(2 * valid_tests)) +
@@ -203,7 +204,6 @@ numeric_2017 <- system_numeric %>%
         lower_bound_ci_below = round(100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_below + (qnorm(0.975)^2/(2 * valid_tests)) -
             qnorm(0.975) * sqrt((pct_below * (1 - pct_below))/valid_tests + qnorm(0.975)^2/(4 * valid_tests^2))), 1),
         pct_below = 100 * pct_below) %>%
-    bind_rows(numeric_2016) %>%
     full_join(participation, by = c("year", "system", "subgroup", "subject", "grade")) %>%
     mutate(enrolled = if_else(subject == "ACT Composite", enrolled.x, enrolled.y),
         participation_rate_1yr = if_else(subject == "ACT Composite", participation_rate_1yr.x, participation_rate_1yr.y)) %>%
@@ -250,6 +250,7 @@ output <- numeric_2017 %>%
         pct_on_mastered, AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4,
         grad_count, grad_cohort, grad_rate, dropout_count, dropout_rate, 
         upper_bound_ci_OM, lower_bound_ci_below, below_percentile, OM_percentile) %>%
+    mutate_all(funs(ifelse(is.nan(.), NA, .))) %>%
     # For initial release on 7/28
     filter(grade != "3rd through 5th" & grade != "6th through 8th")
 
