@@ -71,30 +71,31 @@ system_base <- collapse %>%
     rowwise() %>%
     mutate(pct_total = sum(pct_below, pct_approaching, pct_on_track, pct_mastered, na.rm = TRUE)) %>%
     ungroup() %>%
-    mutate_at("subgroup", funs(recode(.,
-        "All" = "All Students",
-        "Black" = "Black or African American",
-        "BHN" = "Black/Hispanic/Native American",
-        "ED" = "Economically Disadvantaged",
-        "EL" = "English Learners",
-        "EL_T1_T2" = "English Learners with T1/T2",
-        "Hawaiian" = "Native Hawaiian or Other Pacific Islander",
-        "Native" = "American Indian or Alaska Native",
-        "Non_BHN" = "Non-Black/Hispanic/Native American",
-        "Non_ED" = "Non-Economically Disadvantaged",
-        "Non_EL" = "Non-English Learners",
-        "Non_EL_T1_T2" = "Non-English Learners/T1 or T2",
-        "Non_SWD" = "Non-Students with Disabilities",
-        "Super" = "Super Subgroup",
-        "SWD" = "Students with Disabilities"))) %>%
+    mutate(subgroup = case_when(subgroup == "All" ~ "All Students",
+        subgroup == "Black" ~ "Black or African American",
+        subgroup == "BHN" ~ "Black/Hispanic/Native American",
+        subgroup == "ED" ~ "Economically Disadvantaged",
+        subgroup == "EL" ~ "English Learners",
+        subgroup == "EL_T1_T2" ~ "English Learners with T1/T2",
+        subgroup == "Hawaiian" ~ "Native Hawaiian or Other Pacific Islander",
+        subgroup == "Native" ~ "American Indian or Alaska Native",
+        subgroup == "Non_BHN" ~ "Non-Black/Hispanic/Native American",
+        subgroup == "Non_ED" ~ "Non-Economically Disadvantaged",
+        subgroup == "Non_EL" ~ "Non-English Learners",
+        subgroup == "Non_EL_T1_T2" ~ "Non-English Learners/T1 or T2",
+        subgroup == "Non_SWD" ~ "Non-Students with Disabilities",
+        subgroup == "Super" ~ "Super Subgroup",
+        subgroup == "SWD" ~ "Students with Disabilities",
+        TRUE ~ subgroup)) %>%
     select(year, system, subject, grade, subgroup, enrolled, tested, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered, pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 # Append ACT, ACT Substitution, grad, 2016 base
 ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
     transmute(year = 2017, system, subject = "ACT Composite", grade = "All Grades",
-        subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
-        subgroup = if_else(subgroup == "Non-English Language Learners", "Non-English Learners", subgroup),
+        subgroup = case_when(subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
+            subgroup == "Non-English Language Learners" ~ "Non-English Learners",
+            TRUE ~ subgroup),
         enrolled, tested, valid_tests,
         n_on_track = n_21_orhigher,
         n_below = n_below19,
@@ -103,8 +104,9 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
 
 ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2016.dta") %>%
     transmute(year = 2016, system, subject = "ACT Composite", grade = "All Grades",
-        subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
-        subgroup = if_else(subgroup == "Non-English Language Learners", "Non-English Learners", subgroup),
+        subgroup = case_when(subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
+            subgroup == "Non-English Language Learners" ~ "Non-English Learners",
+            TRUE ~ subgroup),
         enrolled, tested, valid_tests,
         n_below = n_below19,
         n_on_track = n_21_orhigher,
@@ -119,11 +121,12 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_sub
 grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/district_grad_rate2016.dta") %>%
     filter(system != 90) %>%
     transmute(year = 2016, system, subject, grade = "All Grades",
-        subgroup = if_else(subgroup == "Black", "Black or African American", subgroup),
-        subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
-        subgroup = if_else(subgroup == "Non-English Language Learners with T1/T2", "Non-English Learners/T1 or T2", subgroup),
-        subgroup = if_else(subgroup == "Hawaiian or Pacific Islander", "Native Hawaiian or Other Pacific Islander", subgroup),
-        subgroup = if_else(subgroup == "Native American", "American Indian or Alaska Native", subgroup),
+        subgroup = case_when(subgroup == "Black" ~ "Black or African American",
+            subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
+            subgroup == "Non-English Language Learners with T1/T2" ~ "Non-English Learners/T1 or T2",
+            subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
+            subgroup == "Native American" ~ "American Indian or Alaska Native",
+            TRUE ~ subgroup),
         grad_cohort, grad_count, grad_rate,
         dropout_count = drop_count,
         dropout_rate = drop_rate)
@@ -131,9 +134,10 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/district
 grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/District_grad_rate2017_JP.dta") %>%
     filter(system != 90) %>%
     transmute(year, system, subject, grade = "All Grades",
-        subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
-        subgroup = if_else(subgroup == "Non-English Language Learners with T1/T2", "Non-English Learners/T1 or T2", subgroup),
-        subgroup = if_else(subgroup == "Hawaiian or Pacific Islander", "Native Hawaiian or Other Pacific Islander", subgroup),
+        subgroup = case_when(subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
+            subgroup == "Non-English Language Learners with T1/T2" ~ "Non-English Learners/T1 or T2",
+            subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
+            TRUE ~ subgroup),
         grad_count, grad_cohort, grad_rate)
 
 base_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/system_base_with_unaka_correction_2016.xlsx") %>%
@@ -146,8 +150,23 @@ base_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/
 # Names crosswalk
 system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
+# Create new rows (with 0 enrolled, tested, etc.) for missing year/grade/subject/subgroup combinations
+all_combinations <- expand.grid(stringsAsFactors = FALSE,
+    year = c(2016, 2017),
+    system = unique(system_names$system),
+    subject = c("Algebra I", "Algebra II", "Biology I", "Chemistry", "English I", "English II", "English III", 
+      "Geometry", "US History", "Integrated Math I", "Integrated Math II", "Integrated Math III"),
+    grade = c("9", "10", "11", "12", "All Grades"),
+    subgroup = c("All Students", "American Indian or Alaska Native", "Asian", "Black or African American",
+      "Black/Hispanic/Native American", "Economically Disadvantaged", "English Learners", "English Learners with T1/T2",
+      "Hispanic", "Native Hawaiian or Other Pacific Islander", "Non-Black/Hispanic/Native American",
+      "Non-Economically Disadvantaged", "Non-English Learners", "Non-English Learners/T1 or T2", 
+      "Non-Students with Disabilities", "Students with Disabilities", "Super Subgroup", "White"))
+
 # Output file
-base_2017 <- bind_rows(base_2016, system_base, ACT, ACT_prior, ACT_substitution, grad, grad_prior) %>%
+base_2017 <- bind_rows(base_2016, system_base) %>%
+    # right_join(all_combinations, by = c("year", "system", "subject", "grade", "subgroup")) %>%
+    bind_rows(ACT, ACT_prior, ACT_substitution, grad, grad_prior) %>%
     left_join(system_names, by = "system") %>%
     arrange(desc(year), system, subject, grade, subgroup) %>%
     select(year, system, system_name, everything()) %>%

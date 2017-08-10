@@ -12,8 +12,8 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_sub
     filter(school != -9999) %>%
     transmute(year, system, school,
         subgroup = "All",
-        subject = if_else(subject == "ACT Reading", "HS English", subject),
-        subject = if_else(subject == "ACT Math", "HS Math", subject),
+        subject = case_when(subject == "ACT Reading" ~ "HS English",
+            subject == "ACT Math" ~ "HS Math"),
         grade = "9th through 12th",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
@@ -34,12 +34,11 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         Super = as.numeric(BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1)) %>%
     # Numeric subject/grade combinations
     filter(subject %in% c("Math", "ELA", math_eoc, english_eoc)) %>%
-    mutate(grade = as.character(grade),
-        grade = if_else(grade %in% c("3", "4", "5"), "3rd through 5th", grade),
-        grade = if_else(grade %in% c("6", "7", "8"), "6th through 8th", grade),
-        grade = if_else(grade %in% c("Missing Grade", "9", "10", "11", "12"), "9th through 12th", grade),
-        subject = if_else(subject %in% math_eoc, "HS Math", subject),
-        subject = if_else(subject %in% english_eoc, "HS English", subject))
+    mutate(grade = case_when(grade %in% 3:5 ~ "3rd through 5th",
+            grade %in% 6:8 ~ "6th through 8th",
+            grade %in% 9:12 ~ "9th through 12th"),
+        subject = case_when(subject %in% math_eoc ~ "HS Math",
+            subject %in% english_eoc ~ "HS English"))
 
 collapse <- tibble()
 
@@ -75,13 +74,12 @@ school_numeric <- collapse %>%
         flag_approaching = as.integer(pct_approaching != 0 & n_approaching == 0),
         pct_on_track = if_else(flag_approaching == 1L, 100 - pct_mastered, pct_on_track),
         pct_approaching = if_else(flag_approaching == 1L, 0, pct_approaching)) %>%
-    mutate_at("subgroup", funs(recode(.,
-        "All" = "All Students",
-        "BHN" = "Black/Hispanic/Native American",
-        "ED" = "Economically Disadvantaged",
-        "EL_T1_T2" = "English Learners",
-        "Super" = "Super Subgroup",
-        "SWD" = "Students with Disabilities"))) %>%
+    mutate(subgroup = case_when(subgroup == "All" ~ "All Students",
+        subgroup == "BHN" ~ "Black/Hispanic/Native American",
+        subgroup == "ED" ~ "Economically Disadvantaged",
+        subgroup == "EL_T1_T2" ~ "English Learners",
+        subgroup == "Super" ~ "Super Subgroup",
+        subgroup == "SWD" ~ "Students with Disabilities")) %>% 
     select(year, system, school, subject, grade, subgroup, valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
@@ -90,10 +88,8 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
     transmute(year = 2017, system, school, subject = "ACT Composite", grade = "All Grades", subgroup,
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
         enrolled, tested, participation_rate_1yr = participation_rate, valid_tests, 
-        n_on_track = n_21_orhigher,
-        n_below = n_below19,
-        pct_on_mastered = pct_21_orhigher,
-        pct_below = pct_below19) %>%
+        n_on_track = n_21_orhigher, n_below = n_below19, 
+        pct_on_mastered = pct_21_orhigher, pct_below = pct_below19) %>%
     filter(subgroup %in% numeric_subgroups)
 
 grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_rate2017_JP.dta") %>%
@@ -109,18 +105,20 @@ base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/sch
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
         subgroup != "English Learners",
         subject %in% c("Math", "ELA", math_eoc, english_eoc)) %>%
-    mutate(subject = if_else(subject %in% math_eoc & grade %in% c("6", "7", "8"), "Math", subject),
-        subject = if_else(subject %in% english_eoc & grade %in% c("6", "7", "8"), "ELA", subject),
-        grade = if_else(grade %in% c("3", "4", "5"), "3rd through 5th", grade),
-        grade = if_else(grade %in% c("6", "7", "8"), "6th through 8th", grade),
-        grade = if_else(grade %in% c("Missing Grade", "9", "10", "11", "12"), "9th through 12th", grade)) %>%
+    mutate(subject = case_when(subject %in% math_eoc & grade %in% c("3", "4", "5", "6", "7", "8") ~ "Math",
+            subject %in% english_eoc & grade %in% c("3", "4", "5", "6", "7", "8") ~ "ELA",
+            TRUE ~ subject),
+        grade = case_when(grade %in% c("3", "4", "5") ~ "3rd through 5th",
+            grade %in% c("6", "7", "8") ~ "6th through 8th",
+            grade %in% c("Missing Grade", "9", "10", "11", "12") ~ "9th through 12th")) %>%
     select(year, system, school, subject, grade, subgroup, matches("enrolled|tested")) %>%
     mutate_at(vars(matches("enrolled|tested")), as.numeric) %>%
     mutate(subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup),
-        subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% math_eoc, "Math", subject),
-        subject = if_else(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc, "ELA", subject),
-        subject = if_else(grade == "9th through 12th" & subject %in% c("ACT Math", math_eoc), "HS Math", subject),
-        subject = if_else(grade == "9th through 12th" & subject %in% c("ACT English", english_eoc), "HS English", subject))
+        subject = case_when(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% math_eoc ~ "Math",
+            grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc ~ "ELA",
+            grade == "9th through 12th" & subject %in% c("ACT Math", math_eoc) ~ "HS Math",
+            grade == "9th through 12th" & subject %in% c("ACT English", english_eoc) ~ "HS English",
+            TRUE ~ subject)) 
 
 participation_1yr <- base %>%
     rowwise() %>%
