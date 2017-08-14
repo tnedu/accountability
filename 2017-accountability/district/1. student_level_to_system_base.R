@@ -4,7 +4,7 @@ library(tidyverse)
 student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final.dta") %>%
     filter(!grade %in% c(1, 2)) %>%
     # Residential Facility students are dropped from system level
-    # filter(residential_facility != 1) %>%
+    filter(residential_facility != 1 | is.na(residential_facility)) %>%
     # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
@@ -96,22 +96,16 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
         subgroup = case_when(subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners" ~ "Non-English Learners",
             TRUE ~ subgroup),
-        enrolled, tested, valid_tests,
-        n_on_track = n_21_orhigher,
-        n_below = n_below19,
-        ACT_21_and_above = pct_21_orhigher,
-        ACT_18_and_below = pct_below19)
+        enrolled, tested, valid_tests, n_on_track = n_21_orhigher, n_below = n_below19,
+        ACT_21_and_above = pct_21_orhigher, ACT_18_and_below = pct_below19)
 
 ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2016.dta") %>%
     transmute(year = 2016, system, subject = "ACT Composite", grade = "All Grades",
         subgroup = case_when(subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners" ~ "Non-English Learners",
             TRUE ~ subgroup),
-        enrolled, tested, valid_tests,
-        n_below = n_below19,
-        n_on_track = n_21_orhigher,
-        ACT_21_and_above = pct_21_orhigher_reporting,
-        ACT_18_and_below = pct_below19)
+        enrolled, tested, valid_tests, n_below = n_below19, n_on_track = n_21_orhigher,
+        ACT_21_and_above = pct_21_orhigher_reporting, ACT_18_and_below = pct_below19)
 
 ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_substitution_2017.csv") %>%
     mutate(grade = as.character(grade)) %>%
@@ -154,18 +148,26 @@ system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_f
 all_combinations <- expand.grid(stringsAsFactors = FALSE,
     year = c(2016, 2017),
     system = unique(system_names$system),
-    subject = c("Algebra I", "Algebra II", "Biology I", "Chemistry", "English I", "English II", "English III", 
-      "Geometry", "US History", "Integrated Math I", "Integrated Math II", "Integrated Math III"),
-    grade = c("9", "10", "11", "12", "All Grades"),
+    subject = c("Algebra I", "Algebra II", "Biology I", "Chemistry", "English I", "English II", "English III",
+        "Geometry", "US History", "Integrated Math I", "Integrated Math II", "Integrated Math III"),
+    grade = c("3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "All Grades"),
     subgroup = c("All Students", "American Indian or Alaska Native", "Asian", "Black or African American",
-      "Black/Hispanic/Native American", "Economically Disadvantaged", "English Learners", "English Learners with T1/T2",
-      "Hispanic", "Native Hawaiian or Other Pacific Islander", "Non-Black/Hispanic/Native American",
-      "Non-Economically Disadvantaged", "Non-English Learners", "Non-English Learners/T1 or T2", 
-      "Non-Students with Disabilities", "Students with Disabilities", "Super Subgroup", "White"))
+        "Black/Hispanic/Native American", "Economically Disadvantaged", "English Learners", "English Learners with T1/T2",
+        "Hispanic", "Native Hawaiian or Other Pacific Islander", "Non-Black/Hispanic/Native American",
+        "Non-Economically Disadvantaged", "Non-English Learners", "Non-English Learners/T1 or T2",
+        "Non-Students with Disabilities", "Students with Disabilities", "Super Subgroup", "White"))
 
 # Output file
 base_2017 <- bind_rows(base_2016, system_base) %>%
-    # right_join(all_combinations, by = c("year", "system", "subject", "grade", "subgroup")) %>%
+    # Add entries for missing subgroups (with 0 enrolled, valid tests, etc.)
+    right_join(all_combinations, by = c("year", "system", "subject", "grade", "subgroup")) %>%
+    group_by(system, subject, grade) %>%
+    mutate(temp = sum(is.na(valid_tests))) %>%
+    filter(temp != 36) %>%
+    select(-temp) %>%
+    ungroup() %>%
+    mutate_at(c("enrolled", "tested", "valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), funs(if_else(is.na(.), 0, .))) %>%
+    # Add ACT, grad, and system names
     bind_rows(ACT, ACT_prior, ACT_substitution, grad, grad_prior) %>%
     left_join(system_names, by = "system") %>%
     arrange(desc(year), system, subject, grade, subgroup) %>%
