@@ -10,36 +10,20 @@ fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_JW_072420
         ri_status_final = if_else(content_area_code %in% c("E1", "E2", "E3", "U1") & (is.na(ri_status_part_1) | ri_status_part_1 %in% c(0, 5)),
             ifelse(!is.na(ri_status_part_2), ri_status_part_2, ri_status_part_1), ri_status_part_1),
         ri_status_final = if_else(el_excluded == 1, 0, ri_status_final),
-        ri_status_final = if_else(is.na(ri_status_final), 0, ri_status_final),
-        absent = as.numeric(ri_status_final == 5),
-        did_not_attempt = as.numeric(ri_status_final == 4),
-        residential_facility = as.numeric(ri_status_final == 1),
-        nullify_flag = as.numeric(ri_status_final == 2),
-        original_subject = case_when(content_area_code == "A1" ~ "Algebra I",
-            content_area_code == "A1" ~ "Algebra I",
-            content_area_code == "A2" ~ "Algebra II",
-            content_area_code == "B1" ~ "Biology I",
-            content_area_code == "C1" ~ "Chemistry",
-            content_area_code == "E1" ~ "English I",
-            content_area_code == "E2" ~ "English II",
-            content_area_code == "E3" ~ "English III",
-            content_area_code == "G1" ~ "Geometry",
-            content_area_code == "M1" ~ "Integrated Math I",
-            content_area_code == "M2" ~ "Integrated Math II",
-            content_area_code == "M3" ~ "Integrated Math III",
-            content_area_code == "U1" ~ "US History"))
+        ri_status_final = if_else(is.na(ri_status_final), 0, ri_status_final))
 
-spring_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_JW_07242017.dta") %>%
+cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_JW_07242017.dta") %>%
     # Student level file variables
     mutate(test = "EOC",
         semester = "Spring",
-        el_excluded = ifelse(el_excluded == 1 | EL_accommodationsU_part1 == "U" | EL_accommodationsU_part2 == "U", 1, 0),
-        ri_status_final = ifelse(el_excluded == 1, 0, ri_status_final),
-        ri_status_final = ifelse(is.na(ri_status_final), 0, ri_status_final),
-        absent = as.numeric(ri_status_final == 5),
-        did_not_attempt = as.numeric(ri_status_final == 4),
-        residential_facility = as.numeric(ri_status_final == 1),
-        nullify_flag = as.numeric(ri_status_final == 2),
+        el_excluded = if_else(el_excluded == 1 | EL_accommodationsU_part1 == "U" | EL_accommodationsU_part2 == "U", 1, 0),
+        ri_status_final = if_else(el_excluded == 1, 0, ri_status_final),
+        ri_status_final = if_else(is.na(ri_status_final), 0, ri_status_final)) %>%
+    bind_rows(fall_cdf) %>%
+    mutate(absent = ri_status_final == 5,
+        did_not_attempt = ri_status_final == 4,
+        residential_facility = ri_status_final == 1,
+        nullify_flag = ri_status_final == 2,
         original_subject = case_when(content_area_code == "A1" ~ "Algebra I",
             content_area_code == "A1" ~ "Algebra I",
             content_area_code == "A2" ~ "Algebra II",
@@ -52,13 +36,14 @@ spring_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_JW_07
             content_area_code == "M1" ~ "Integrated Math I",
             content_area_code == "M2" ~ "Integrated Math II",
             content_area_code == "M3" ~ "Integrated Math III",
-            content_area_code == "U1" ~ "US History")) 
+            content_area_code == "U1" ~ "US History")) %>%
+    mutate_at(c("absent", "did_not_attempt", "residential_facility", "nullify_flag"), as.numeric)
 
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-int_math_systems <- bind_rows(fall_cdf, spring_cdf) %>%
+int_math_systems <- cdf %>%
     filter(content_area_code %in% c("A1", "M1")) %>%
     count(system, content_area_code) %>%
     group_by(system) %>%
@@ -84,11 +69,12 @@ msaa <- bind_rows(msaa_math, msaa_ela) %>%
         enrolled = 1,
         tested = if_else(reporting_status == "PRF", 0, 1))
 
+# Records from Alternative, CTE, Adult HS are dropped from student level
 alt_cte_adult <- read_excel("K:/ORP_accountability/data/2017_tdoe_provided_files/List of Schools Acct 2016-17.xlsx") %>%
     transmute(system = DISTRICT_NUMBER, school = SCHOOL_NUMBER, cte_alt_adult = as.numeric(INSTRUCTIONAL_TYPE_ID %in% c(6, 8, 9)))
 
 # Student level file
-student_level <- bind_rows(fall_cdf, spring_cdf, msaa) %>%
+student_level <- bind_rows(cdf, msaa) %>%
     anti_join(alt_cte_adult, by = c("system", "school")) %>%
     mutate_at(c("nullify_flag", "did_not_attempt"), funs(ifelse(is.na(.), 0, .))) %>% 
     mutate(system_name = stringr::str_to_title(system_name),
@@ -143,11 +129,10 @@ student_level <- bind_rows(fall_cdf, spring_cdf, msaa) %>%
         # Students taking MSAA are considered special education (5.5)
         special_ed = if_else(test == "MSAA", 1, special_ed),
         # Modify subject for MSAA tests in grades >= 9 (6.8)
-        subject = if_else(original_subject == "Math" & test == "MSAA" & grade >= 9 & system %in% int_math_systems,
-            "Integrated Math I", subject),
-        subject = if_else(original_subject == "Math" & test == "MSAA" & grade >= 9 & !system %in% int_math_systems,
-            "Algebra I", subject),
-        subject = if_else(original_subject == "ELA" & test == "MSAA" & grade >= 9, "English II", subject),
+        subject = case_when(original_subject == "Math" & test == "MSAA" & grade >= 9 & system %in% int_math_systems ~ "Integrated Math I",
+            original_subject == "Math" & test == "MSAA" & grade >= 9 & !system %in% int_math_systems ~ "Algebra I",
+            original_subject == "ELA" & test == "MSAA" & grade >= 9 ~ "English II",
+            TRUE ~ subject),
         # Convert subjects per accountability rules
         subject = case_when(grade %in% 2:8 & original_subject %in% math_eoc ~ "Math",
             grade %in% 2:8 & original_subject %in% english_eoc ~ "ELA",
