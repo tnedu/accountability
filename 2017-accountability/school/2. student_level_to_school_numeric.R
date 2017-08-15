@@ -17,21 +17,22 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_sub
         grade = "9th through 12th",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final.dta") %>%
+student_level <- read_csv("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_aug15.csv",
+        col_types = c("dcdccccccdiiidcciciiiiiiciiiii")) %>%
     filter(!grade %in% c(1, 2), greater_than_60_pct == "Y") %>%
     mutate(year = 2017) %>%
     # Homebound and Residential Facility students are dropped from school level
     filter(homebound == 0 | is.na(homebound)) %>%
-    # filter(residential_facility != 1) %>%
+    filter(residential_facility != 1 | is.na(residential_facility)) %>%
     # Proficiency and subgroup indicators for collapse
-    rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
-    mutate(n_below = if_else(performance_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
-        n_approaching = if_else(performance_level %in% c("2. Approaching", "2. Basic"), 1L, NA_integer_),
-        n_on_track = if_else(performance_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
-        n_mastered = if_else(performance_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_),
-        All = 1,
-        EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
-        Super = as.numeric(BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1)) %>%
+    rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1_T2 = el_t1_t2) %>%
+    mutate(n_below = if_else(proficiency_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
+        n_approaching = if_else(proficiency_level %in% c("2. Approaching", "2. Basic"), 1L, NA_integer_),
+        n_on_track = if_else(proficiency_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
+        n_mastered = if_else(proficiency_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_),
+        All = 1L,
+        EL_T1_T2 = if_else(EL == 1L, 1L, EL_T1_T2),
+        Super = as.numeric(BHN == 1L | ED == 1L | SWD == 1L | EL_T1_T2 == 1L)) %>%
     # Numeric subject/grade combinations
     filter(subject %in% c("Math", "ELA", math_eoc, english_eoc)) %>%
     mutate(grade = case_when(grade %in% 3:5 ~ "3rd through 5th",
@@ -191,8 +192,8 @@ numeric_2016 <- read_excel("K:/ORP_accountability/data/2016_accountability/schoo
 AMOs <- read_excel("K:/ORP_accountability/data/2016_AMOs/2016_school_eoc_amos.xlsx") %>%
     filter(subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
         subgroup != "English Learners") %>%
-    mutate(subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup)) %>%
-    transmute(year = 2017, system, school, subject, grade, subgroup,
+    transmute(year = 2017, system, school, subject, grade,
+        subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup),
         AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4) %>%
     bind_rows(ACT_grad_amo)
 

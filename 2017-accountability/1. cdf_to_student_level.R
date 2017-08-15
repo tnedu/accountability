@@ -2,7 +2,7 @@ library(tidyverse)
 library(haven)
 library(readxl)
 
-fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_JW_07242017.dta") %>%
+fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_081517.dta") %>%
     # Student level file variables
     mutate(test = "EOC",
         semester = "Fall",
@@ -10,9 +10,10 @@ fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_JW_072420
         ri_status_final = if_else(content_area_code %in% c("E1", "E2", "E3", "U1") & (is.na(ri_status_part_1) | ri_status_part_1 %in% c(0, 5)),
             ifelse(!is.na(ri_status_part_2), ri_status_part_2, ri_status_part_1), ri_status_part_1),
         ri_status_final = if_else(el_excluded == 1, 0, ri_status_final),
-        ri_status_final = if_else(is.na(ri_status_final), 0, ri_status_final))
+        ri_status_final = if_else(is.na(ri_status_final), 0, ri_status_final),
+        greater_than_60_pct = if_else(system == 94, "Y", greater_than_60_pct))
 
-cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_JW_07242017.dta") %>%
+cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_JW_081517.dta") %>%
     # Student level file variables
     mutate(test = "EOC",
         semester = "Spring",
@@ -103,6 +104,7 @@ student_level <- bind_rows(cdf, msaa) %>%
             original_subject %in% science_eoc & performance_level == 2 ~ "2. Basic",
             original_subject %in% science_eoc & performance_level == 3 ~ "3. Proficient",
             original_subject %in% science_eoc & performance_level == 4 ~ "4. Advanced"),
+        proficiency_level = original_proficiency_level,
         subject = original_subject) %>%
     select(system, system_name, school, school_name, test, original_subject, subject, original_proficiency_level, proficiency_level,
         scale_score, enrolled, tested, valid_test, state_student_id = unique_student_id, last_name, first_name,
@@ -157,9 +159,9 @@ dedup <- student_level %>%
     select(-prof_priority, -temp) %>%
     ungroup() %>%
     # For students with multiple test records with the same proficiency across administrations, take the most recent
-    mutate(semester_priority = case_when(test == "MSAA" | test == "Achievement" | (test == "EOC" & semester == "Spring") ~ 3),
+    mutate(semester_priority = case_when(test == "MSAA" | test == "Achievement" | (test == "EOC" & semester == "Spring") ~ 3,
         test == "EOC" & semester == "Fall" ~ 2,
-        test == "EOC" & semester == "Summer" ~ 1) %>%
+        test == "EOC" & semester == "Summer" ~ 1)) %>%
     group_by(state_student_id, subject, test) %>%
     mutate(temp = max(semester_priority, na.rm = TRUE)) %>%
     filter(semester_priority == temp | temp == -Inf) %>%
@@ -177,4 +179,4 @@ output <- dedup %>%
     arrange(system, school, state_student_id)
 
 # Output file
-write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017.csv", na = "")
+write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_aug15.csv", na = "")

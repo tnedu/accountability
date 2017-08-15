@@ -1,19 +1,20 @@
 library(haven)
 library(tidyverse)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final.dta") %>%
+student_level <- read_csv("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_aug15.csv",
+        col_types = c("dcdccccccdiiidcciciiiiiiciiiii")) %>%
     filter(!grade %in% c(1, 2)) %>%
     # Homebound and Residential Facility students are dropped from school level
     filter(homebound == 0 | is.na(homebound)) %>%
-    # filter(residential_facility != 1) %>%
+    filter(residential_facility != 1 | is.na(residential_facility)) %>%
     # Proficiency and subgroup indicators for collapse
-    rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
+    rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1_T2 = el_t1_t2) %>%
     mutate(year = 2017,
         original_subject = if_else(test == "MSAA", subject, original_subject),
-        n_below = if_else(performance_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
-        n_approaching = if_else(performance_level %in% c("2. Approaching", "2. Basic"), 1L, NA_integer_),
-        n_on_track = if_else(performance_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
-        n_mastered = if_else(performance_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_),
+        n_below = if_else(proficiency_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
+        n_approaching = if_else(proficiency_level %in% c("2. Approaching", "2. Basic"), 1L, NA_integer_),
+        n_on_track = if_else(proficiency_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
+        n_mastered = if_else(proficiency_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_),
         All = 1L,
         Asian = race == "Asian",
         Black = race == "Black or African American",
@@ -21,7 +22,7 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         Hawaiian = race == "Native Hawaiian or Pacific Islander",
         Native = race == "American Indian or Alaskan Native",
         White = race == "White",
-        EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
+        EL_T1_T2 = if_else(EL == 1L, 1L, EL_T1_T2),
         Non_BHN = BHN == 0L,
         Non_ED = ED == 0L,
         Non_SWD = SWD == 0L,
