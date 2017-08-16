@@ -4,47 +4,35 @@ instructional_days <- readxl::read_excel("K:/ORP_accountability/data/2017_chroni
     rename(year = SCHOOL_YEAR, system_name = DISTRICT_NAME, system = DISTRICT_NO,
         school_name = SCHOOL_NAME, school = SCHOOL_NO, instructional_days = INSTRUCTIONAL_DAYS)
 
-attendance <- read_csv("K:/ORP_accountability/data/2017_chronic_absenteeism/ATTENDANCE REPORT 2016-17.txt",
-    col_names = c(
-        "instructional_program_num",
-        "system",
-        "school",
-        "year",
-        "service_descr",
-        "instructional_program_id",
-        "student_key",
-        "student_ssn",
-        "student_pin",
-        "first_name",
-        "middle_name",
-        "last_name",
-        "begin_date",
-        "end_date",
-        "enrollment_reason",
-        "withdrawal_reason",
-        "type_of_service",
-        "date_of_birth",
-        "ethnic_origin",
-        "ethnic_description",
-        "gender",
-        "gender_description",
-        "school_building_id",
-        "district_building_id",
-        "grade",
-        "ethnicity",
-        "race_i",
-        "race_a",
-        "race_p",
-        "race_b",
-        "race_w",
-        "race",
-        "count_unexcused",
-        "count_unexcused_trans",
-        "count_excused",
-        "count_excused_trans",
-        "count_total",
-        "isp_days")) %>%
+econ_dis <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_classification_JUIH only.txt",
+    delim = "\t") %>%
+    transmute(student_key = STUDENT_KEY, ED = 1) %>%
+    filter(!duplicated(student_key))
+
+special_ed <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo_Special Education.txt",
+    delim = "\t") %>%
+    filter(SPECIAL_ED_LEVEL == "P" & !OPTION_NUMBER %in% c(3, 16)) %>%
+    transmute(student_key = STUDENT_KEY, SWD = 1) %>%
+    filter(!duplicated(student_key))
+
+el <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo.txt",
+    delim = "\t") %>%
+    filter(ENGLISH_LANGUAGE_BACKGROUND %in% c("L", "W", "1", "2", "3", "4")) %>%
+    select(student_key = STUDENT_KEY, EL = 1) %>%
+    filter(!duplicated(student_key))
+
+bhn <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo.txt",
+    delim = "\t") %>%
+    filter(ETHNICITY == "H" | RACE_B == "Y" | RACE_I == "Y") %>%
+    transmute(student_key = STUDENT_KEY, BHN = 1)
+
+attendance <- read_delim("K:/Research_Transfers/Data_Management/06_attendance data/data/Attendance data 2016-17 as of 081617.csv",
+    delim = "\t") %>%
+    transmute(instructional_program_num = INSTRUCTIONAL_PROGRAM_NUM, system = DISTRICT_NO, school = SCHOOL_NO,
+        student_key = STUDENT_KEY, begin_date = BEGIN_DATE, end_date = END_DATE,
+        count_total = if_else(is.na(CNT_TOTAL), 0L, CNT_TOTAL), isp_days = ISP_DAYS) %>%
     # For students with same system, school, student ID, enrollment dates, take maximum instructional program days
+    # (Doesn't drop any records)
     group_by(system, school, student_key, begin_date, end_date) %>%
     mutate(count = n(), temp = max(isp_days)) %>%
     filter(count == 1 | isp_days == temp) %>%
@@ -54,7 +42,7 @@ attendance <- read_csv("K:/ORP_accountability/data/2017_chronic_absenteeism/ATTE
     mutate(count = n(), temp = max(count_total)) %>%
     filter(count == 1 | count_total == temp) %>%
     # For students with same system, school, student ID, enrollment dates, instructional program days, absences,
-    # take maximum instuctional program number
+    # take maximum instuctional program number (Doesn't drop any records)
     group_by(system, school, student_key, begin_date, end_date, isp_days, count_total) %>%
     mutate(count = n(), temp = max(instructional_program_num)) %>%
     filter(count == 1 | instructional_program_num == temp) %>%
@@ -66,17 +54,20 @@ attendance <- read_csv("K:/ORP_accountability/data/2017_chronic_absenteeism/ATTE
     group_by(system, school, student_key) %>%
     summarise(n_absences = sum(count_total, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE)) %>%
     # Merge on instructional calendar file
-    left_join(instructional_days, by = c("system", "school")) %>%
+    inner_join(instructional_days, by = c("system", "school")) %>%
     mutate(n_students = 1,
         chronic_absence = as.numeric(n_absences/isp_days >= 0.1),
-        All = 1L)
+        All = 1L) %>%
+    left_join(econ_dis, by = "student_key") %>%
+    left_join(special_ed, by = "student_key") %>%
+    left_join(el, by = "student_key")
 
 school_CA <- tibble()
 system_CA <- tibble()
 state_CA <- tibble()
 
-for (s in c("All")) {
-    
+for (s in c("All", "BHN", "ED", "SWD", "EL")) {
+
     school_CA <- attendance %>%
         # Filter for relevant subgroup
         filter_(paste(s, "== 1L")) %>%
@@ -88,7 +79,7 @@ for (s in c("All")) {
         ungroup() %>%
         mutate(subgroup = s) %>%
         bind_rows(school_CA, .)
-    
+
     system_CA <- attendance %>%
         # Filter for relevant subgroup
         filter_(paste(s, "== 1L")) %>%
@@ -103,7 +94,7 @@ for (s in c("All")) {
         ungroup() %>%
         mutate(subgroup = s) %>%
         bind_rows(system_CA, .)
-    
+
     state_CA <- attendance %>%
         # Filter for relevant subgroup
         filter_(paste(s, "== 1L")) %>%
@@ -113,34 +104,41 @@ for (s in c("All")) {
         ungroup() %>%
         mutate(subgroup = s) %>%
         bind_rows(state_CA, .)
-    
+
 }
 
 school_output <- school_CA %>%
-    mutate(subgroup = case_when(subgroup == "All" ~ "All Students",
-        subgroup == "BHN" ~ "Black/Hispanic/Native American",
-        subgroup == "ED" ~ "Economically Disadvantaged",
-        subgroup == "SWD" ~ "Students with Disabilities",
-        subgroup == "EL" ~ "English Learners",
-        subgroup == "Super" ~ "Super Subgroup")) %>%
-    select(year, system, system_name, school, school_name, subgroup,
+    transmute(year, system, system_name, school, school_name,
+        subgroup = case_when(subgroup == "All" ~ "All Students",
+            subgroup == "BHN" ~ "Black/Hispanic/Native American",
+            subgroup == "ED" ~ "Economically Disadvantaged",
+            subgroup == "SWD" ~ "Students with Disabilities",
+            subgroup == "EL" ~ "English Learners",
+            subgroup == "Super" ~ "Super Subgroup"),
         n_students, n_chronically_absent, pct_chronically_absent)
+
+write_csv(school_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/school_chronic_absenteeism.csv", na = "")
 
 system_output <- system_CA %>%
-    mutate(subgroup = case_when(subgroup == "All" ~ "All Students",
-        subgroup == "BHN" ~ "Black/Hispanic/Native American",
-        subgroup == "ED" ~ "Economically Disadvantaged",
-        subgroup == "SWD" ~ "Students with Disabilities",
-        subgroup == "EL" ~ "English Learners",
-        subgroup == "Super" ~ "Super Subgroup")) %>%
-    select(year, system, system_name, subgroup, n_students, n_chronically_absent, pct_chronically_absent)
+    transmute(year, system, system_name,
+        subgroup = case_when(subgroup == "All" ~ "All Students",
+            subgroup == "BHN" ~ "Black/Hispanic/Native American",
+            subgroup == "ED" ~ "Economically Disadvantaged",
+            subgroup == "SWD" ~ "Students with Disabilities",
+            subgroup == "EL" ~ "English Learners",
+            subgroup == "Super" ~ "Super Subgroup"),
+        n_students, n_chronically_absent, pct_chronically_absent)
+
+write_csv(system_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/system_chronic_absenteeism.csv", na = "")
 
 state_output <- state_CA %>%
-    mutate(subgroup = case_when(subgroup == "All" ~ "All Students",
-        subgroup == "BHN" ~ "Black/Hispanic/Native American",
-        subgroup == "ED" ~ "Economically Disadvantaged",
-        subgroup == "SWD" ~ "Students with Disabilities",
-        subgroup == "EL" ~ "English Learners",
-        subgroup == "Super" ~ "Super Subgroup")) %>%
-    transmute(year, system = 0, system_name = "State of Tennessee", subgroup,
+    transmute(year, system = 0, system_name = "State of Tennessee",
+        subgroup = case_when(subgroup == "All" ~ "All Students",
+            subgroup == "BHN" ~ "Black/Hispanic/Native American",
+            subgroup == "ED" ~ "Economically Disadvantaged",
+            subgroup == "SWD" ~ "Students with Disabilities",
+            subgroup == "EL" ~ "English Learners",
+            subgroup == "Super" ~ "Super Subgroup"),
         n_students, n_chronically_absent, pct_chronically_absent)
+
+write_csv(state_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/state_chronic_absenteeism.csv", na = "")
