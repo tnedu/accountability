@@ -58,6 +58,7 @@ attendance <- read_delim("K:/Research_Transfers/Data_Management/06_attendance da
     mutate(n_students = 1,
         chronic_absence = as.numeric(n_absences/isp_days >= 0.1),
         All = 1L) %>%
+    left_join(bhn, by = "student_key") %>%
     left_join(econ_dis, by = "student_key") %>%
     left_join(special_ed, by = "student_key") %>%
     left_join(el, by = "student_key")
