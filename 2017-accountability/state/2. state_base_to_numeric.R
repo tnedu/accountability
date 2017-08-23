@@ -5,7 +5,7 @@ numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Econom
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
 english_eoc <- c("English I", "English II", "English III")
 
-state_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_aug15.csv",
+state_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_aug23.csv",
         col_types = c("iiccccddddddddddddddddddddddddd")) %>%
     filter(subgroup %in% numeric_subgroups,
         subject %in% c(math_eoc, english_eoc, "Graduation Rate", "ACT Composite", "ACT Reading", "ACT Math"))
@@ -25,7 +25,7 @@ collapse <- state_base %>%
         subject = case_when(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% math_eoc ~ "Math",
             grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc ~ "ELA",
             grade == "9th through 12th" & subject %in% c("ACT Math", math_eoc) ~ "HS Math",
-            grade == "9th through 12th" & subject %in% c("ACT English", english_eoc) ~ "HS English",
+            grade == "9th through 12th" & subject %in% c("ACT Reading", english_eoc) ~ "HS English",
             TRUE ~ subject)) %>%
     group_by(year, system, system_name, subject, grade, subgroup) %>%
     summarise_at(c("enrolled", "tested", "valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE)
@@ -63,4 +63,4 @@ output <- state_numeric %>%
         pct_approaching, pct_on_track, pct_mastered, pct_on_mastered,
         ACT_21_and_above, ACT_18_and_below, grad_cohort, grad_count, grad_rate, dropout_count, dropout_rate)
 
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017_aug15.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017_aug23.csv", na = "")

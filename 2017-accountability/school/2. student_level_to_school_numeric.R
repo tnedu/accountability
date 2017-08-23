@@ -17,7 +17,7 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_sub
         grade = "9th through 12th",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_csv("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_aug15.csv",
+student_level <- read_csv("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_aug23.csv",
         col_types = c("dcdccccccdiiidcciciiiiiiciiiii")) %>%
     filter(!grade %in% c(1, 2), greater_than_60_pct == "Y") %>%
     mutate(year = 2017) %>%
@@ -100,7 +100,7 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_ra
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate from Base
-base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017.csv",
+base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_aug23.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
@@ -118,7 +118,7 @@ base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/sch
         subject = case_when(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% math_eoc ~ "Math",
             grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc ~ "ELA",
             grade == "9th through 12th" & subject %in% c("ACT Math", math_eoc) ~ "HS Math",
-            grade == "9th through 12th" & subject %in% c("ACT English", english_eoc) ~ "HS English",
+            grade == "9th through 12th" & subject %in% c("ACT Reading", english_eoc) ~ "HS English",
             TRUE ~ subject)) 
 
 participation_1yr <- base %>%
@@ -219,4 +219,4 @@ output <- numeric_2017 %>%
     filter(grade != "3rd through 5th" & grade != "6th through 8th")
 
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_aug23.csv", na = "")
