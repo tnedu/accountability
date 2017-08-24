@@ -13,7 +13,7 @@ fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_081517.dt
         ri_status_final = if_else(is.na(ri_status_final), 0, ri_status_final),
         greater_than_60_pct = if_else(system == 94, "Y", greater_than_60_pct))
 
-cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_JW_081517.dta") %>%
+cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_082317.dta") %>%
     # Student level file variables
     mutate(test = "EOC",
         semester = "Spring",
@@ -55,17 +55,34 @@ int_math_systems <- cdf %>%
 # MSAA
 msaa_math <- read_csv("K:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/2016-17/20170630_MSAA_StateStudentResults_SY2016-17_Whalen_v1.csv") %>%
     transmute(system = as.numeric(DistrictID), school = as.numeric(SchoolID),
-        unique_student_id = State_Student_ID, grade = as.numeric(Grade), original_subject = "Math",
+        unique_student_id = State_Student_ID,
+        reported_race = case_when(HispanicOrLatinaEthnicity == "Yes" ~ 4,
+            BlackorAfricanAmerican == "Yes" ~ 3,
+            AmericanIndianOrAlaskaNative == "Yes" ~ 1,
+            NativeHawaiianOthPacificIslander == "Yes" ~ 5,
+            Asian == "Yes" ~ 2,
+            White == "Yes" ~ 6,
+            TRUE ~ 0),
+        grade = as.numeric(Grade), original_subject = "Math",
         performance_level = MatPerfLevel, reporting_status = MatReportingStatus)
 
 msaa_ela <- read_csv("K:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/2016-17/20170630_MSAA_StateStudentResults_SY2016-17_Whalen_v1.csv") %>%
     transmute(system = as.numeric(DistrictID), school = as.numeric(SchoolID),
-        unique_student_id = State_Student_ID, grade = as.numeric(Grade), original_subject = "ELA",
+        unique_student_id = State_Student_ID,
+        reported_race = case_when(HispanicOrLatinaEthnicity == "Yes" ~ 4,
+            BlackorAfricanAmerican == "Yes" ~ 3,
+            AmericanIndianOrAlaskaNative == "Yes" ~ 1,
+            NativeHawaiianOthPacificIslander == "Yes" ~ 5,
+            Asian == "Yes" ~ 2,
+            White == "Yes" ~ 6,
+            TRUE ~ 0),
+        grade = as.numeric(Grade), original_subject = "ELA",
         performance_level = ELAPerfLevel, reporting_status = ELAReportingStatus)
 
 msaa <- bind_rows(msaa_math, msaa_ela) %>%
     filter(grade > 8, !reporting_status %in% c("INV", "EXE", "WDR", "NLE")) %>%
     mutate(test = "MSAA",
+        performance_level = if_else(reporting_status == "DNT", 2L, performance_level),
         absent = as.numeric(is.na(performance_level)),
         enrolled = 1,
         tested = if_else(reporting_status == "PRF", 0, 1))
@@ -96,10 +113,10 @@ student_level <- bind_rows(cdf, msaa) %>%
         el_t1_t2 = if_else(el_t1_t2 == 2, 1, el_t1_t2),
         special_ed = as.numeric(special_ed %in% c(1, 2, 3)),
         original_proficiency_level = case_when(
-            original_subject %in% c(english_eoc, math_eoc, "US History") & performance_level == 1 ~ "1. Below",
-            original_subject %in% c(english_eoc, math_eoc, "US History") & performance_level == 2 ~ "2. Approaching",
-            original_subject %in% c(english_eoc, math_eoc, "US History") & performance_level == 3 ~ "3. On Track",
-            original_subject %in% c(english_eoc, math_eoc, "US History") & performance_level == 4 ~ "4. Mastered",
+            original_subject %in% c(english_eoc, math_eoc, "Math", "ELA", "US History") & performance_level == 1 ~ "1. Below",
+            original_subject %in% c(english_eoc, math_eoc, "Math", "ELA", "US History") & performance_level == 2 ~ "2. Approaching",
+            original_subject %in% c(english_eoc, math_eoc, "Math", "ELA", "US History") & performance_level == 3 ~ "3. On Track",
+            original_subject %in% c(english_eoc, math_eoc, "Math", "ELA", "US History") & performance_level == 4 ~ "4. Mastered",
             original_subject %in% science_eoc & performance_level == 1 ~ "1. Below Basic",
             original_subject %in% science_eoc & performance_level == 2 ~ "2. Basic",
             original_subject %in% science_eoc & performance_level == 3 ~ "3. Proficient",
@@ -113,7 +130,7 @@ student_level <- bind_rows(cdf, msaa) %>%
     mutate_at(c("system", "school", "state_student_id"), as.numeric) %>% 
     # Drop excluded records
     filter(!is.na(system)) %>%
-    filter(grade != 13) %>%
+    filter(grade != 13 | is.na(grade)) %>%
     filter(!(school == 981 | system > 1000)) %>%
     # Drop void and medically exempt
     filter(!ri_status_final %in% c(9, 3)) %>% 
@@ -179,4 +196,4 @@ output <- dedup %>%
     arrange(system, school, state_student_id)
 
 # Output file
-write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_aug15.csv", na = "")
+write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_aug24.csv", na = "")
