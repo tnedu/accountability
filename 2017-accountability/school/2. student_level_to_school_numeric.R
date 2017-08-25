@@ -17,27 +17,27 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_sub
         grade = "9th through 12th",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_csv("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_aug23.csv",
-        col_types = c("dcdccccccdiiidcciciiiiiiciiiii")) %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final.dta") %>%
     filter(!grade %in% c(1, 2), greater_than_60_pct == "Y") %>%
-    mutate(year = 2017) %>%
     # Homebound and Residential Facility students are dropped from school level
     filter(homebound == 0 | is.na(homebound)) %>%
     filter(residential_facility != 1 | is.na(residential_facility)) %>%
     # Proficiency and subgroup indicators for collapse
-    rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1_T2 = el_t1_t2) %>%
-    mutate(n_below = if_else(proficiency_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
-        n_approaching = if_else(proficiency_level %in% c("2. Approaching", "2. Basic"), 1L, NA_integer_),
-        n_on_track = if_else(proficiency_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
-        n_mastered = if_else(proficiency_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_),
+    rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
+    mutate(year = 2017,
+        grade = if_else(is.na(grade), 0, grade),
+        n_below = if_else(performance_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
+        n_approaching = if_else(performance_level %in% c("2. Approaching", "2. Basic"), 1L, NA_integer_),
+        n_on_track = if_else(performance_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
+        n_mastered = if_else(performance_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_),
         All = 1L,
-        EL_T1_T2 = if_else(EL == 1L, 1L, EL_T1_T2),
+        EL_T1_T2 = if_else(EL == 1L, 1, EL_T1_T2),
         Super = as.numeric(BHN == 1L | ED == 1L | SWD == 1L | EL_T1_T2 == 1L)) %>%
     # Numeric subject/grade combinations
     filter(subject %in% c("Math", "ELA", math_eoc, english_eoc)) %>%
     mutate(grade = case_when(grade %in% 3:5 ~ "3rd through 5th",
             grade %in% 6:8 ~ "6th through 8th",
-            grade %in% 9:12 ~ "9th through 12th"),
+            grade %in% c(0, 9:12) ~ "9th through 12th"),
         subject = case_when(subject %in% math_eoc ~ "HS Math",
             subject %in% english_eoc ~ "HS English"))
 
@@ -69,12 +69,12 @@ school_numeric <- collapse %>%
         pct_below = if_else(valid_tests != 0, round(100 - pct_approaching - pct_on_track - pct_mastered + 1e-10, 1), NA_real_),
         pct_on_mastered = if_else(valid_tests != 0, round(100 * (n_on_track + n_mastered)/valid_tests + 1e-10, 1), NA_real_),
         # Fix % B/A/O if there are no n_B/A/O
-        flag_below = as.integer(pct_below != 0 & n_below == 0),
-        pct_approaching = if_else(flag_below == 1L, 100 - pct_on_track - pct_mastered, pct_approaching),
-        pct_below = if_else(flag_below == 1L, 0, pct_below),
-        flag_approaching = as.integer(pct_approaching != 0 & n_approaching == 0),
-        pct_on_track = if_else(flag_approaching == 1L, 100 - pct_mastered, pct_on_track),
-        pct_approaching = if_else(flag_approaching == 1L, 0, pct_approaching)) %>%
+        flag_below = pct_below != 0 & n_below == 0,
+        pct_approaching = if_else(flag_below, 100 - pct_on_track - pct_mastered, pct_approaching),
+        pct_below = if_else(flag_below, 0, pct_below),
+        flag_approaching = pct_approaching != 0 & n_approaching == 0,
+        pct_on_track = if_else(flag_approaching, 100 - pct_mastered, pct_on_track),
+        pct_approaching = if_else(flag_approaching, 0, pct_approaching)) %>%
     mutate(subgroup = case_when(subgroup == "All" ~ "All Students",
         subgroup == "BHN" ~ "Black/Hispanic/Native American",
         subgroup == "ED" ~ "Economically Disadvantaged",
@@ -100,7 +100,7 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_ra
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate from Base
-base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_aug23.csv",
+base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_aug24.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
@@ -117,15 +117,15 @@ base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/sch
     mutate(subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup),
         subject = case_when(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% math_eoc ~ "Math",
             grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc ~ "ELA",
-            grade == "9th through 12th" & subject %in% c("ACT Math", math_eoc) ~ "HS Math",
-            grade == "9th through 12th" & subject %in% c("ACT Reading", english_eoc) ~ "HS English",
-            TRUE ~ subject)) 
+            grade == "9th through 12th" & subject %in% math_eoc ~ "HS Math",
+            grade == "9th through 12th" & subject %in% english_eoc ~ "HS English",
+            TRUE ~ subject))
 
 participation_1yr <- base %>%
     rowwise() %>%
     mutate(enrolled = sum(enrolled, enrolled_part_1, enrolled_part_2, enrolled_both, na.rm = TRUE),
         tested = sum(tested, tested_part_1, tested_part_2, tested_both, na.rm = TRUE)) %>%
-    ungroup() %>% 
+    ungroup() %>%
     group_by(year, system, school, subject, grade, subgroup) %>%
     summarise_at(c("enrolled", "tested"), sum) %>%
     ungroup() %>%
@@ -219,4 +219,4 @@ output <- numeric_2017 %>%
     filter(grade != "3rd through 5th" & grade != "6th through 8th")
 
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_aug23.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_aug24.csv", na = "")

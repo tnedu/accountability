@@ -5,7 +5,7 @@ numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Econom
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
 english_eoc <- c("English I", "English II", "English III")
 
-state_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_aug23.csv",
+state_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_aug24.csv",
         col_types = c("iiccccddddddddddddddddddddddddd")) %>%
     filter(subgroup %in% numeric_subgroups,
         subject %in% c(math_eoc, english_eoc, "Graduation Rate", "ACT Composite", "ACT Reading", "ACT Math"))
@@ -37,12 +37,12 @@ state_numeric <- collapse %>%
         pct_below = if_else(valid_tests != 0, round(100 - pct_approaching - pct_on_track - pct_mastered + 1e-10, 1), NA_real_),
         pct_on_mastered = if_else(valid_tests != 0, round(100 * (n_on_track + n_mastered)/valid_tests + 1e-10, 1), NA_real_),
     # Fix % B/A/O if there are no n_B/A/O
-        flag_below = as.integer(pct_below != 0 & n_below == 0),
-        pct_approaching = if_else(flag_below == 1L, 100 - pct_on_track - pct_mastered, pct_approaching),
-        pct_below = if_else(flag_below == 1L, 0, pct_below),
-        flag_approaching = as.integer(pct_approaching != 0 & n_approaching == 0),
-        pct_on_track = if_else(flag_approaching == 1L, 100 - pct_mastered, pct_on_track),
-        pct_approaching = if_else(flag_approaching == 1L, 0, pct_approaching),
+        flag_below = pct_below != 0 & n_below == 0,
+        pct_approaching = if_else(flag_below, 100 - pct_on_track - pct_mastered, pct_approaching),
+        pct_below = if_else(flag_below, 0, pct_below),
+        flag_approaching = pct_approaching != 0 & n_approaching == 0,
+        pct_on_track = if_else(flag_approaching, 100 - pct_mastered, pct_on_track),
+        pct_approaching = if_else(flag_approaching, 0, pct_approaching),
     # One-Year Participation Rate
         participation_rate_1yr = if_else(enrolled != 0, round(100 * tested/enrolled + 1e-10), NA_real_))
 
@@ -63,4 +63,4 @@ output <- state_numeric %>%
         pct_approaching, pct_on_track, pct_mastered, pct_on_mastered,
         ACT_21_and_above, ACT_18_and_below, grad_cohort, grad_count, grad_rate, dropout_count, dropout_rate)
 
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017_aug23.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017_aug24.csv", na = "")
