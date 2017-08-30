@@ -55,7 +55,13 @@ destring state_student_id, replace;
 
 replace ell_t1_t2 = 1 if ell == 1;
 
-keep system school state_student_id subject proficiency_level bhn_group economically_disadvantaged special_ed ell_t1_t2;
+gen asian = race == "Asian";
+gen black = race == "Black/African American";
+gen hispanic = race == "Hispanic/Latino";
+gen native = race == "American Indian/Alaskan Native";
+gen white = race == "White";
+
+keep system school state_student_id subject proficiency_level bhn_group economically_disadvantaged special_ed ell_t1_t2 asian black hispanic white native;
 
 gen super = bhn_group == 1 | economically_disadvantaged == 1 | special_ed == 1 | ell_t1_t2 == 1;
 
@@ -77,7 +83,7 @@ replace improved = 1 if proficiency_level_prior == "4. Advanced" & proficiency_l
 replace improved = 0 if improved == .;
 gen students = 1;
 
-foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super {;
+foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super asian black hispanic white native {;
 
 	preserve;
 
@@ -86,7 +92,7 @@ foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super {;
 	gen subgroup = "`s'";
 
 	collapse (sum) improved students, by(system school subgroup);
-	gen pct_improved = round(100 * improved/students, 0.1);
+	gen pct_improved = round(1000 * improved/students)/10;
 
 	tempfile `s';
 	save ``s'', replace;
@@ -97,12 +103,17 @@ foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super {;
 
 clear;
 
-foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super {;
+foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super asian black hispanic white native {;
 
 	append using ``s'';
 
 };
 
+replace subgroup = "Asian" if subgroup == "asian";
+replace subgroup = "Black" if subgroup == "black";
+replace subgroup = "Hispanic" if subgroup == "hispanic";
+replace subgroup = "White" if subgroup == "white";
+replace subgroup = "Native American" if subgroup == "native";
 replace subgroup = "Black/Hispanic/Native American" if subgroup == "bhn_group";
 replace subgroup = "Economically Disadvantaged" if subgroup == "economically_disadvantaged";
 replace subgroup = "English Language Learners with T1/T2" if subgroup == "ell_t1_t2";
@@ -114,7 +125,7 @@ gen eligible = students >= 30 & students != .;
 bysort eligible subgroup: egen rank = rank(pct_improved);
 bysort eligible subgroup: egen pool = sum(eligible);
 
-gen percentile_rank = round(100 * rank/pool, 0.1);
+gen percentile_rank = round(1000 * rank/pool)/10;
 
 gen grade = "A" if eligible == 1 & percentile_rank >= 80 & percentile_rank <= 100;
 replace grade = "B" if eligible == 1 & percentile_rank >= 60 & percentile_rank < 80;
