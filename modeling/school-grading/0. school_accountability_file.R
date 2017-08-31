@@ -43,28 +43,33 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
 # Suppress below 30 at subject level
     mutate_at(c("valid_tests", "n_prof", "n_adv"), funs(if_else(valid_tests < 30, 0L, .))) %>%
     mutate(subject = case_when(
-            subject %in% c("Algebra I", "Algebra II") ~ "HS Math",
-            subject %in% c("English I", "English II", "English III") ~ "HS English",
-            subject %in% c("Biology I", "Chemistry") ~ "HS Science")
+        subject %in% c("Algebra I", "Algebra II") ~ "HS Math",
+        subject %in% c("English I", "English II", "English III") ~ "HS English",
+        subject %in% c("Biology I", "Chemistry") ~ "HS Science",
+        TRUE ~ subject)
     )
 
 # ACT for success rates (with all test takers as denominator)
-ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2014.dta") %>%
+ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2014_modeling.dta") %>%
     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
-        "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
+        "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup",
+        "Black or African American", "Hispanic", "Native American", "Asian", "White")) %>%
     transmute(year = 2014, system, school, subject = "ACT Composite",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
-        valid_tests = valid_tests_nogradcohort, n_prof = num_21_orhigher_nogradcohort) %>%
-    mutate_at(c("valid_tests", "n_prof"), funs(if_else(valid_tests < 30, 0, .))) %>%
+        subgroup = if_else(subgroup == "Black or African American", "Black", subgroup),
+        n_prof = if_else(valid_tests_nogradcohort < 30, 0, num_21_orhigher_nogradcohort),
+        valid_tests = if_else(valid_tests_nogradcohort < 30, 0, valid_tests_nogradcohort)) %>%
     inner_join(grade_pools, by = c("system", "school"))
 
-ACT <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2015.dta") %>%
+ACT <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2015_modeling.dta") %>%
     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
-        "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup")) %>%
+        "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup",
+        "Black or African American", "Hispanic", "Native American", "Asian", "White")) %>%
     transmute(year = 2015, system, school, subject = "ACT Composite",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
-        valid_tests = valid_tests_nogradcohort, n_prof = num_21_orhigher_nogradcohort) %>%
-    mutate_at(c("valid_tests", "n_prof"), funs(if_else(valid_tests < 30, 0, .))) %>%
+        subgroup = if_else(subgroup == "Black or African American", "Black", subgroup),
+        n_prof = if_else(valid_tests_nogradcohort < 30, 0, num_21_orhigher_nogradcohort),
+        valid_tests = if_else(valid_tests_nogradcohort < 30, 0, valid_tests_nogradcohort)) %>%
     inner_join(grade_pools, by = c("system", "school"))
 
 # One year success rates with ACT
