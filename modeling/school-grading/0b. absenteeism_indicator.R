@@ -13,9 +13,9 @@ absenteeism14 <- read_dta("K:/Research and Policy/data/data_attendance/IT Files 
             subgroup == "SWD" ~ "Students with Disabilities",
             subgroup == "Super" ~ "Super Subgroup",
             TRUE ~ subgroup),
-        pct_chronically_absent_prior = round(100 * (num_chronic + num_severe)/total_students_w_abs + 1e-10, 1),
-        AMO_target = ifelse(total_students_w_abs >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/16, 1), NA),
-        AMO_target_4 = ifelse(total_students_w_abs >= 30, round(pct_chronically_absent_prior - pct_chronically_absent_prior/8, 1), NA),
+        pct_chronically_absent_prior = if_else(total_students_w_abs >= 30, round(100 * (num_chronic + num_severe)/total_students_w_abs + 1e-10, 1), NA_real_),
+        AMO_target = round(pct_chronically_absent_prior - pct_chronically_absent_prior/16 + 1e-10, 1),
+        AMO_target_4 = round(pct_chronically_absent_prior - pct_chronically_absent_prior/8 + 1e-10, 1),
         system = case_when(
             system == 792 & school %in% c(1, 6, 5, 195) ~ 793,
             system == 792 & school %in% c(3, 20, 30, 90, 150, 155, 7, 33, 95, 170, 25) ~ 794,
