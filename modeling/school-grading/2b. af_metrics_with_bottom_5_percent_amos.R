@@ -45,11 +45,11 @@ F_schools <- school_accountability %>%
 ach_growth <- school_accountability %>%
     filter(year == "2015", subject == "Success Rate") %>%
     mutate(grade_relative_achievement = case_when(
-            pctile_rank_PA > 80 ~ "A",
-            pctile_rank_PA > 60 ~ "B", 
-            pctile_rank_PA > 40 ~ "C", 
-            pctile_rank_PA > 20 ~ "D", 
-            pctile_rank_PA <= 20 ~ "F"),
+            pctile_rank_PA >= 80 ~ "A",
+            pctile_rank_PA >= 60 ~ "B",
+            pctile_rank_PA >= 40 ~ "C",
+            pctile_rank_PA >= 20 ~ "D",
+            pctile_rank_PA < 20 ~ "F"),
         grade_achievement_AMO = case_when(
             valid_tests < 30 ~ NA_character_,
             pct_prof_adv >= AMO_target_PA_4 ~ "A",
@@ -166,11 +166,11 @@ subgroup_grades_final <- AF_grades_metrics %>%
     transmute(system, system_name, school, school_name,
         gap_closure_average = subgroup_average_weighted/total_weight,
         gap_closure_grade = case_when(
-            gap_closure_average == 0 ~ "F",
-            gap_closure_average > 0 ~ "D",
-            gap_closure_average > 1 ~ "C",
-            gap_closure_average > 2 ~ "B",
             gap_closure_average > 3 ~ "A",
+            gap_closure_average > 2 ~ "B",
+            gap_closure_average > 1 ~ "C",
+            gap_closure_average > 0 ~ "D",
+            gap_closure_average == 0 ~ "F",
             is.na(gap_closure_average) ~ NA_character_)
     )
 
@@ -183,10 +183,10 @@ AF_grades_final <- all_students_grades_final %>%
         final_grade = case_when(
             designation_ineligible == 1 ~ NA_character_,
             is.na(final_grade) & priority_grad ~ "F",
-            is.na(final_grade) & overall_average <= 1 ~ "D",
-            is.na(final_grade) & overall_average <= 2 ~ "C",
-            is.na(final_grade) & overall_average <= 3 ~ "B",
             is.na(final_grade) & overall_average > 3 ~ "A",
+            is.na(final_grade) & overall_average > 2 ~ "B",
+            is.na(final_grade) & overall_average > 1 ~ "C",
+            is.na(final_grade) & overall_average > 0 ~ "D",
             TRUE ~ final_grade),
         targeted_support = if_else(final_grade == "D", 1L, targeted_support),
         targeted_support = if_else(designation_ineligible == 1, NA_integer_, targeted_support),
