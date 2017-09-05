@@ -2,7 +2,7 @@
 
 library(tidyverse)
 
-school_accountability <- read_csv("data/school_accountability_file_Aug31.csv", col_types = c("cicicccciddddddddcc"))
+school_accountability <- read_csv("data/school_accountability_file_Sep05.csv", col_types = c("cicicccciddddddddcc"))
 
 hs <- school_accountability %>%
     filter(year == "2015", subject == "Success Rate", subgroup == "All Students", pool == "HS") %>%
@@ -17,7 +17,7 @@ absenteeism <- read_csv("data/absenteeism_indicator.csv") %>%
 
 # Students advancing in proficiency for subgroup growth
 subgroup_growth <- read_csv("data/student_match_ranks.csv") %>%
-    transmute(system, school, subgroup, grade_growth)
+    select(system, school, subgroup, grade_growth)
 
 # ELPA
 ELPA <- read_csv("data/elpa_indicator.csv") %>%
@@ -99,12 +99,12 @@ AF_grades_metrics <- ach_growth %>%
         weight_growth = if_else(is.na(grade_ELPA) & !is.na(weight_growth) & pool == "HS", 0.3, weight_growth)) %>%
     rowwise() %>%
     mutate(total_weight = sum(weight_achievement, weight_growth, weight_opportunity, weight_grad, weight_ready_grad, weight_ELPA, na.rm = TRUE),
-        subgroup_average = sum(weight_achievement * grade_achievement,
+        subgroup_average = round(sum(weight_achievement * grade_achievement,
             weight_growth * grade_growth,
             weight_opportunity * grade_absenteeism,
             weight_grad * grade_grad,
             weight_ready_grad * grade_ready_grad,
-            weight_ELPA * grade_ELPA, na.rm = TRUE)/total_weight) %>%
+            weight_ELPA * grade_ELPA, na.rm = TRUE)/total_weight, 1)) %>%
     ungroup()
 
 # Achievement grades
@@ -178,7 +178,7 @@ AF_grades_final <- all_students_grades_final %>%
     full_join(subgroup_grades_final, by = c("system", "system_name", "school", "school_name")) %>%
     full_join(F_schools, by = c("system", "system_name", "school", "school_name")) %>%
     full_join(targeted_support, by = c("system", "school")) %>%
-    mutate(overall_average = round(0.6 * achievement_average + 0.4 * gap_closure_average, 1),
+    mutate(overall_average = round(0.6 * achievement_average + 0.4 * gap_closure_average + 1e-10, 1),
         overall_average = if_else(is.na(overall_average), achievement_average, overall_average),
         final_grade = case_when(
             designation_ineligible == 1 ~ NA_character_,

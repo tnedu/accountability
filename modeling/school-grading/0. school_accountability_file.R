@@ -20,8 +20,12 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
     filter(year %in% c(2014, 2015),
         subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
             "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup",
-            "Black", "Hispanic", "Native American", "Asian", "White")) %>%
-    mutate(subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
+            "Black or African American", "Hispanic", "American Indian or Alaska Native", "Asian", "White")) %>%
+    mutate(subgroup = case_when(
+            subgroup == "Black or African American" ~ "Black",
+            subgroup == "English Language Learners with T1/T2" ~ "English Learners",
+            subgroup == "American Indian or Alaska Native" ~ "Native American",
+            TRUE ~ subgroup),
     # Reassign counts for grad and ACT
         grade = if_else(subject %in% c("ACT Composite", "Graduation Rate"), "12", grade),
         valid_tests = if_else(subject == "Graduation Rate", grad_cohort, valid_tests),
