@@ -104,7 +104,7 @@ AF_grades_metrics <- ach_growth %>%
             weight_opportunity * grade_absenteeism,
             weight_grad * grade_grad,
             weight_ready_grad * grade_ready_grad,
-            weight_ELPA * grade_ELPA, na.rm = TRUE)/total_weight, 1)) %>%
+            weight_ELPA * grade_ELPA, na.rm = TRUE)/total_weight + 1e-10, 1)) %>%
     ungroup()
 
 # Achievement grades
@@ -164,7 +164,7 @@ subgroup_grades_final <- AF_grades_metrics %>%
     summarise_at(c("total_weight", "subgroup_average_weighted"), sum, na.rm = TRUE) %>%
     ungroup() %>%
     transmute(system, system_name, school, school_name,
-        gap_closure_average = subgroup_average_weighted/total_weight,
+        gap_closure_average = round(subgroup_average_weighted/total_weight + 1e-10, 1),
         gap_closure_grade = case_when(
             gap_closure_average > 3 ~ "A",
             gap_closure_average > 2 ~ "B",
