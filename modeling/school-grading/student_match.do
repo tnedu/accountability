@@ -57,11 +57,12 @@ replace ell_t1_t2 = 1 if ell == 1;
 
 gen asian = race == "Asian";
 gen black = race == "Black/African American";
+gen hpi = race == "Native Hawaiian/Pac. Islander";
 gen hispanic = race == "Hispanic/Latino";
 gen native = race == "American Indian/Alaskan Native";
 gen white = race == "White";
 
-keep system school state_student_id subject proficiency_level bhn_group economically_disadvantaged special_ed ell_t1_t2 asian black hispanic white native;
+keep system school state_student_id subject proficiency_level bhn_group economically_disadvantaged special_ed ell_t1_t2 asian black hispanic hpi white native;
 
 gen super = bhn_group == 1 | economically_disadvantaged == 1 | special_ed == 1 | ell_t1_t2 == 1;
 
@@ -83,7 +84,7 @@ replace improved = 1 if proficiency_level_prior == "4. Advanced" & proficiency_l
 replace improved = 0 if improved == .;
 gen students = 1;
 
-foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super asian black hispanic white native {;
+foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super asian black hispanic hpi white native {;
 
 	preserve;
 
@@ -103,7 +104,7 @@ foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super asi
 
 clear;
 
-foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super asian black hispanic white native {;
+foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super asian black hispanic hpi white native {;
 
 	append using ``s'';
 
@@ -112,11 +113,12 @@ foreach s in bhn_group economically_disadvantaged special_ed ell_t1_t2 super asi
 replace subgroup = "Asian" if subgroup == "asian";
 replace subgroup = "Black" if subgroup == "black";
 replace subgroup = "Hispanic" if subgroup == "hispanic";
+replace subgroup = "Hawaiian/Pacific Islander" if subgroup == "hpi";
 replace subgroup = "White" if subgroup == "white";
 replace subgroup = "Native American" if subgroup == "native";
 replace subgroup = "Black/Hispanic/Native American" if subgroup == "bhn_group";
 replace subgroup = "Economically Disadvantaged" if subgroup == "economically_disadvantaged";
-replace subgroup = "English Language Learners with T1/T2" if subgroup == "ell_t1_t2";
+replace subgroup = "English Learners" if subgroup == "ell_t1_t2";
 replace subgroup = "Students with Disabilities" if subgroup == "special_ed";
 replace subgroup = "Super Subgroup" if subgroup == "super";
 
@@ -127,10 +129,10 @@ bysort eligible subgroup: egen pool = sum(eligible);
 
 gen percentile_rank = round(1000 * rank/pool)/10;
 
-gen grade = "A" if eligible == 1 & percentile_rank >= 80 & percentile_rank <= 100;
-replace grade = "B" if eligible == 1 & percentile_rank >= 60 & percentile_rank < 80;
-replace grade = "C" if eligible == 1 & percentile_rank >= 40 & percentile_rank < 60;
-replace grade = "D" if eligible == 1 & percentile_rank >= 20 & percentile_rank < 40;
-replace grade = "F" if eligible == 1 & percentile_rank < 20;
+gen grade_growth = "F" if eligible == 1 & percentile_rank < 20;
+replace grade_growth = "D" if eligible == 1 & percentile_rank >= 20;
+replace grade_growth = "C" if eligible == 1 & percentile_rank >= 40;
+replace grade_growth = "B" if eligible == 1 & percentile_rank >= 60;
+replace grade_growth = "A" if eligible == 1 & percentile_rank >= 80 & percentile_rank <= 100;
 
 export delim using "K:\ORP_accountability\projects\Alex\accountability\modeling\school-grading\data/student_match_ranks.csv", delim(",") replace;

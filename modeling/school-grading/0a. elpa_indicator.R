@@ -32,8 +32,8 @@ elpa16 <- read_dta("K:/ORP_accountability/data/2016_WIDA_Access/old/2016_State_S
             timeinlepellinus == "7y" ~ 7,
             timeinlepellinus == "8y" ~ 8,
             timeinlepellinus == "  " ~ grade),
-        hispanic = ethnicityhispaniclatino, native = raceamericanindianalaskanative, black = raceblack,
-        asian = raceasian, white = racewhite, swd = iepstatus,
+        black = raceblack, hispanic = ethnicityhispaniclatino, native = raceamericanindianalaskanative,
+        hpi = racepacificislander, asian = raceasian, white = racewhite, swd = iepstatus,
         literacy = as.numeric(literacyperformancelevel), composite = as.numeric(performancelevelcomposite)) %>%
     left_join(econ_dis, by = "student_id") %>%
 # Drop missing student ids and records with missing literacy and composite scores
@@ -79,6 +79,10 @@ elpa_native <- elpa16 %>%
     filter(native == "Y") %>%
     mutate(subgroup = "Native American")
 
+elpa_hpi <- elpa16 %>%
+    filter(hpi == "Y") %>%
+    mutate(subgroup = "Hawaiian/Pacific Islander")
+
 elpa_asian <- elpa16 %>%
     filter(asian == "Y") %>%
     mutate(subgroup = "Asian")
@@ -88,7 +92,7 @@ elpa_white <- elpa16 %>%
     mutate(subgroup = "White")
 
 elpa_indicator <- bind_rows(elpa_all, elpa_ed, elpa_bhn, elpa_swd, elpa_el,
-        elpa_black, elpa_hispanic, elpa_native, elpa_asian, elpa_white) %>% 
+        elpa_black, elpa_hispanic, elpa_native, elpa_hpi, elpa_asian, elpa_white) %>% 
     mutate(valid_tests = !is.na(literacy) & !is.na(composite),
         exit_count = if_else(valid_tests, literacy >= 5.0 & composite >= 5.0, NA),
         exit_denom = case_when(

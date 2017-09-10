@@ -2,7 +2,7 @@
 
 library(tidyverse)
 
-school_accountability <- read_csv("data/school_accountability_file_Sep05.csv", col_types = c("cicicccciddddddddcc"))
+school_accountability <- read_csv("data/school_accountability_file_Sep06.csv", col_types = c("cicicccciddddddddcc"))
 
 hs <- school_accountability %>%
     filter(year == "2015", subject == "Success Rate", subgroup == "All Students", pool == "HS") %>%

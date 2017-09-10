@@ -2,7 +2,7 @@
 
 library(tidyverse)
 
-school_accountability <- read_csv("data/school_accountability_file_Aug31.csv", col_types = c("cicicccciddddddddcc"))
+school_accountability <- read_csv("data/school_accountability_file_Sep06.csv", col_types = c("cicicccciddddddddcc"))
 
 # ACT and Grad
 grad <- school_accountability %>%
@@ -26,7 +26,7 @@ grad_grades <- grad %>%
             grad_rate > AMO_target ~ "B",
             upper_bound_ci >= AMO_target ~ "C",
             upper_bound_ci > grad_rate_prior ~ "D",
-            upper_bound_ci < grad_rate_prior ~ "F")
+            upper_bound_ci <= grad_rate_prior ~ "F")
     )
 
 ACT_grad <- school_accountability %>%
