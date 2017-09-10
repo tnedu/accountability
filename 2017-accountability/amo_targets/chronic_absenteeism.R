@@ -20,10 +20,33 @@ el <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_De
     transmute(student_key = STUDENT_KEY, EL = 1) %>%
     filter(!duplicated(student_key))
 
-bhn <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo.txt", delim = "\t") %>%
-    filter(ETHNICITY == "H" | RACE_B == "Y" | RACE_I == "Y") %>%
-    transmute(student_key = STUDENT_KEY, BHN = 1) %>%
-    filter(!duplicated(student_key))
+race <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo.txt", delim = "\t") %>%
+    mutate(race = case_when(
+            ETHNICITY == "H" ~ "Hispanic",
+            RACE_B == "Y" ~ "Black",
+            RACE_I == "Y" ~ "Native",
+            RACE_P == "Y" ~ "HPI",
+            RACE_A == "Y" ~ "Asian",
+            RACE_W == "Y" ~ "White")
+    ) %>%
+    transmute(student_key = STUDENT_KEY, race, BHN = race %in% c("Black", "Hispanic", "Native"),
+        Black = race == "Black", Hispanic = race == "Hispanic", Native = race == "Native",
+        HPI = race == "HPI", Asian = race == "Asian", White = race == "White") %>%
+    mutate_at(c("BHN", "Black", "Hispanic", "Native", "HPI", "Asian", "White"), as.numeric) %>%
+    # Apply race determinations (5.1.1)
+    mutate(priority = case_when(
+            race == "Hispanic" ~ 6,
+            race == "Black" ~ 5,
+            race == "Native" ~ 4,
+            race == "HPI" ~ 3,
+            race == "Asian" ~ 2,
+            race == "White" ~ 1)) %>%
+    group_by(student_key) %>%
+    mutate(temp = max(priority, na.rm = TRUE)) %>%
+    ungroup() %>%
+    filter(priority == temp) %>%
+    filter(!duplicated(student_key)) %>%
+    select(-c(race, priority, temp))
 
 attendance <- haven::read_dta("K:/ORP_accountability/data/2017_chronic_absenteeism/Attendance data as of 08152017.dta") %>%
     filter(grade %in% c("K", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")) %>%
@@ -60,7 +83,7 @@ attendance <- haven::read_dta("K:/ORP_accountability/data/2017_chronic_absenteei
             grade %in% c("09", "10", "11", "12") ~ "9-12"),
         chronic_absence = as.numeric(n_absences/isp_days >= 0.1),
         All = 1L) %>%
-    left_join(bhn, by = "student_key") %>%
+    left_join(race, by = "student_key") %>%
     left_join(econ_dis, by = "student_key") %>%
     left_join(special_ed, by = "student_key") %>%
     left_join(el, by = "student_key")
@@ -69,7 +92,7 @@ school_CA <- tibble()
 system_CA <- tibble()
 state_CA <- tibble()
 
-for (s in c("All", "BHN", "ED", "SWD", "EL")) {
+for (s in c("All", "BHN", "ED", "SWD", "EL", "Black", "Hispanic", "Native", "HPI", "Asian", "White")) {
 
     # School by grade band
     school_CA <- attendance %>%
@@ -184,7 +207,12 @@ school_output <- school_CA %>%
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "SWD" ~ "Students with Disabilities",
             subgroup == "EL" ~ "English Learners",
-            subgroup == "Super" ~ "Super Subgroup"),
+            subgroup == "Super" ~ "Super Subgroup",
+            subgroup == "Black" ~ "Black or African American",
+            subgroup == "Hispanic" ~ "Hispanic",
+            subgroup == "Native" ~ "American Indian or Alaska Native",
+            subgroup == "HPI" ~ "Native Hawaiian or Other Pacific Islander",
+            TRUE ~ subgroup),
         grade_band = grade,
         n_students, n_chronically_absent, pct_chronically_absent) %>%
     arrange(system, school, subgroup, grade_band)
@@ -198,7 +226,12 @@ system_output <- system_CA %>%
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "SWD" ~ "Students with Disabilities",
             subgroup == "EL" ~ "English Learners",
-            subgroup == "Super" ~ "Super Subgroup"),
+            subgroup == "Super" ~ "Super Subgroup",
+            subgroup == "Black" ~ "Black or African American",
+            subgroup == "Hispanic" ~ "Hispanic",
+            subgroup == "Native" ~ "American Indian or Alaska Native",
+            subgroup == "HPI" ~ "Native Hawaiian or Other Pacific Islander",
+            TRUE ~ subgroup),
         grade_band = grade,
         n_students, n_chronically_absent, pct_chronically_absent) %>%
     arrange(system, subgroup, grade_band)
@@ -212,7 +245,12 @@ state_output <- state_CA %>%
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "SWD" ~ "Students with Disabilities",
             subgroup == "EL" ~ "English Learners",
-            subgroup == "Super" ~ "Super Subgroup"),
+            subgroup == "Super" ~ "Super Subgroup",
+            subgroup == "Black" ~ "Black or African American",
+            subgroup == "Hispanic" ~ "Hispanic",
+            subgroup == "Native" ~ "American Indian or Alaska Native",
+            subgroup == "HPI" ~ "Native Hawaiian or Other Pacific Islander",
+            TRUE ~ subgroup),
         grade_band = grade,
         n_students, n_chronically_absent, pct_chronically_absent) %>%
     arrange(subgroup, grade_band)
