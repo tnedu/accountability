@@ -23,7 +23,7 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         Non_ED = ED == 0L,
         Non_SWD = SWD == 0L,
         Non_EL = EL == 0L,
-        Non_EL_T1_T2 = (EL == 0L & EL_T1_T2 == 0L),
+        Non_EL_T1_T2 = EL_T1_T2 == 0L,
         Super = (BHN == 1L | ED == 1L | SWD == 1L | EL_T1_T2 == 1L)) %>%
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD", "EL", "EL_T1_T2",
         "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Non_EL_T1_T2", "Super"), as.integer)
@@ -64,12 +64,9 @@ state_base <- collapse %>%
         pct_below = if_else(flag_below, 0, pct_below),
         flag_approaching = pct_approaching != 0 & n_approaching == 0,
         pct_on_track = if_else(flag_approaching, 100 - pct_mastered, pct_on_track),
-        pct_approaching = if_else(flag_approaching, 0, pct_approaching)) %>%
-    # Check everything sums to 100
-    rowwise() %>%
-    mutate(pct_total = sum(pct_below, pct_approaching, pct_on_track, pct_mastered, na.rm = TRUE)) %>%
-    ungroup() %>%
-    mutate(subgroup = case_when(subgroup == "All" ~ "All Students",
+        pct_approaching = if_else(flag_approaching, 0, pct_approaching),
+        subgroup = case_when(
+            subgroup == "All" ~ "All Students",
             subgroup == "Black" ~ "Black or African American",
             subgroup == "BHN" ~ "Black/Hispanic/Native American",
             subgroup == "ED" ~ "Economically Disadvantaged",
@@ -84,23 +81,27 @@ state_base <- collapse %>%
             subgroup == "Non_SWD" ~ "Non-Students with Disabilities",
             subgroup == "Super" ~ "Super Subgroup",
             subgroup == "SWD" ~ "Students with Disabilities",
-            TRUE ~ subgroup)) %>%
+            TRUE ~ subgroup)
+        ) %>%
     select(year, subject, grade, subgroup, enrolled, tested, valid_tests, n_below, n_approaching, n_on_track, n_mastered, 
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 # Append ACT, substitution, grad, 2016 base
 ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_state2017.dta") %>%
     transmute(year = 2017, subject = "ACT Composite", grade = "All Grades",
-            subgroup = case_when(subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
-                subgroup == "Non-English Language Learners" ~ "Non-English Learners",
-                TRUE ~ subgroup),
+        subgroup = case_when(
+            subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
+            subgroup == "Non-English Language Learners" ~ "Non-English Learners",
+            TRUE ~ subgroup),
         enrolled, tested, valid_tests, n_below = n_below19, n_on_track = n_21_orhigher,
         ACT_21_and_above = pct_21_orhigher, ACT_18_and_below = pct_below19)
 
 ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_state2016.dta") %>%
     transmute(year = 2016, subject = "ACT Composite", grade = "All Grades",
-        subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
-        subgroup = if_else(subgroup == "Non-English Language Learners", "Non-English Learners", subgroup),
+        subgroup = case_when(
+            subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
+            subgroup == "Non-English Language Learners" ~ "Non-English Learners",
+            TRUE ~ subgroup),
         enrolled, tested, valid_tests, n_below = n_below19, n_on_track = n_21_orhigher,
         ACT_21_and_above = pct_21_orhigher_reporting, ACT_18_and_below = pct_below19)
 

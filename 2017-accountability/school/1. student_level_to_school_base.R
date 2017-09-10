@@ -68,27 +68,25 @@ school_base <- collapse %>%
         pct_below = if_else(flag_below, 0, pct_below),
         flag_approaching = pct_approaching != 0 & n_approaching == 0,
         pct_on_track = if_else(flag_approaching, 100 - pct_mastered, pct_on_track),
-        pct_approaching = if_else(flag_approaching, 0, pct_approaching)) %>%
-    # Check everything sums to 100
-    rowwise() %>%
-    mutate(pct_total = sum(pct_below, pct_approaching, pct_on_track, pct_mastered, na.rm = TRUE)) %>%
-    ungroup() %>%
-    mutate(subgroup = case_when(subgroup == "All" ~ "All Students",
-        subgroup == "Black" ~ "Black or African American",
-        subgroup == "BHN" ~ "Black/Hispanic/Native American",
-        subgroup == "ED" ~ "Economically Disadvantaged",
-        subgroup == "EL" ~ "English Learners",
-        subgroup == "EL_T1_T2" ~ "English Learners with T1/T2",
-        subgroup == "Hawaiian" ~ "Native Hawaiian or Other Pacific Islander",
-        subgroup == "Native" ~ "American Indian or Alaska Native",
-        subgroup == "Non_BHN" ~ "Non-Black/Hispanic/Native American",
-        subgroup == "Non_ED" ~ "Non-Economically Disadvantaged",
-        subgroup == "Non_EL" ~ "Non-English Learners",
-        subgroup == "Non_EL_T1_T2" ~ "Non-English Learners/T1 or T2",
-        subgroup == "Non_SWD" ~ "Non-Students with Disabilities",
-        subgroup == "Super" ~ "Super Subgroup",
-        subgroup == "SWD" ~ "Students with Disabilities",
-        TRUE ~ subgroup)) %>%
+        pct_approaching = if_else(flag_approaching, 0, pct_approaching),
+        subgroup = case_when(
+            subgroup == "All" ~ "All Students",
+            subgroup == "Black" ~ "Black or African American",
+            subgroup == "BHN" ~ "Black/Hispanic/Native American",
+            subgroup == "ED" ~ "Economically Disadvantaged",
+            subgroup == "EL" ~ "English Learners",
+            subgroup == "EL_T1_T2" ~ "English Learners with T1/T2",
+            subgroup == "Hawaiian" ~ "Native Hawaiian or Other Pacific Islander",
+            subgroup == "Native" ~ "American Indian or Alaska Native",
+            subgroup == "Non_BHN" ~ "Non-Black/Hispanic/Native American",
+            subgroup == "Non_ED" ~ "Non-Economically Disadvantaged",
+            subgroup == "Non_EL" ~ "Non-English Learners",
+            subgroup == "Non_EL_T1_T2" ~ "Non-English Learners/T1 or T2",
+            subgroup == "Non_SWD" ~ "Non-Students with Disabilities",
+            subgroup == "Super" ~ "Super Subgroup",
+            subgroup == "SWD" ~ "Students with Disabilities",
+            TRUE ~ subgroup)
+        ) %>%
     select(year, system, school, subject, grade, subgroup, enrolled, tested, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
@@ -96,7 +94,8 @@ school_base <- collapse %>%
 # Append ACT, grad, 2016 base
 ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
     transmute(year = 2017, system, school, subject = "ACT Composite", grade = "All Grades",
-        subgroup = case_when(subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
+        subgroup = case_when(
+            subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners" ~ "Non-English Learners",
             TRUE ~ subgroup),
         enrolled, tested, valid_tests, n_below = n_below19, n_on_track = n_21_orhigher,
@@ -105,7 +104,8 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
 ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") %>%
     filter(school != -9999) %>%
     transmute(year = 2016, system, school, subject = "ACT Composite", grade = "All Grades",
-        subgroup = case_when(subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
+        subgroup = case_when(
+            subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners" ~ "Non-English Learners",
             TRUE ~ subgroup),
         enrolled, tested, valid_tests, n_below = n_below19, n_on_track = n_21_orhigher,
@@ -120,7 +120,8 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_sub
 grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/school_grad_rate2016.dta") %>%
     filter(system != 90) %>%
     transmute(year = 2016, system, school, subject, grade = "All Grades",
-        subgroup = case_when(subgroup == "Black" ~ "Black or African American",
+        subgroup = case_when(
+            subgroup == "Black" ~ "Black or African American",
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners with T1/T2" ~ "Non-English Learners/T1 or T2",
             subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
@@ -131,7 +132,8 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/school_g
 grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_rate2017_JP.dta") %>%
     filter(system != 90) %>%
     transmute(year, system, school, subject, grade = "All Grades",
-        subgroup = case_when(subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
+        subgroup = case_when(
+            subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners with T1/T2" ~ "Non-English Learners/T1 or T2",
             subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
             TRUE ~ subgroup),

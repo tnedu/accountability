@@ -19,14 +19,17 @@ collapse <- state_base %>%
     mutate(enrolled = sum(enrolled, enrolled_part_1, enrolled_part_2, enrolled_both, na.rm = TRUE),
         tested = sum(tested, tested_part_1, tested_part_2, tested_both, na.rm = TRUE)) %>%
     ungroup() %>%
-    mutate(grade = case_when(grade %in% c("3", "4", "5") ~ "3rd through 5th",
+    mutate(grade = case_when(
+            grade %in% c("3", "4", "5") ~ "3rd through 5th",
             grade %in% c("6", "7", "8") ~ "6th through 8th",
             grade %in% c("Missing Grade", "9", "10", "11", "12") ~ "9th through 12th"),
-        subject = case_when(grade %in% c("3rd through 5th", "6th through 8th") & subject %in% math_eoc ~ "Math",
+        subject = case_when(
+            grade %in% c("3rd through 5th", "6th through 8th") & subject %in% math_eoc ~ "Math",
             grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc ~ "ELA",
             grade == "9th through 12th" & subject %in% c("ACT Math", math_eoc) ~ "HS Math",
             grade == "9th through 12th" & subject %in% c("ACT Reading", english_eoc) ~ "HS English",
-            TRUE ~ subject)) %>%
+            TRUE ~ subject)
+    ) %>%
     group_by(year, system, system_name, subject, grade, subgroup) %>%
     summarise_at(c("enrolled", "tested", "valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE)
 
