@@ -124,7 +124,7 @@ all_students_grades_final <- AF_grades_metrics %>%
 targeted_support <- AF_grades_metrics %>%
     filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
         "English Learners", "Students with Disabilities",
-        "Black", "Hispanic", "Native American", "Asian", "White")) %>%
+        "Black", "Hispanic", "Native American", "Hawaiian/Pacific Islander", "Asian", "White")) %>%
     select(system, school, subgroup, designation_ineligible, subgroup_average) %>%
     full_join(F_schools, by = c("system", "school")) %>%
     group_by(subgroup) %>%
@@ -143,12 +143,14 @@ targeted_support <- AF_grades_metrics %>%
         targeted_support_Black = Black,
         targeted_support_Hispanic = Hispanic,
         targeted_support_Native = `Native American`,
+        targeted_support_HPI = `Hawaiian/Pacific Islander`,
         targeted_support_Asian = Asian,
         targeted_support_White = White,
         targeted_support = if_else(is.na(final_grade), 
             pmax(targeted_support_BHN, targeted_support_ED, targeted_support_SWD, targeted_support_EL,
                 targeted_support_Black, targeted_support_Hispanic, targeted_support_Native,
-                targeted_support_Asian, targeted_support_White, na.rm = TRUE), NA_integer_))
+                targeted_support_HPI = `Hawaiian/Pacific Islander`, targeted_support_Asian, targeted_support_White,
+                na.rm = TRUE), NA_integer_))
 
 # Gap closure grades
 subgroup_grades_final <- AF_grades_metrics %>%
@@ -182,11 +184,11 @@ AF_grades_final <- all_students_grades_final %>%
         overall_average = if_else(is.na(overall_average), achievement_average, overall_average),
         final_grade = case_when(
             designation_ineligible == 1 ~ NA_character_,
-            is.na(final_grade) & priority_grad ~ "F",
-            is.na(final_grade) & overall_average > 3 ~ "A",
-            is.na(final_grade) & overall_average > 2 ~ "B",
-            is.na(final_grade) & overall_average > 1 ~ "C",
-            is.na(final_grade) & overall_average > 0 ~ "D",
+            priority_grad ~ "F",
+            overall_average > 3 ~ "A",
+            overall_average > 2 ~ "B",
+            overall_average > 1 ~ "C",
+            overall_average > 0 ~ "D",
             TRUE ~ final_grade),
         targeted_support = if_else(final_grade == "D", 1L, targeted_support),
         targeted_support = if_else(designation_ineligible == 1, NA_integer_, targeted_support),
