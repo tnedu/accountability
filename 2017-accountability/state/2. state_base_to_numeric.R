@@ -5,10 +5,10 @@ numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Econom
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
 english_eoc <- c("English I", "English II", "English III")
 
-state_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_aug24.csv",
+state_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_sep15.csv",
         col_types = c("iiccccddddddddddddddddddddddddd")) %>%
     filter(subgroup %in% numeric_subgroups,
-        subject %in% c(math_eoc, english_eoc, "Graduation Rate", "ACT Composite", "ACT Reading", "ACT Math"))
+        subject %in% c("Math", "ELA", math_eoc, english_eoc, "Graduation Rate", "ACT Composite", "ACT Reading", "ACT Math"))
 
 grad <- filter(state_base, subject == "Graduation Rate")
 ACT <- filter(state_base, subject == "ACT Composite")
@@ -66,4 +66,4 @@ output <- state_numeric %>%
         pct_approaching, pct_on_track, pct_mastered, pct_on_mastered,
         ACT_21_and_above, ACT_18_and_below, grad_cohort, grad_count, grad_rate, dropout_count, dropout_rate)
 
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017_aug24.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017_sep15.csv", na = "")

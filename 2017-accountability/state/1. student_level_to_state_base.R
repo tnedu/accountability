@@ -1,12 +1,13 @@
 library(haven)
 library(tidyverse)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_09142017.dta") %>%
     filter(!grade %in% c(1, 2)) %>%
     # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
         grade = if_else(is.na(grade), 0, grade),
+        original_subject = if_else(test == "MSAA", subject, original_subject),
         n_below = if_else(performance_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
         n_approaching = if_else(performance_level %in% c("2. Approaching", "2. Basic"), 1L, NA_integer_),
         n_on_track = if_else(performance_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
@@ -18,13 +19,13 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         Hawaiian = race == "Native Hawaiian or Pacific Islander",
         Native = race == "American Indian or Alaskan Native",
         White = race == "White",
-        EL_T1_T2 = if_else(EL == 1L, 1, EL_T1_T2),
-        Non_BHN = BHN == 0L,
-        Non_ED = ED == 0L,
-        Non_SWD = SWD == 0L,
-        Non_EL = EL == 0L,
-        Non_EL_T1_T2 = EL_T1_T2 == 0L,
-        Super = (BHN == 1L | ED == 1L | SWD == 1L | EL_T1_T2 == 1L)) %>%
+        EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
+        Non_BHN = BHN == 0,
+        Non_ED = ED == 0,
+        Non_SWD = SWD == 0,
+        Non_EL = EL == 0,
+        Non_EL_T1_T2 = EL_T1_T2 == 0,
+        Super = (BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1)) %>%
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD", "EL", "EL_T1_T2",
         "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Non_EL_T1_T2", "Super"), as.integer)
 
@@ -82,7 +83,7 @@ state_base <- collapse %>%
             subgroup == "Super" ~ "Super Subgroup",
             subgroup == "SWD" ~ "Students with Disabilities",
             TRUE ~ subgroup)
-        ) %>%
+    ) %>%
     select(year, subject, grade, subgroup, enrolled, tested, valid_tests, n_below, n_approaching, n_on_track, n_mastered, 
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
@@ -148,4 +149,4 @@ base_2017 <- bind_rows(base_2016, state_base, ACT, ACT_prior, ACT_substitution, 
         system_name = "State of Tennessee") %>%
     select(year, system, system_name, everything())
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_aug24.csv", na = "")
+write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_sep15.csv", na = "")
