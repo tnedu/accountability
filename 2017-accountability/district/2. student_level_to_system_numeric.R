@@ -17,7 +17,7 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_sub
         grade = "9th through 12th",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_09142017.dta") %>%
     filter(!grade %in% c(1, 2), greater_than_60_pct == "Y") %>%
     # Residential Facility students are dropped from system level
     filter(residential_facility != 1 | is.na(residential_facility)) %>%
@@ -30,8 +30,8 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         n_on_track = if_else(performance_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
         n_mastered = if_else(performance_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_),
         All = 1L,
-        EL_T1_T2 = if_else(EL == 1L, 1, EL_T1_T2),
-        Super = as.numeric(BHN == 1L | ED == 1L | SWD == 1L | EL_T1_T2 == 1L)) %>%
+        EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
+        Super = as.numeric(BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1)) %>%
     # Numeric subject/grade combinations
     filter(subject %in% c("Math", "ELA", math_eoc, english_eoc)) %>%
     mutate(grade = case_when(
@@ -40,7 +40,9 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
             grade %in% c(0, 9:12) ~ "9th through 12th"),
         subject = case_when(
             subject %in% math_eoc ~ "HS Math",
-            subject %in% english_eoc ~ "HS English"))
+            subject %in% english_eoc ~ "HS English",
+            TRUE ~ subject)
+    )
 
 collapse <- tibble()
 
@@ -75,14 +77,15 @@ system_numeric <- collapse %>%
         pct_below = if_else(flag_below, 0, pct_below),
         flag_approaching = pct_approaching != 0 & n_approaching == 0,
         pct_on_track = if_else(flag_approaching, 100 - pct_mastered, pct_on_track),
-        pct_approaching = if_else(flag_approaching, 0, pct_approaching)) %>%
-    mutate(subgroup = case_when(
+        pct_approaching = if_else(flag_approaching, 0, pct_approaching),
+        subgroup = case_when(
             subgroup == "All" ~ "All Students",
             subgroup == "BHN" ~ "Black/Hispanic/Native American",
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "EL_T1_T2" ~ "English Learners",
             subgroup == "Super" ~ "Super Subgroup",
-            subgroup == "SWD" ~ "Students with Disabilities")) %>%
+            subgroup == "SWD" ~ "Students with Disabilities")
+    ) %>%
     select(year, system, subject, grade, subgroup, valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
@@ -101,12 +104,13 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/District_grad_
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate from Base
-base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_aug24.csv",
+base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_sep18.csv",
         col_types = c("ddccccddddddddddddddddddddddddd")) %>%
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
         subgroup != "English Learners",
-        subject %in% c("Math", "ELA", math_eoc, english_eoc)) %>%
+        subject %in% c("Math", "ELA", math_eoc, english_eoc)
+    ) %>%
     mutate(subject = case_when(subject %in% math_eoc & grade %in% c("3", "4", "5", "6", "7", "8") ~ "Math",
             subject %in% english_eoc & grade %in% c("3", "4", "5", "6", "7", "8") ~ "ELA",
             TRUE ~ subject),
@@ -121,7 +125,8 @@ base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/sys
             grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc ~ "ELA",
             grade == "9th through 12th" & subject %in% math_eoc ~ "HS Math",
             grade == "9th through 12th" & subject %in% english_eoc ~ "HS English",
-            TRUE ~ subject)) 
+            TRUE ~ subject)
+    ) 
 
 participation_1yr <- base %>%
     rowwise() %>%
@@ -181,7 +186,8 @@ ACT_participation_2yr <- bind_rows(ACT, ACT_prior) %>%
 ACT <- left_join(ACT, ACT_participation_2yr, by = c("year", "system", "subject", "grade", "subgroup"))
 
 # 2016 numeric
-numeric_2016 <- read_excel("K:/ORP_accountability/data/2016_accountability/system_numeric_with_unaka_correction_2016.xlsx") %>%
+numeric_2016 <- read_csv("K:/ORP_accountability/data/2016_accountability/system_numeric_with_unaka_correction_2016.csv") %>%
+    filter(subject != "HS Science") %>%
     transmute(year, system, subject, grade, subgroup,
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered) %>%
@@ -258,10 +264,7 @@ output <- numeric_2017 %>%
         valid_tests, n_below, n_approaching, n_on_track, n_mastered, pct_below, pct_approaching, pct_on_track, pct_mastered,
         pct_on_mastered, AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4,
         grad_count, grad_cohort, grad_rate, dropout_count, dropout_rate,
-        upper_bound_ci_OM, lower_bound_ci_below, below_percentile, OM_percentile) %>%
-    mutate_all(funs(ifelse(is.nan(.), NA, .))) %>%
-    # For release on 8/25
-    filter(grade != "3rd through 5th" & grade != "6th through 8th")
+        upper_bound_ci_OM, lower_bound_ci_below, below_percentile, OM_percentile)
 
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_aug24.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_sep18.csv", na = "")
