@@ -22,13 +22,13 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         Hawaiian = race == "Native Hawaiian or Pacific Islander",
         Native = race == "American Indian or Alaskan Native",
         White = race == "White",
-        EL_T1_T2 = if_else(EL == 1L, 1, EL_T1_T2),
-        Non_BHN = BHN == 0L,
-        Non_ED = ED == 0L,
-        Non_SWD = SWD == 0L,
-        Non_EL = EL == 0L,
-        Non_EL_T1_T2 = EL_T1_T2 == 0L,
-        Super = (BHN == 1L | ED == 1L | SWD == 1L | EL_T1_T2 == 1L)) %>%
+        EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
+        Non_BHN = BHN == 0,
+        Non_ED = ED == 0,
+        Non_SWD = SWD == 0,
+        Non_EL = EL == 0,
+        Non_EL_T1_T2 = EL_T1_T2 == 0,
+        Super = (BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1L)) %>%
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD", "EL", "EL_T1_T2",
         "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Non_EL_T1_T2", "Super"), as.integer)
 
@@ -86,7 +86,7 @@ school_base <- collapse %>%
             subgroup == "Super" ~ "Super Subgroup",
             subgroup == "SWD" ~ "Students with Disabilities",
             TRUE ~ subgroup)
-        ) %>%
+    ) %>%
     select(year, system, school, subject, grade, subgroup, enrolled, tested, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
@@ -148,13 +148,13 @@ base_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/
 
 # Output file
 base_2017 <- bind_rows(base_2016, school_base, ACT, ACT_prior, ACT_substitution, grad, grad_prior) %>%
-    # Drop schools with only prior year data
-    # group_by(system, school) %>%
-    # mutate(temp = max(year)) %>%
-    # filter(temp != 2016) %>%
-    # ungroup() %>%
+# Drop schools with only prior year data
+    group_by(system, school) %>%
+    mutate(temp = max(year)) %>%
+    filter(temp != 2016) %>%
+    ungroup() %>%
     arrange(desc(year), system, school, subject, grade, subgroup) %>%
     select(year, system, school, everything()) %>%
     mutate(grade = if_else(grade == "0", "Missing Grade", grade))
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_aug24.csv", na = "")
+write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep18.csv", na = "")
