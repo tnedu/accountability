@@ -40,7 +40,7 @@ rename (sysno schno) (system school);
 
 preserve;
 
-bysort state_stud_id: egen temp = max(act_read); 
+bysort state_stud_id: egen temp = max(act_read);
 drop if temp != act_read;
 drop temp;
 
@@ -65,7 +65,7 @@ tempfile act_student_math;
 save `act_student_math', replace;
 
 * Merging ACT onto Student Level file;
-use "K:\ORP_accountability\projects\2017_student_level_file\state_student_level_2017_JP_final.dta", clear;
+use "K:\ORP_accountability\projects\2017_student_level_file\state_student_level_2017_JP_final_09142017.dta", clear;
 
 preserve;
 
@@ -75,7 +75,7 @@ keep if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry"
 mmerge id using `act_student_math', type(n:1) umatch(state_stud_id);
 keep if _merge == 2 & grade == 11 & act_math != .;
 
-keep id last_name first_name middle_i grade system school act_math;
+keep id last_name first_name grade system school act_math;
 
 rename act_math act_subscore;
 
@@ -94,7 +94,7 @@ keep if subject == "English I" | subject == "English II" | subject == "English I
 mmerge id using `act_student_read', type(n:1) umatch(state_stud_id);
 keep if _merge == 2 & grade == 11 & act_read != .;
 
-keep id last_name first_name middle_i grade system school act_read;
+keep id last_name first_name grade system school act_read;
 
 rename act_read act_subscore;
 
@@ -105,6 +105,11 @@ gen valid_tests = 1;
 
 append using `math';
 
+* Save student level ACT substitution file;
+gsort system school id subject;
+export delim "K:\ORP_accountability\data\2017_final_accountability_files/student_level_act_substitution.csv", delim(",") replace;
+
+* Collapse for school, system, and state ACT substitution files;
 collapse (sum) n_met_benchmark n_not_met_benchmark valid_tests, by(system school subject);
 
 gen subgroup = "All Students";
