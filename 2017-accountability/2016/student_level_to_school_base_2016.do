@@ -187,6 +187,7 @@ replace subgroup = "American Indian or Alaska Native" if subgroup == "Native";
 preserve;
 
 use "K:\ORP_accountability\data\2016_ACT/school_act_substitution_2016.dta", clear;
+drop if school == -9999;
 
 rename (n_not_met_benchmark n_met_benchmark pct_not_met_benchmark pct_met_benchmark) (n_approaching n_on_track pct_approaching pct_on_track);
 
@@ -206,5 +207,4 @@ order year system school subject grade subgroup enrolled enrolled_part_1_only en
 
 compress;
 
-save "K:\ORP_accountability\data\2016_accountability/school_base_with_unaka_correction_2016.dta", replace;
-export excel using "K:\ORP_accountability\data\2016_accountability/school_base_with_unaka_correction_2016.xlsx", firstrow(var) replace;
+export delim using "K:\ORP_accountability\data\2016_accountability/school_base_with_unaka_correction_2016.csv", delim(",") replace;

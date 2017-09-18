@@ -117,7 +117,7 @@ ACT_substitution_prior <- read_csv("K:/ORP_accountability/data/2016_ACT/state_AC
         pct_approaching = pct_not_met_benchmark, pct_on_track = pct_met_benchmark)
 
 grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/state_grad_rate2016.dta") %>%
-    transmute(year = 2016, subject, grade,
+    transmute(year = 2016, subject, grade = "All Grades",
         subgroup = case_when(subgroup == "Black" ~ "Black or African American",
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners with T1/T2" ~ "Non-English Learners/T1 or T2",
@@ -127,7 +127,7 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/state_gr
         grad_cohort, grad_count, grad_rate, dropout_count = drop_count, dropout_rate = drop_rate)
 
 grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/State_grad_rate2017_JP.dta") %>%
-    transmute(year, subject, grade,
+    transmute(year, subject, grade = "All Grades",
         subgroup = case_when(subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners with T1/T2" ~ "Non-English Learners/T1 or T2",
             subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
@@ -149,4 +149,4 @@ base_2017 <- bind_rows(base_2016, state_base, ACT, ACT_prior, ACT_substitution, 
         system_name = "State of Tennessee") %>%
     select(year, system, system_name, everything())
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_sep15.csv", na = "")
+write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_sep18.csv", na = "")

@@ -52,14 +52,15 @@ gen White = (race == "White");
 
 rename (bhn_group economically_disadvantaged special_ed el el_t1_t2) (BHN ED SWD EL EL_T1_T2);
 replace EL_T1_T2 = 1 if EL == 1;
+gen Non_BHN = (BHN == 0);
 gen Non_ED = (ED == 0);
 gen Non_SWD = (SWD == 0);
 gen Non_EL = (EL == 0);
-gen Non_EL_T1_T2 = (EL == 0 & EL_T1_T2 == 0);
+gen Non_EL_T1_T2 = (EL_T1_T2 == 0);
 gen Super = (BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1);
 
 * Collapse test proficiency by subject and subgroup;
-quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED Non_ED SWD Non_SWD EL Non_EL EL_T1_T2 Non_EL_T1_T2 Super {;
+quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN Non_BHN ED Non_ED SWD Non_SWD EL Non_EL EL_T1_T2 Non_EL_T1_T2 Super {;
 
 	* All Grades;
 
@@ -99,7 +100,7 @@ quietly foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED Non_E
 
 clear;
 
-foreach s in All Asian Black Hispanic Hawaiian Native White BHN ED Non_ED SWD Non_SWD EL Non_EL EL_T1_T2 Non_EL_T1_T2 Super {;
+foreach s in All Asian Black Hispanic Hawaiian Native White BHN Non_BHN ED Non_ED SWD Non_SWD EL Non_EL EL_T1_T2 Non_EL_T1_T2 Super {;
 
 	append using ``s'_all_grades';
 	append using ``s'_ind_grades';
@@ -139,7 +140,7 @@ tab pct_total;
 drop pct_total;
 
 * Create New Entries for missing subgroups (with 0 enrolled, valid tests, etc.);
-reshape wide enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both 
+reshape wide enrolled enrolled_part_1_only enrolled_part_2_only enrolled_both tested tested_part_1_only tested_part_2_only tested_both
 	valid_tests n_below n_approaching n_on_track n_mastered pct_below pct_approaching pct_on_track pct_mastered pct_on_mastered,
 	i(year subject grade) j(subgroup) string;
 
@@ -158,6 +159,7 @@ reshape long;
 replace subgroup = "All Students" if subgroup == "All";
 replace subgroup = "Black or African American" if subgroup == "Black";
 replace subgroup = "Black/Hispanic/Native American" if subgroup == "BHN";
+replace subgroup = "Non-Black/Hispanic/Native American" if subgroup == "Non_BHN";
 replace subgroup = "Native Hawaiian or Other Pacific Islander" if subgroup == "Hawaiian";
 replace subgroup = "American Indian or Alaska Native" if subgroup == "Native";
 replace subgroup = "Economically Disadvantaged" if subgroup == "ED";
@@ -182,5 +184,4 @@ order year system system_name subject grade subgroup enrolled enrolled_part_1_on
 
 compress;
 
-* save "K:\ORP_accountability\projects\2016_state_results/state_base_with_super_subgroup_2016.dta", replace;
 export delim "K:/ORP_accountability/data/2016_accountability/state_base_with_super_subgroup_2016.csv", delim(",") replace;

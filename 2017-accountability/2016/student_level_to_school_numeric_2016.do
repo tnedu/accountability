@@ -118,10 +118,11 @@ restore;
 
 append using `act_sub';
 
-* Numeric will only include high school subjects, so drop grade we would normally reassign;
-drop if grade == 6 | grade == 7 | grade == 8;
+gen grade_band = "6th through 8th" if grade == 6 | grade == 7 | grade == 8;
+replace grade_band = "9th through 12th" if grade == 9 | grade == 10 | grade == 11 | grade == 12;
 
-gen grade_band = "9th through 12th";
+replace subject = "Math" if grade_band == "6th through 8th" & (subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math")); 
+replace subject = "ELA" if grade_band == "6th through 8th" & (subject == "English I" | subject == "English II" | subject == "English III"); 
 
 replace subject = "HS Math" if subject == "Algebra I" | subject == "Algebra II" | subject == "Geometry" | regexm(subject, "Integrated Math") | subject == "ACT Math";
 replace subject = "HS English" if subject == "English I" | subject == "English II" | subject == "English III" | subject == "ACT Reading";
@@ -192,5 +193,4 @@ order year system school subject grade subgroup participation_rate_1yr enrolled 
 
 compress;
 
-save "K:\ORP_accountability\data\2016_accountability/school_numeric_with_unaka_correction_2016.dta", replace;
-export excel using "K:\ORP_accountability\data\2016_accountability/school_numeric_with_unaka_correction_2016.xlsx", firstrow(var) replace;
+export delim using "K:\ORP_accountability\data\2016_accountability/school_numeric_with_unaka_correction_2016.csv", delim(",") replace;
