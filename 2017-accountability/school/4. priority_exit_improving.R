@@ -12,10 +12,12 @@ pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountabil
 
 school_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep18.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
-    left_join(pools_immune, by = c("system", "school")) %>%
+    inner_join(pools_immune, by = c("system", "school")) %>%
     filter(year == 2017, subgroup == "All Students", grade %in% as.character(3:12)) %>%
     filter(subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "Graduation Rate")) %>%
     mutate(grade = as.numeric(grade),
+        valid_tests = if_else(subject == "Graduation Rate", grad_cohort, valid_tests),
+        n_on_track = if_else(subject == "Graduation Rate", grad_count, n_on_track),
         subject = case_when(
             subject %in% math_eoc & grade %in% 3:8 ~ "Math",
             subject %in% english_eoc & grade %in% 3:8 ~ "ELA",
