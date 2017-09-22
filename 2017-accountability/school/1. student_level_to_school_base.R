@@ -1,7 +1,7 @@
 library(haven)
 library(tidyverse)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_09142017.dta") %>%
     filter(!grade %in% c(1, 2)) %>%
     # Homebound and Residential Facility students are dropped from school level
     filter(homebound == 0 | is.na(homebound)) %>%
@@ -139,7 +139,7 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_ra
             TRUE ~ subgroup),
         grad_count, grad_cohort, grad_rate, dropout_count = drop_count, dropout_rate)
 
-base_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/school_base_with_unaka_correction_2016.xlsx") %>%
+base_2016 <- read_csv("K:/ORP_accountability/data/2016_accountability/school_base_with_unaka_correction_2016.csv") %>%
     select(year, system, school, subject, grade, subgroup,
         enrolled, enrolled_part_1 = enrolled_part_1_only, enrolled_part_2 = enrolled_part_2_only, enrolled_both,
         tested, tested_part_1 = tested_part_1_only, tested_part_2 = tested_part_2_only, tested_both,
@@ -151,8 +151,9 @@ base_2017 <- bind_rows(base_2016, school_base, ACT, ACT_prior, ACT_substitution,
 # Drop schools with only prior year data
     group_by(system, school) %>%
     mutate(temp = max(year)) %>%
-    filter(temp != 2016) %>%
+    filter(temp == 2017) %>%
     ungroup() %>%
+    select(-temp) %>%
     arrange(desc(year), system, school, subject, grade, subgroup) %>%
     select(year, system, school, everything()) %>%
     mutate(grade = if_else(grade == "0", "Missing Grade", grade))

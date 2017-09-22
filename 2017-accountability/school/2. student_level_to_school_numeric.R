@@ -18,7 +18,7 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_sub
         grade = "9th through 12th",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_09142017.dta") %>%
     filter(!grade %in% c(1, 2), greater_than_60_pct == "Y") %>%
     # Homebound and Residential Facility students are dropped from school level
     filter(homebound == 0 | is.na(homebound)) %>%
@@ -191,7 +191,7 @@ ACT_participation_2yr <- bind_rows(ACT, ACT_prior) %>%
 ACT <- left_join(ACT, ACT_participation_2yr, by = c("year", "system", "school", "subject", "grade", "subgroup"))
 
 # 2016 numeric
-numeric_2016 <- read_excel("K:/ORP_accountability/data/2016_accountability/school_numeric_with_unaka_correction_2016.xlsx") %>%
+numeric_2016 <- read_csv("K:/ORP_accountability/data/2016_accountability/school_numeric_with_unaka_correction_2016.csv") %>%
     transmute(year, system, school, subject, grade,
         subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup),
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
@@ -222,7 +222,7 @@ output <- numeric_2017 %>%
 # Drop schools with only prior year data
     group_by(system, school) %>%
     mutate(temp = max(year)) %>%
-    filter(temp != 2016) %>%
+    filter(temp == 2017) %>%
     ungroup() %>%
     arrange(desc(year), system, school, subject, grade, subgroup) %>%
     select(year, system, school, subject, grade, subgroup, enrolled, participation_rate_1yr, participation_rate_2yr,
@@ -230,6 +230,6 @@ output <- numeric_2017 %>%
         pct_below, pct_approaching, pct_on_track, pct_mastered,
         pct_on_mastered, AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4,
         grad_count, grad_cohort, grad_rate, dropout_count, dropout_rate)
-    
+
 # Output file
 write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_sep18.csv", na = "")
