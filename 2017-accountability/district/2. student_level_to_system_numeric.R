@@ -1,3 +1,4 @@
+library(acct)
 library(haven)
 library(readxl)
 library(tidyverse)
@@ -13,7 +14,8 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_sub
         subgroup = "All",
         subject = case_when(
             subject == "ACT Reading" ~ "HS English",
-            subject == "ACT Math" ~ "HS Math"),
+            subject == "ACT Math" ~ "HS Math"
+        ),
         grade = "9th through 12th",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
@@ -37,11 +39,13 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
     mutate(grade = case_when(
             grade %in% 3:5 ~ "3rd through 5th",
             grade %in% 6:8 ~ "6th through 8th",
-            grade %in% c(0, 9:12) ~ "9th through 12th"),
+            grade %in% c(0, 9:12) ~ "9th through 12th"
+        ),
         subject = case_when(
             subject %in% math_eoc ~ "HS Math",
             subject %in% english_eoc ~ "HS English",
-            TRUE ~ subject)
+            TRUE ~ subject
+        )
     )
 
 collapse <- tibble()
@@ -66,11 +70,11 @@ system_numeric <- collapse %>%
     group_by(year, system, subject, grade, subgroup) %>%
     summarise_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%    
     ungroup() %>%
-    mutate(pct_approaching = if_else(valid_tests != 0, round(100 * n_approaching/valid_tests + 1e-10, 1), NA_real_),
-        pct_on_track = if_else(valid_tests != 0, round(100 * n_on_track/valid_tests + 1e-10, 1), NA_real_),
-        pct_mastered = if_else(valid_tests != 0, round(100 * n_mastered/valid_tests + 1e-10, 1), NA_real_),
-        pct_below = if_else(valid_tests != 0, round(100 - pct_approaching - pct_on_track - pct_mastered + 1e-10, 1), NA_real_),
-        pct_on_mastered = if_else(valid_tests != 0, round(100 * (n_on_track + n_mastered)/valid_tests + 1e-10, 1), NA_real_),
+    mutate(pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
+        pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
+        pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
+        pct_below = if_else(valid_tests != 0, round5(100 - pct_approaching - pct_on_track - pct_mastered, 1), NA_real_),
+        pct_on_mastered = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_),
     # Fix % B/A/O if there are no n_B/A/O
         flag_below = pct_below != 0 & n_below == 0,
         pct_approaching = if_else(flag_below, 100 - pct_on_track - pct_mastered, pct_approaching),
@@ -84,7 +88,8 @@ system_numeric <- collapse %>%
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "EL_T1_T2" ~ "English Learners",
             subgroup == "Super" ~ "Super Subgroup",
-            subgroup == "SWD" ~ "Students with Disabilities")
+            subgroup == "SWD" ~ "Students with Disabilities"
+        )
     ) %>%
     select(year, system, subject, grade, subgroup, valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
@@ -109,14 +114,16 @@ base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/sys
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
         subgroup != "English Learners",
-        subject %in% c("Math", "ELA", math_eoc, english_eoc)
-    ) %>%
+        subject %in% c("Math", "ELA", math_eoc, english_eoc)) %>%
     mutate(subject = case_when(subject %in% math_eoc & grade %in% c("3", "4", "5", "6", "7", "8") ~ "Math",
             subject %in% english_eoc & grade %in% c("3", "4", "5", "6", "7", "8") ~ "ELA",
-            TRUE ~ subject),
+            TRUE ~ subject
+        ),
         grade = case_when(grade %in% c("3", "4", "5") ~ "3rd through 5th",
             grade %in% c("6", "7", "8") ~ "6th through 8th",
-            grade %in% c("Missing Grade", "9", "10", "11", "12") ~ "9th through 12th")) %>%
+            grade %in% c("Missing Grade", "9", "10", "11", "12") ~ "9th through 12th"
+        )
+    ) %>%
     select(year, system, subject, grade, subgroup, matches("enrolled|tested")) %>%
     mutate_at(vars(matches("enrolled|tested")), as.numeric) %>%
     mutate(subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup),
@@ -125,7 +132,8 @@ base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/sys
             grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc ~ "ELA",
             grade == "9th through 12th" & subject %in% math_eoc ~ "HS Math",
             grade == "9th through 12th" & subject %in% english_eoc ~ "HS English",
-            TRUE ~ subject)
+            TRUE ~ subject
+        )
     ) 
 
 participation_1yr <- base %>%
@@ -165,15 +173,24 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/district
     filter(subgroup %in% numeric_subgroups)
 
 ACT_grad_amo <- bind_rows(ACT_prior, grad_prior) %>%
-    transmute(year = 2017, system, subject, grade, subgroup,
-        AMO_target = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_on_mastered + (100 - pct_on_mastered)/16 + 1e-10, 1), NA_real_),
-        AMO_target_4 = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_on_mastered + (100 - pct_on_mastered)/8 + 1e-10, 1), NA_real_),
-        AMO_target = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(grad_rate + (100 - grad_rate)/16 + 1e-10, 1), AMO_target),
-        AMO_target_4 = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(grad_rate + (100 - grad_rate)/8 + 1e-10, 1), AMO_target_4),
-        AMO_target_below = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_below - pct_below/8 + 1e-10, 1), NA_real_),
-        AMO_target_below_4 = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_below - pct_below/4 + 1e-10, 1), NA_real_),
-        AMO_target_below = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(dropout_rate - dropout_rate/8 + 1e-10, 1), AMO_target_below),
-        AMO_target_below_4 = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(dropout_rate - dropout_rate/4 + 1e-10, 1), AMO_target_below_4))
+    transmute(year = 2017, system, school, subject, grade, subgroup,
+        AMO_target = case_when(
+            subject == "ACT Composite" ~ amo_target(valid_tests, pct_on_mastered),
+            subject == "Graduation Rate" ~ amo_target(grad_cohort, grad_rate)
+        ),
+        AMO_target_4 = case_when(
+            subject == "ACT Composite" ~ amo_target(valid_tests, pct_on_mastered, double = TRUE),
+            subject == "Graduation Rate" ~ amo_target(grad_cohort, grad_rate, double = TRUE)
+        ),
+        AMO_target_below = case_when(
+            subject == "ACT Composite" ~ amo_reduction_double(valid_tests, pct_below),
+            subject == "Graduation Rate" ~ amo_reduction_double(grad_cohort, grad_rate)
+        ),
+        AMO_target_below_4 = case_when(
+            subject == "ACT Composite" ~ amo_reduction_double(valid_tests, pct_below, double = TRUE),
+            subject == "Graduation Rate" ~ amo_reduction_double(grad_cohort, dropout_rate, double = TRUE)
+        )
+    )
 
 # Two Year ACT participation rates
 ACT_participation_2yr <- bind_rows(ACT, ACT_prior) %>%
@@ -210,23 +227,17 @@ numeric_2017 <- system_numeric %>%
     select(-enrolled.x, -enrolled.y, -participation_rate_1yr.x, -participation_rate_1yr.y) %>%
     bind_rows(ACT, grad) %>%
     left_join(AMOs, by = c("year", "system", "subject", "grade", "subgroup")) %>%
-    # Upper bound confidence intervals
+# Upper/lower bound confidence intervals
     mutate(valid_tests = if_else(subject == "Graduation Rate", grad_cohort, valid_tests),
         pct_on_mastered = if_else(subject == "Graduation Rate", grad_rate, pct_on_mastered),
-        pct_on_mastered = pct_on_mastered/100,
-        upper_bound_ci_OM = round(100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_on_mastered + (qnorm(0.975)^2/(2 * valid_tests)) +
-            qnorm(0.975) * sqrt((pct_on_mastered * (1 - pct_on_mastered))/valid_tests + qnorm(0.975)^2/(4 * valid_tests^2))), 1),
-        pct_on_mastered = 100 * pct_on_mastered,
+        upper_bound_ci_OM = ci_upper_bound(valid_tests, pct_on_mastered),
         pct_on_mastered = if_else(subject == "Graduation Rate", NA_real_, pct_on_mastered),
         pct_below = if_else(subject == "Graduation Rate", dropout_rate, pct_below),
-        pct_below = pct_below/100,
-        lower_bound_ci_below = round(100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_below + (qnorm(0.975)^2/(2 * valid_tests)) -
-            qnorm(0.975) * sqrt((pct_below * (1 - pct_below))/valid_tests + qnorm(0.975)^2/(4 * valid_tests^2))), 1),
-        pct_below = 100 * pct_below,
+        pct_below = ci_lower_bound(valid_tests, pct_below),
         pct_below = if_else(subject == "Graduation Rate", NA_real_, pct_below),
         valid_tests = if_else(subject == "Graduation Rate", NA_real_, valid_tests)) %>%
     group_by(system, subject, grade, subgroup) %>%
-    # Percentile Ranks
+# Percentile Ranks
     mutate(valid_tests = if_else(subject == "Graduation Rate", grad_cohort, valid_tests),
         pct_below = if_else(subject == "Graduation Rate", dropout_rate, pct_below),
         pct_on_mastered = if_else(subject == "Graduation Rate", grad_rate, pct_on_mastered),
@@ -234,20 +245,20 @@ numeric_2017 <- system_numeric %>%
         pctile_rank_eligible = sum(temp, na.rm = TRUE)) %>%
     ungroup() %>%
     group_by(subject, grade, subgroup) %>%
-    # Denominator
+# Denominator
     mutate(denom = sum(pctile_rank_eligible == 2, na.rm = TRUE)/2) %>%
     ungroup() %>%
     group_by(year, subject, grade, subgroup) %>%
     mutate(
-        # Suppress values for < 30
+    # Suppress values for < 30
         pct_below_temp = if_else(pctile_rank_eligible == 2, pct_below, NA_real_),
         pct_on_mastered_temp = if_else(pctile_rank_eligible == 2, pct_on_mastered, NA_real_),
-        # Ranks
+    # Ranks
         below_rank = if_else(pctile_rank_eligible == 2, rank(pct_below_temp, ties.method = "max"), NA_integer_),
         OM_rank = if_else(pctile_rank_eligible == 2, rank(pct_on_mastered_temp, ties.method = "max"), NA_integer_),
-        # Percentiles
-        below_percentile = if_else(pctile_rank_eligible == 2, round(100 * below_rank/denom, 1), NA_real_),
-        OM_percentile = if_else(pctile_rank_eligible == 2, round(100 * OM_rank/denom, 1), NA_real_),
+    # Percentiles
+        below_percentile = if_else(pctile_rank_eligible == 2, round5(100 * below_rank/denom, 1), NA_real_),
+        OM_percentile = if_else(pctile_rank_eligible == 2, round5(100 * OM_rank/denom, 1), NA_real_),
         pct_below = if_else(subject == "Graduation Rate", NA_real_, pct_below),
         pct_on_mastered = if_else(subject == "Graduation Rate", NA_real_, pct_on_mastered),
         valid_tests = if_else(subject == "Graduation Rate", NA_real_, valid_tests)) %>%

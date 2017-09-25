@@ -1,3 +1,4 @@
+library(acct)
 library(haven)
 library(tidyverse)
 
@@ -27,7 +28,8 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         Non_SWD = SWD == 0,
         Non_EL = EL == 0,
         Non_EL_T1_T2 = EL_T1_T2 == 0,
-        Super = (BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1)) %>%
+        Super = (BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1)
+    ) %>%
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD", "EL", "EL_T1_T2",
         "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Non_EL_T1_T2", "Super"), as.integer)
 
@@ -56,11 +58,11 @@ for (s in c("All", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", 
 
 system_base <- collapse %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
-    mutate(pct_approaching = if_else(valid_tests != 0, round(100 * n_approaching/valid_tests + 1e-10, 1), NA_real_),
-        pct_on_track = if_else(valid_tests != 0, round(100 * n_on_track/valid_tests + 1e-10, 1), NA_real_),
-        pct_mastered = if_else(valid_tests != 0, round(100 * n_mastered/valid_tests + 1e-10, 1), NA_real_),
-        pct_below = if_else(valid_tests != 0, round(100 - pct_approaching - pct_on_track - pct_mastered + 1e-10, 1), NA_real_),
-        pct_on_mastered = if_else(valid_tests != 0, round(100 * (n_on_track + n_mastered)/valid_tests + 1e-10, 1), NA_real_),
+    mutate(pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
+        pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
+        pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
+        pct_below = if_else(valid_tests != 0, round5(100 - pct_approaching - pct_on_track - pct_mastered, 1), NA_real_),
+        pct_on_mastered = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_),
     # Fix % B/A/O if there are no n_B/A/O
         flag_below = pct_below != 0 & n_below == 0,
         pct_approaching = if_else(flag_below, 100 - pct_on_track - pct_mastered, pct_approaching),
@@ -84,7 +86,8 @@ system_base <- collapse %>%
             subgroup == "Non_SWD" ~ "Non-Students with Disabilities",
             subgroup == "Super" ~ "Super Subgroup",
             subgroup == "SWD" ~ "Students with Disabilities",
-            TRUE ~ subgroup)
+            TRUE ~ subgroup
+        )
     ) %>%
     select(year, system, subject, grade, subgroup, enrolled, tested, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered, pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
@@ -95,7 +98,8 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
         subgroup = case_when(
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners" ~ "Non-English Learners",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         enrolled, tested, valid_tests, n_on_track = n_21_orhigher, n_below = n_below19,
         ACT_21_and_above = pct_21_orhigher, ACT_18_and_below = pct_below19)
 
@@ -104,7 +108,8 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2016.dta"
         subgroup = case_when(
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners" ~ "Non-English Learners",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         enrolled, tested, valid_tests, n_below = n_below19, n_on_track = n_21_orhigher,
         ACT_21_and_above = pct_21_orhigher_reporting, ACT_18_and_below = pct_below19)
 
@@ -122,7 +127,8 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/district
             subgroup == "Non-English Language Learners with T1/T2" ~ "Non-English Learners/T1 or T2",
             subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
             subgroup == "Native American" ~ "American Indian or Alaska Native",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         grad_cohort, grad_count, grad_rate, dropout_count = drop_count, dropout_rate = drop_rate)
 
 grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/District_grad_rate2017_JP.dta") %>%
@@ -132,7 +138,8 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/District_grad_
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners with T1/T2" ~ "Non-English Learners/T1 or T2",
             subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         grad_count, grad_cohort, grad_rate, dropout_count = drop_count, dropout_rate)
 
 base_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/system_base_with_unaka_correction_2016.xlsx") %>%
@@ -160,7 +167,7 @@ all_combinations <- expand.grid(stringsAsFactors = FALSE,
 
 # Output file
 base_2017 <- bind_rows(base_2016, system_base) %>%
-    # Add entries for missing subgroups (with 0 enrolled, valid tests, etc.)
+# Add entries for missing subgroups (with 0 enrolled, valid tests, etc.)
     full_join(all_combinations, by = c("year", "system", "subject", "grade", "subgroup")) %>%
     group_by(system, subject, grade) %>%
     mutate(temp = sum(is.na(valid_tests))) %>%
@@ -168,7 +175,7 @@ base_2017 <- bind_rows(base_2016, system_base) %>%
     select(-temp) %>%
     ungroup() %>%
     mutate_at(c("enrolled", "tested", "valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), funs(if_else(is.na(.), 0, .))) %>%
-    # Add ACT, grad, and system names
+# Add ACT, grad, and system names
     bind_rows(ACT, ACT_prior, ACT_substitution, grad, grad_prior) %>%
     left_join(system_names, by = "system") %>%
     arrange(desc(year), system, subject, grade, subgroup) %>%

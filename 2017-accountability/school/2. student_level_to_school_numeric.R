@@ -1,3 +1,4 @@
+library(acct)
 library(haven)
 library(readxl)
 library(tidyverse)
@@ -11,11 +12,12 @@ english_eoc <- c("English I", "English II", "English III")
 ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_substitution_2017.csv") %>%
     filter(school != -9999) %>%
     transmute(year, system, school,
-        subgroup = "All",
         subject = case_when(
             subject == "ACT Reading" ~ "HS English",
-            subject == "ACT Math" ~ "HS Math"),
+            subject == "ACT Math" ~ "HS Math"
+        ),
         grade = "9th through 12th",
+        subgroup = "All",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
 student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_09142017.dta") %>%
@@ -33,17 +35,20 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         n_mastered = if_else(performance_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_),
         All = 1L,
         EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
-        Super = as.numeric(BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1)) %>%
+        Super = as.numeric(BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1)
+    ) %>%
     # Numeric subject/grade combinations
     filter(subject %in% c("Math", "ELA", math_eoc, english_eoc)) %>%
     mutate(grade = case_when(
             grade %in% 3:5 ~ "3rd through 5th",
             grade %in% 6:8 ~ "6th through 8th",
-            grade %in% c(0, 9:12) ~ "9th through 12th"),
+            grade %in% c(0, 9:12) ~ "9th through 12th"
+        ),
         subject = case_when(
             subject %in% math_eoc ~ "HS Math",
             subject %in% english_eoc ~ "HS English",
-            TRUE ~ subject)
+            TRUE ~ subject
+        )
     )
 
 collapse <- tibble()
@@ -63,17 +68,17 @@ for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Super")) {
 
 school_numeric <- collapse %>%
     rename(valid_tests = valid_test) %>%
-    # Add ACT substitution to HS Math and English
+# Add ACT substitution to HS Math and English
     bind_rows(ACT_substitution) %>%
     group_by(year, system, school, subject, grade, subgroup) %>%
     summarise_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%    
     ungroup() %>%
-    mutate(pct_approaching = if_else(valid_tests != 0, round(100 * n_approaching/valid_tests + 1e-10, 1), NA_real_),
-        pct_on_track = if_else(valid_tests != 0, round(100 * n_on_track/valid_tests + 1e-10, 1), NA_real_),
-        pct_mastered = if_else(valid_tests != 0, round(100 * n_mastered/valid_tests + 1e-10, 1), NA_real_),
-        pct_below = if_else(valid_tests != 0, round(100 - pct_approaching - pct_on_track - pct_mastered + 1e-10, 1), NA_real_),
-        pct_on_mastered = if_else(valid_tests != 0, round(100 * (n_on_track + n_mastered)/valid_tests + 1e-10, 1), NA_real_),
-        # Fix % B/A/O if there are no n_B/A/O
+    mutate(pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
+        pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
+        pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
+        pct_below = if_else(valid_tests != 0, round5(100 - pct_approaching - pct_on_track - pct_mastered, 1), NA_real_),
+        pct_on_mastered = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_),
+    # Fix % B/A/O if there are no n_B/A/O
         flag_below = pct_below != 0 & n_below == 0,
         pct_approaching = if_else(flag_below, 100 - pct_on_track - pct_mastered, pct_approaching),
         pct_below = if_else(flag_below, 0, pct_below),
@@ -86,8 +91,9 @@ school_numeric <- collapse %>%
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "EL_T1_T2" ~ "English Learners",
             subgroup == "Super" ~ "Super Subgroup",
-            subgroup == "SWD" ~ "Students with Disabilities")
-        ) %>% 
+            subgroup == "SWD" ~ "Students with Disabilities"
+        )
+    ) %>% 
     select(year, system, school, subject, grade, subgroup, valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
@@ -116,11 +122,13 @@ base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/sch
     mutate(subject = case_when(
             subject %in% math_eoc & grade %in% c("3", "4", "5", "6", "7", "8") ~ "Math",
             subject %in% english_eoc & grade %in% c("3", "4", "5", "6", "7", "8") ~ "ELA",
-            TRUE ~ subject),
+            TRUE ~ subject
+        ),
         grade = case_when(
             grade %in% c("3", "4", "5") ~ "3rd through 5th",
             grade %in% c("6", "7", "8") ~ "6th through 8th",
-            grade %in% c("Missing Grade", "9", "10", "11", "12") ~ "9th through 12th")
+            grade %in% c("Missing Grade", "9", "10", "11", "12") ~ "9th through 12th"
+        )
     ) %>%
     select(year, system, school, subject, grade, subgroup, matches("enrolled|tested")) %>%
     mutate_at(vars(matches("enrolled|tested")), as.numeric) %>%
@@ -130,7 +138,8 @@ base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/sch
             grade %in% c("3rd through 5th", "6th through 8th") & subject %in% english_eoc ~ "ELA",
             grade == "9th through 12th" & subject %in% math_eoc ~ "HS Math",
             grade == "9th through 12th" & subject %in% english_eoc ~ "HS English",
-            TRUE ~ subject)
+            TRUE ~ subject
+        )
     )
 
 participation_1yr <- base %>%
@@ -142,14 +151,14 @@ participation_1yr <- base %>%
     summarise_at(c("enrolled", "tested"), sum) %>%
     ungroup() %>%
     transmute(year, system, school, subject, grade, subgroup, enrolled, tested,
-        participation_rate_1yr = if_else(enrolled != 0, round(100 * tested/enrolled + 1e-10), NA_real_))
+        participation_rate_1yr = if_else(enrolled != 0, round5(100 * tested/enrolled), NA_real_))
 
 participation <- participation_1yr %>%
     group_by(system, school, subject, grade, subgroup) %>%
     summarise_at(c("enrolled", "tested"), sum) %>%
     ungroup() %>%
     mutate(year = 2017,
-        participation_rate_2yr = if_else(enrolled != 0, round(100 * tested/enrolled + 1e-10), NA_real_)) %>%
+        participation_rate_2yr = if_else(enrolled != 0, round5(100 * tested/enrolled), NA_real_)) %>%
     select(-enrolled, -tested) %>%
     full_join(participation_1yr, by = c("year", "system", "school", "subject", "grade", "subgroup")) %>%
     select(year, system, school, subject, grade, subgroup, enrolled, participation_rate_1yr, participation_rate_2yr)
@@ -159,7 +168,7 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") 
     filter(school != -9999) %>%
     transmute(year = 2016, system, school, subject = "ACT Composite", grade = "All Grades",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
-        participation_rate_1yr = round(100 * tested/enrolled + 1e-10),
+        participation_rate_1yr = round5(100 * tested/enrolled),
         enrolled, tested, valid_tests, pct_below = pct_below19, pct_on_mastered = pct_21_orhigher_reporting) %>%
     filter(subgroup %in% numeric_subgroups)
 
@@ -171,14 +180,23 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/school_g
 
 ACT_grad_amo <- bind_rows(ACT_prior, grad_prior) %>%
     transmute(year = 2017, system, school, subject, grade, subgroup,
-        AMO_target = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_on_mastered + (100 - pct_on_mastered)/16 + 1e-10, 1), NA_real_),
-        AMO_target_4 = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_on_mastered + (100 - pct_on_mastered)/8 + 1e-10, 1), NA_real_),
-        AMO_target = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(grad_rate + (100 - grad_rate)/16 + 1e-10, 1), AMO_target),
-        AMO_target_4 = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(grad_rate + (100 - grad_rate)/8 + 1e-10, 1), AMO_target_4),
-        AMO_target_below = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_below - pct_below/8 + 1e-10, 1), NA_real_),
-        AMO_target_below_4 = if_else(valid_tests >= 30 & subject == "ACT Composite", round(pct_below - pct_below/4 + 1e-10, 1), NA_real_),
-        AMO_target_below = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(dropout_rate - dropout_rate/8 + 1e-10, 1), AMO_target_below),
-        AMO_target_below_4 = if_else(grad_cohort >= 30 & subject == "Graduation Rate", round(dropout_rate - dropout_rate/4 + 1e-10, 1), AMO_target_below_4))
+        AMO_target = case_when(
+            subject == "ACT Composite" ~ amo_target(valid_tests, pct_on_mastered),
+            subject == "Graduation Rate" ~ amo_target(grad_cohort, grad_rate)
+        ),
+        AMO_target_4 = case_when(
+            subject == "ACT Composite" ~ amo_target(valid_tests, pct_on_mastered, double = TRUE),
+            subject == "Graduation Rate" ~ amo_target(grad_cohort, grad_rate, double = TRUE)
+        ),
+        AMO_target_below = case_when(
+            subject == "ACT Composite" ~ amo_reduction_double(valid_tests, pct_below),
+            subject == "Graduation Rate" ~ amo_reduction_double(grad_cohort, grad_rate)
+        ),
+        AMO_target_below_4 = case_when(
+            subject == "ACT Composite" ~ amo_reduction_double(valid_tests, pct_below, double = TRUE),
+            subject == "Graduation Rate" ~ amo_reduction_double(grad_cohort, dropout_rate, double = TRUE)
+        )
+    )
 
 # Two Year ACT participation rates
 ACT_participation_2yr <- bind_rows(ACT, ACT_prior) %>%
@@ -186,7 +204,7 @@ ACT_participation_2yr <- bind_rows(ACT, ACT_prior) %>%
     summarise_at(c("enrolled", "tested"), sum) %>%
     ungroup() %>%
     transmute(year = 2017, system, school, subject, grade, subgroup,
-        participation_rate_2yr = round(100 * tested/enrolled + 1e-10))
+        participation_rate_2yr = round5(100 * tested/enrolled))
 
 ACT <- left_join(ACT, ACT_participation_2yr, by = c("year", "system", "school", "subject", "grade", "subgroup"))
 
@@ -225,7 +243,8 @@ output <- numeric_2017 %>%
     filter(temp == 2017) %>%
     ungroup() %>%
     arrange(desc(year), system, school, subject, grade, subgroup) %>%
-    select(year, system, school, subject, grade, subgroup, enrolled, participation_rate_1yr, participation_rate_2yr,
+    select(year, system, school, subject, grade, subgroup, enrolled, 
+        participation_rate_1yr, participation_rate_2yr,
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered,
         pct_on_mastered, AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4,

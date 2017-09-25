@@ -1,12 +1,13 @@
+library(acct)
 library(haven)
 library(tidyverse)
 
 student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_09142017.dta") %>%
     filter(!grade %in% c(1, 2)) %>%
-    # Homebound and Residential Facility students are dropped from school level
+# Homebound and Residential Facility students are dropped from school level
     filter(homebound == 0 | is.na(homebound)) %>%
     filter(residential_facility != 1 | is.na(residential_facility)) %>%
-    # Proficiency and subgroup indicators for collapse
+# Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
         grade = if_else(is.na(grade), 0, grade),
@@ -57,11 +58,11 @@ for (s in c("All", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", 
 
 school_base <- collapse %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
-    mutate(pct_approaching = if_else(valid_tests != 0, round(100 * n_approaching/valid_tests + 1e-10, 1), NA_real_),
-        pct_on_track = if_else(valid_tests != 0, round(100 * n_on_track/valid_tests + 1e-10, 1), NA_real_),
-        pct_mastered = if_else(valid_tests != 0, round(100 * n_mastered/valid_tests + 1e-10, 1), NA_real_),
-        pct_below = if_else(valid_tests != 0, round(100 - pct_approaching - pct_on_track - pct_mastered + 1e-10, 1), NA_real_),
-        pct_on_mastered = if_else(valid_tests != 0, round(100 * (n_on_track + n_mastered)/valid_tests + 1e-10, 1), NA_real_),
+    mutate(pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
+        pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
+        pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
+        pct_below = if_else(valid_tests != 0, round5(100 - pct_approaching - pct_on_track - pct_mastered, 1), NA_real_),
+        pct_on_mastered = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_),
     # Fix % B/A/O if there are no n_B/A/O
         flag_below = pct_below != 0 & n_below == 0,
         pct_approaching = if_else(flag_below, 100 - pct_on_track - pct_mastered, pct_approaching),
