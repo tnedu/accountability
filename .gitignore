@@ -1,3 +1,6 @@
+# Tests for matching
+*/tests/
+
 # Data
 *.csv
 *.xlsx
