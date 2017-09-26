@@ -1,11 +1,18 @@
-library(tidyverse)
 library(haven)
 library(readxl)
+library(tidyverse)
 
 alt_science <- read_dta("K:/ORP_accountability/data/2017_cdf/311_alt_091517.dta") %>%
     filter(content_area_code != "SOC") %>%
     mutate(greater_than_60_pct = "Y",
-        enrolled = 1)
+        enrolled = 1,
+        test = "Alt-Science",
+        original_subject = case_when(
+            content_area_code == "B1" ~ "Biology I",
+            content_area_code == "SCI" ~ "Science"
+        ),
+        absent = as.numeric(ri_status_final == 5)
+    )
 
 ach_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/38_cdf_091417.dta") %>%
     mutate(test = "Achievement",
@@ -16,7 +23,7 @@ ach_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/38_cdf_091417.dta") %>%
     filter(content_area_code != "SOC")
 
 fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_081517.dta") %>%
-    # Student level file variables
+# Student level file variables
     mutate(test = "EOC",
         semester = "Fall",
         el_excluded = as.numeric(el_excluded == 1 | EL_accommodationsU_part1 == "U" | EL_accommodationsU_part2 == "U"),
@@ -27,7 +34,7 @@ fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_081517.dt
         greater_than_60_pct = if_else(system == 94, "Y", greater_than_60_pct))
 
 cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_082317.dta") %>%
-    # Student level file variables
+# Student level file variables
     mutate(test = "EOC",
         semester = "Spring",
         el_excluded = if_else(el_excluded == 1 | EL_accommodationsU_part1 == "U" | EL_accommodationsU_part2 == "U", 1, 0),
@@ -54,7 +61,9 @@ cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_082317.dta")
             content_area_code == "M1" ~ "Integrated Math I",
             content_area_code == "M2" ~ "Integrated Math II",
             content_area_code == "M3" ~ "Integrated Math III",
-            content_area_code == "U1" ~ "US History")) %>%
+            content_area_code == "U1" ~ "US History"
+        )
+    ) %>%
     mutate_at(c("absent", "did_not_attempt", "residential_facility", "nullify_flag"), as.numeric)
 
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
@@ -75,13 +84,15 @@ msaa_math <- read_csv("K:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/201
         unique_student_id = State_Student_ID,
         economically_disadvantaged = if_else(EconomicDisadvantageStatus == "Yes", 1, 0),
         el = if_else(LEPStatus == "Yes", 1, 0),
-        reported_race = case_when(HispanicOrLatinaEthnicity == "Yes" ~ 4,
+        reported_race = case_when(
+            HispanicOrLatinaEthnicity == "Yes" ~ 4,
             BlackorAfricanAmerican == "Yes" ~ 3,
             AmericanIndianOrAlaskaNative == "Yes" ~ 1,
             NativeHawaiianOthPacificIslander == "Yes" ~ 5,
             Asian == "Yes" ~ 2,
             White == "Yes" ~ 6,
-            TRUE ~ 0),
+            TRUE ~ 0
+        ),
         grade = as.numeric(Grade), original_subject = "Math",
         performance_level = MatPerfLevel, reporting_status = MatReportingStatus)
 
@@ -90,13 +101,15 @@ msaa_ela <- read_csv("K:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/2016
         unique_student_id = State_Student_ID,
         economically_disadvantaged = if_else(EconomicDisadvantageStatus == "Yes", 1, 0),
         el = if_else(LEPStatus == "Yes", 1, 0),
-        reported_race = case_when(HispanicOrLatinaEthnicity == "Yes" ~ 4,
+        reported_race = case_when(
+            HispanicOrLatinaEthnicity == "Yes" ~ 4,
             BlackorAfricanAmerican == "Yes" ~ 3,
             AmericanIndianOrAlaskaNative == "Yes" ~ 1,
             NativeHawaiianOthPacificIslander == "Yes" ~ 5,
             Asian == "Yes" ~ 2,
             White == "Yes" ~ 6,
-            TRUE ~ 0),
+            TRUE ~ 0
+        ),
         grade = as.numeric(Grade), original_subject = "ELA",
         performance_level = ELAPerfLevel, reporting_status = ELAReportingStatus)
 
@@ -191,7 +204,7 @@ student_level <- bind_rows(cdf, msaa, alt_science) %>%
 dedup <- student_level %>%
 # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
     mutate(test_priority = case_when(
-            test == "MSAA" ~ 3,
+            test %in% c("MSAA", "Alt-Science") ~ 3,
             test == "EOC" ~ 2,
             test == "Achievement" ~ 1
         )
@@ -210,7 +223,7 @@ dedup <- student_level %>%
     ungroup() %>%
 # For students with multiple test records with the same proficiency across administrations, take the most recent
     mutate(semester_priority = case_when(
-            test == "MSAA" | test == "Achievement" | (test == "EOC" & semester == "Spring") ~ 3,
+            test %in% c("MSAA", "Alt-Science") | test == "Achievement" | (test == "EOC" & semester == "Spring") ~ 3,
             test == "EOC" & semester == "Fall" ~ 2,
             test == "EOC" & semester == "Summer" ~ 1
         )
