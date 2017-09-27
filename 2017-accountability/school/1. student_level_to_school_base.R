@@ -2,7 +2,7 @@ library(acct)
 library(haven)
 library(tidyverse)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_09142017.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_09252017.dta") %>%
     filter(!grade %in% c(1, 2)) %>%
 # Homebound and Residential Facility students are dropped from school level
     filter(homebound == 0 | is.na(homebound)) %>%
@@ -159,4 +159,4 @@ base_2017 <- bind_rows(base_2016, school_base, ACT, ACT_prior, ACT_substitution,
     select(year, system, school, everything()) %>%
     mutate(grade = if_else(grade == "0", "Missing Grade", grade))
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep18.csv", na = "")
+write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep26.csv", na = "")
