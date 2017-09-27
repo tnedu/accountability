@@ -42,9 +42,7 @@ one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountabili
 # Priority cusp schools are schools at or below 10th percentile in each school based on one year success rate
 priority_cusp <- one_year_success %>%
     group_by(pool, designation_ineligible) %>%
-    mutate(rank_OM = if_else(valid_tests >= 30, rank(pct_on_mastered, ties.method = "max"), NA_integer_),
-        denom = sum(valid_tests >= 30, na.rm = TRUE),
-        pctile_rank_OM = round5(100 * rank_OM/denom, 1)) %>%
+    mutate(rank_OM = if_else(valid_tests >= 30, rank(pct_on_mastered, ties.method = "min"), NA_integer_)) %>%
     ungroup() %>%
     mutate(priority_cusp = if_else(designation_ineligible == 0 & pool == "HS" & rank_OM <= high_schools, 1, 0),
         priority_cusp = if_else(designation_ineligible == 0 & pool == "K8" & rank_OM <= k8_schools, 1, priority_cusp))
