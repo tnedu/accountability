@@ -113,7 +113,7 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_ra
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate from Base
-base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep26.csv",
+base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep27.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
@@ -251,4 +251,4 @@ output <- numeric_2017 %>%
         grad_count, grad_cohort, grad_rate, dropout_count, dropout_rate)
 
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_sep26.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_sep27.csv", na = "")

@@ -11,7 +11,7 @@ priority_schools <- read_csv("K:/ORP_accountability/projects/2015_school_coding/
 pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool, designation_ineligible)
 
-one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep18.csv",
+one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep27.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     inner_join(pools_immune, by = c("system", "school")) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%

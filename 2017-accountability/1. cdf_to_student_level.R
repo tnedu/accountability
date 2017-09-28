@@ -11,6 +11,15 @@ alt_science <- read_dta("K:/ORP_accountability/data/2017_cdf/311_alt_091517.dta"
             content_area_code == "B1" ~ "Biology I",
             content_area_code == "SCI" ~ "Science"
         ),
+        reported_race = case_when(
+            ethnic_origin == "H" ~ 4,
+            black == 1 ~ 3,
+            native_american == 1 ~ 1,
+            hawaiian_pi == 1 ~ 5,
+            asian == 1 ~ 2,
+            white == 1 ~ 6,
+            TRUE ~ 0
+        ),
         absent = as.numeric(ri_status_final == 5)
     )
 
@@ -245,4 +254,4 @@ output <- dedup %>%
     arrange(system, school, state_student_id)
 
 # Output file
-write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_sep25.csv", na = "")
+write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_sep27.csv", na = "")

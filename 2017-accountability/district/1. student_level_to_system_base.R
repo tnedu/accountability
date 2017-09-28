@@ -182,4 +182,4 @@ base_2017 <- bind_rows(base_2016, system_base) %>%
     select(year, system, system_name, everything()) %>%
     mutate(grade = if_else(grade == "0", "Missing Grade", grade))
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_sep26.csv", na = "")
+write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_sep27.csv", na = "")

@@ -157,4 +157,4 @@ base_2017 <- bind_rows(base_2016, state_base, ACT, ACT_prior, ACT_substitution, 
         system_name = "State of Tennessee") %>%
     select(year, system, system_name, everything())
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_sep26.csv", na = "")
+write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_sep27.csv", na = "")
