@@ -109,7 +109,7 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/District_grad_
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate from Base
-base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_sep26.csv",
+base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_sep27.csv",
         col_types = c("ddccccddddddddddddddddddddddddd")) %>%
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
@@ -261,9 +261,9 @@ numeric_2017 <- system_numeric %>%
         valid_tests = if_else(subject == "Graduation Rate", NA_real_, valid_tests))
     
 percentile_ranks_38 <- numeric_2017 %>%
-    filter(year == 2017, grade %in% c("3rd through 5th", "6th through 8th")) %>%
+    filter(grade %in% c("3rd through 5th", "6th through 8th")) %>%
     mutate(pctile_rank_eligible = valid_tests >= 30 & !is.na(PA_percentile_2015)) %>%
-    group_by(subject, grade, subgroup) %>%
+    group_by(year, subject, grade, subgroup) %>%
     mutate(denom = sum(pctile_rank_eligible, na.rm = TRUE),
     # Suppress values for < 30
         pct_below_temp = if_else(pctile_rank_eligible, pct_below, NA_real_),
@@ -274,8 +274,8 @@ percentile_ranks_38 <- numeric_2017 %>%
     # Percentiles
         below_percentile = if_else(pctile_rank_eligible, round5(100 * below_rank/denom, 1), NA_real_),
         OM_percentile = if_else(pctile_rank_eligible, round5(100 * OM_rank/denom, 1), NA_real_)) %>%
+    ungroup() %>%
     select(-pctile_rank_eligible)
-    
     
 # Percentile Ranks
 percentile_ranks <- numeric_2017 %>%
@@ -325,4 +325,4 @@ output <- percentile_ranks %>%
         below_percentile, OM_percentile, BB_percentile_2015, PA_percentile_2015)
 
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_sep26.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_sep27.csv", na = "")
