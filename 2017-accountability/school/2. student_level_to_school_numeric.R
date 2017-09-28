@@ -190,7 +190,7 @@ ACT_grad_amo <- bind_rows(ACT_prior, grad_prior) %>%
         ),
         AMO_target_below = case_when(
             subject == "ACT Composite" ~ amo_reduction_double(valid_tests, pct_below),
-            subject == "Graduation Rate" ~ amo_reduction_double(grad_cohort, grad_rate)
+            subject == "Graduation Rate" ~ amo_reduction_double(grad_cohort, dropout_rate)
         ),
         AMO_target_below_4 = case_when(
             subject == "ACT Composite" ~ amo_reduction_double(valid_tests, pct_below, double = TRUE),
