@@ -123,7 +123,7 @@ msaa_ela <- read_csv("K:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/2016
         performance_level = ELAPerfLevel, reporting_status = ELAReportingStatus)
 
 msaa <- bind_rows(msaa_math, msaa_ela) %>%
-    filter(grade > 8, !reporting_status %in% c("INV", "EXE", "WDR", "NLE")) %>%
+    filter(!reporting_status %in% c("INV", "EXE", "WDR", "NLE")) %>%
     mutate(test = "MSAA",
         performance_level = if_else(reporting_status == "DNT", 2L, performance_level),
         absent = as.numeric(is.na(performance_level)),
