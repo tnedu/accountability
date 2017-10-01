@@ -1,6 +1,12 @@
 # Tests for matching
 */tests/
 
+# State, system, and school releases
+*/releases/
+
+# File which pieced together spring eoc cdf
+2017-accountability/build_spring_eoc_cdf.do
+
 # Data
 *.csv
 *.xlsx
