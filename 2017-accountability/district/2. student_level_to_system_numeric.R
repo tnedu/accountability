@@ -19,7 +19,7 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_sub
         grade = "9th through 12th",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_09252017.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
     filter(!grade %in% c(1, 2), greater_than_60_pct == "Y") %>%
     # Residential Facility students are dropped from system level
     filter(residential_facility != 1 | is.na(residential_facility)) %>%
@@ -109,17 +109,19 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/District_grad_
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate from Base
-base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_sep27.csv",
+base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct01.csv",
         col_types = c("ddccccddddddddddddddddddddddddd")) %>%
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
         subgroup != "English Learners",
         subject %in% c("Math", "ELA", math_eoc, english_eoc)) %>%
-    mutate(subject = case_when(subject %in% math_eoc & grade %in% c("3", "4", "5", "6", "7", "8") ~ "Math",
+    mutate(subject = case_when(
+            subject %in% math_eoc & grade %in% c("3", "4", "5", "6", "7", "8") ~ "Math",
             subject %in% english_eoc & grade %in% c("3", "4", "5", "6", "7", "8") ~ "ELA",
             TRUE ~ subject
         ),
-        grade = case_when(grade %in% c("3", "4", "5") ~ "3rd through 5th",
+        grade = case_when(
+            grade %in% c("3", "4", "5") ~ "3rd through 5th",
             grade %in% c("6", "7", "8") ~ "6th through 8th",
             grade %in% c("Missing Grade", "9", "10", "11", "12") ~ "9th through 12th"
         )
@@ -145,14 +147,14 @@ participation_1yr <- base %>%
     summarise_at(c("enrolled", "tested"), sum) %>%
     ungroup() %>%
     transmute(year, system, subject, grade, subgroup, enrolled, tested,
-        participation_rate_1yr = if_else(enrolled != 0, round(100 * tested/enrolled + 1e-10), NA_real_))
+        participation_rate_1yr = if_else(enrolled != 0, round5(100 * tested/enrolled), NA_real_))
 
 participation <- participation_1yr %>%
     group_by(system, subject, grade, subgroup) %>%
     summarise_at(c("enrolled", "tested"), sum) %>%
     ungroup() %>%
     mutate(year = 2017,
-        participation_rate_2yr = if_else(enrolled != 0, round(100 * tested/enrolled + 1e-10), NA_real_)) %>%
+        participation_rate_2yr = if_else(enrolled != 0, round5(100 * tested/enrolled), NA_real_)) %>%
     select(-enrolled, -tested) %>%
     full_join(participation_1yr, by = c("year", "system", "subject", "grade", "subgroup")) %>%
     select(year, system, subject, grade, subgroup, enrolled, participation_rate_1yr, participation_rate_2yr)
@@ -198,7 +200,7 @@ ACT_participation_2yr <- bind_rows(ACT, ACT_prior) %>%
     summarise_at(c("enrolled", "tested"), sum) %>%
     ungroup() %>%
     transmute(year = 2017, system, subject, grade, subgroup,
-        participation_rate_2yr = round(100 * tested/enrolled + 1e-10))
+        participation_rate_2yr = round5(100 * tested/enrolled))
 
 ACT <- left_join(ACT, ACT_participation_2yr, by = c("year", "system", "subject", "grade", "subgroup"))
 
@@ -325,4 +327,4 @@ output <- percentile_ranks %>%
         below_percentile, OM_percentile, BB_percentile_2015, PA_percentile_2015)
 
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_sep27.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_oct01.csv", na = "")

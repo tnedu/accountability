@@ -13,12 +13,12 @@ pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountabil
 high_schools <- ceiling(0.1 * sum(pools_immune$pool == "HS", na.rm = TRUE))
 k8_schools <- ceiling(0.1 * sum(pools_immune$pool == "K8", na.rm = TRUE))
 
-one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep27.csv",
+one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct01.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     inner_join(pools_immune, by = c("system", "school")) %>%
     mutate(grade = if_else(subject == "ACT Composite", "12", grade)) %>%
-    filter(year == 2017, subgroup == "All Students", grade %in% as.character(3:12)) %>%
-    filter(subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "ACT Composite")) %>%
+    filter(year == 2017, subgroup == "All Students", grade %in% as.character(3:12),
+        subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "ACT Composite")) %>%
     mutate(grade = as.numeric(grade),
         subject = case_when(
             subject %in% math_eoc & grade %in% 3:8 ~ "Math",

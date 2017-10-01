@@ -11,12 +11,15 @@ priority_schools <- read_csv("K:/ORP_accountability/projects/2015_school_coding/
 pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool, designation_ineligible)
 
-one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep27.csv",
+high_schools <- sum(pools_immune$pool == "HS", na.rm = TRUE)
+k8_schools <- sum(pools_immune$pool == "K8", na.rm = TRUE)
+
+one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct01.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     inner_join(pools_immune, by = c("system", "school")) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
-    filter(year == 2017, subgroup == "All Students", grade %in% as.character(3:12)) %>%
-    filter(subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "Graduation Rate")) %>%
+    filter(year == 2017, subgroup == "All Students", grade %in% as.character(3:12),
+        subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "Graduation Rate")) %>%
     mutate(grade = as.numeric(grade),
         valid_tests = if_else(subject == "Graduation Rate", grad_cohort, valid_tests),
         n_on_track = if_else(subject == "Graduation Rate", grad_count, n_on_track),
@@ -37,17 +40,27 @@ one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountabili
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
 # One year success rates
-    mutate(pct_on_mastered = round5(100 * (n_on_track + n_mastered)/valid_tests, 1))
+    mutate(pct_on_mastered = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_))
 
 priority_exit_improving <- one_year_success %>%
     group_by(pool, designation_ineligible) %>%
     mutate(rank_OM = if_else(valid_tests >= 30, rank(pct_on_mastered, ties.method = "max"), NA_integer_),
-        denom = sum(valid_tests >= 30, na.rm = TRUE),
+        denom = case_when(
+            pool == "HS" ~ high_schools,
+            pool == "K8" ~ k8_schools
+        ),
         pctile_rank_OM = round5(100 * rank_OM/denom, 1)) %>%
     ungroup() %>%
     left_join(priority_schools, by = c("system", "school")) %>%
     mutate(priority = if_else(is.na(priority), 0L, priority),
-        priority_improving = as.integer(priority == 1 & pctile_rank_OM > 10 & pctile_rank_OM <= 15),
-        priority_exit = as.integer(priority == 1 & pctile_rank_OM > 15))
+        priority_improving = case_when(
+            designation_ineligible == 1 ~ NA_integer_,
+            priority == 1 & pctile_rank_OM > 10 & pctile_rank_OM <= 15 ~ 1L
+        ),
+        priority_exit = case_when(
+            designation_ineligible == 1 ~ NA_integer_,
+            priority == 1 & pctile_rank_OM > 15 ~ 1L
+        )
+    )
 
 write_csv(priority_exit_improving, path = "K:/ORP_accountability/projects/2017_school_accountability/priority_exit_improving.csv", na = "")

@@ -2,11 +2,11 @@ library(acct)
 library(haven)
 library(tidyverse)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_09252017.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
     filter(!grade %in% c(1, 2)) %>%
 # Homebound and Residential Facility students are dropped from school level
-    filter(homebound == 0 | is.na(homebound)) %>%
-    filter(residential_facility != 1 | is.na(residential_facility)) %>%
+    filter(homebound == 0 | is.na(homebound),
+        residential_facility != 1 | is.na(residential_facility)) %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
@@ -86,7 +86,8 @@ school_base <- collapse %>%
             subgroup == "Non_SWD" ~ "Non-Students with Disabilities",
             subgroup == "Super" ~ "Super Subgroup",
             subgroup == "SWD" ~ "Students with Disabilities",
-            TRUE ~ subgroup)
+            TRUE ~ subgroup
+        )
     ) %>%
     select(year, system, school, subject, grade, subgroup, enrolled, tested, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered,
@@ -108,7 +109,8 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") 
         subgroup = case_when(
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners" ~ "Non-English Learners",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         enrolled, tested, valid_tests, n_below = n_below19, n_on_track = n_21_orhigher,
         ACT_21_and_above = pct_21_orhigher_reporting, ACT_18_and_below = pct_below19)
 
@@ -127,7 +129,8 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/school_g
             subgroup == "Non-English Language Learners with T1/T2" ~ "Non-English Learners/T1 or T2",
             subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
             subgroup == "Native American" ~ "American Indian or Alaska Native",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         grad_cohort, grad_count, grad_rate, dropout_count = drop_count, dropout_rate = drop_rate)
 
 grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_rate2017_JP.dta") %>%
@@ -137,7 +140,8 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_ra
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
             subgroup == "Non-English Language Learners with T1/T2" ~ "Non-English Learners/T1 or T2",
             subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         grad_count, grad_cohort, grad_rate, dropout_count = drop_count, dropout_rate)
 
 base_2016 <- read_csv("K:/ORP_accountability/data/2016_accountability/school_base_with_unaka_correction_2016.csv") %>%
@@ -159,4 +163,4 @@ base_2017 <- bind_rows(base_2016, school_base, ACT, ACT_prior, ACT_substitution,
     select(year, system, school, everything()) %>%
     mutate(grade = if_else(grade == "0", "Missing Grade", grade))
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep27.csv", na = "")
+write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct01.csv", na = "")

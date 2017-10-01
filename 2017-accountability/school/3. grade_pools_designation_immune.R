@@ -5,7 +5,7 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-school_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep27.csv",
+school_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct01.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(!system %in% c(960, 963, 964, 970, 972)) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
