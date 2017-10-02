@@ -8,7 +8,7 @@ science_eoc <- c("Biology I", "Chemistry")
 pools <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool)
 
-school_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_sep27.csv",
+school_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct01.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     inner_join(pools, by = c("system", "school")) %>%
     mutate(grade = if_else(subject == "ACT Composite", "12", grade)) %>%
@@ -25,7 +25,7 @@ school_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_fi
             subject %in% english_eoc & grade %in% 3:8 ~ "ELA",
             subject %in% science_eoc & grade %in% 5:8 ~ "Science",
             TRUE ~ subject
-           )
+         )
     ) %>%
 # Aggregate by replaced subjects
     group_by(year, system, school, pool, subject, subgroup) %>%
