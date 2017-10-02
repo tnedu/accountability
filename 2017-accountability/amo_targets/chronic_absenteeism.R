@@ -1,3 +1,4 @@
+library(acct)
 library(tidyverse)
 
 instructional_days <- readxl::read_excel("K:/ORP_accountability/data/2017_chronic_absenteeism/School Level - Instructional days.xlsx") %>%
@@ -5,12 +6,12 @@ instructional_days <- readxl::read_excel("K:/ORP_accountability/data/2017_chroni
         school_name = SCHOOL_NAME, school = SCHOOL_NO, instructional_days = INSTRUCTIONAL_DAYS)
 
 econ_dis <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_classification_JUIH only.txt",
-    delim = "\t") %>%
+        delim = "\t") %>%
     transmute(student_key = STUDENT_KEY, ED = 1) %>%
     filter(!duplicated(student_key))
 
 special_ed <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo_Special Education.txt",
-    delim = "\t") %>%
+        delim = "\t") %>%
     filter(SPECIAL_ED_LEVEL == "P" & !OPTION_NUMBER %in% c(3, 16)) %>%
     transmute(student_key = STUDENT_KEY, SWD = 1) %>%
     filter(!duplicated(student_key))
@@ -27,7 +28,8 @@ race <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_
             RACE_I == "Y" ~ "Native",
             RACE_P == "Y" ~ "HPI",
             RACE_A == "Y" ~ "Asian",
-            RACE_W == "Y" ~ "White")
+            RACE_W == "Y" ~ "White"
+        )
     ) %>%
     transmute(student_key = STUDENT_KEY, race, BHN = race %in% c("Black", "Hispanic", "Native"),
         Black = race == "Black", Hispanic = race == "Hispanic", Native = race == "Native",
@@ -40,7 +42,9 @@ race <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_
             race == "Native" ~ 4,
             race == "HPI" ~ 3,
             race == "Asian" ~ 2,
-            race == "White" ~ 1)) %>%
+            race == "White" ~ 1
+        )
+    ) %>%
     group_by(student_key) %>%
     mutate(temp = max(priority, na.rm = TRUE)) %>%
     ungroup() %>%
@@ -53,34 +57,36 @@ attendance <- haven::read_dta("K:/ORP_accountability/data/2017_chronic_absenteei
     transmute(instructional_program_num, system = district_no, school = school_no, grade,
         student_key = as.integer(student_key), begin_date, end_date, isp_days,
         count_total = if_else(is.na(cnt_total), 0, cnt_total)) %>%
-    # For students with same system, school, student ID, enrollment dates, take maximum instructional program days
-    # (Doesn't drop any records)
+# For students with same system, school, student ID, enrollment dates, take maximum instructional program days
+# (Doesn't drop any records)
     group_by(system, school, student_key, grade, begin_date, end_date) %>%
     mutate(count = n(), temp = max(isp_days)) %>%
     filter(count == 1 | isp_days == temp) %>%
-    # For students with same system, school, student ID, enrollment dates, instructional program days,
-    # take maximum number of absences (Drops two records)
+# For students with same system, school, student ID, enrollment dates, instructional program days,
+# take maximum number of absences (Drops two records)
     group_by(system, school, student_key, grade, begin_date, end_date, isp_days) %>%
     mutate(count = n(), temp = max(count_total)) %>%
     filter(count == 1 | count_total == temp) %>%
-    # For students with same system, school, student ID, enrollment dates, instructional program days, absences,
-    # take maximum instuctional program number (Doesn't drop any records)
+# For students with same system, school, student ID, enrollment dates, instructional program days, absences,
+# take maximum instuctional program number (Doesn't drop any records)
     group_by(system, school, student_key, grade, begin_date, end_date, isp_days, count_total) %>%
     mutate(count = n(), temp = max(instructional_program_num)) %>%
     filter(count == 1 | instructional_program_num == temp) %>%
-    # Drop duplicates on system, school, student ID, enrollment dates, instructional program days, absences, instructional program
+# Drop duplicates on system, school, student ID, enrollment dates, instructional program days, absences, instructional program
     group_by(system, school, student_key, grade, begin_date, end_date, isp_days, count_total, instructional_program_num) %>%
     mutate(count = 1, temp = cumsum(count)) %>%
     filter(temp == 1) %>%
-    # Collapse multiple enrollments at the same school
+# Collapse multiple enrollments at the same school
     group_by(system, school, grade, student_key) %>%
     summarise(n_absences = sum(count_total, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE)) %>%
     ungroup() %>%
-    # Merge on instructional calendar file
+# Merge on instructional calendar file
     inner_join(instructional_days, by = c("system", "school")) %>%
     mutate(n_students = 1,
-        grade = case_when(grade %in% c("K", "01", "02", "03", "04", "05", "06", "07", "08") ~ "K-8",
-            grade %in% c("09", "10", "11", "12") ~ "9-12"),
+        grade = case_when(
+            grade %in% c("K", "01", "02", "03", "04", "05", "06", "07", "08") ~ "K-8",
+            grade %in% c("09", "10", "11", "12") ~ "9-12"
+        ),
         chronic_absence = as.numeric(n_absences/isp_days >= 0.1),
         All = 1L) %>%
     left_join(race, by = "student_key") %>%
@@ -94,77 +100,64 @@ state_CA <- tibble()
 
 for (s in c("All", "BHN", "ED", "SWD", "EL", "Black", "Hispanic", "Native", "HPI", "Asian", "White")) {
 
-    # School by grade band
+# School all grades
     school_CA <- attendance %>%
-        # Filter for relevant subgroup
+    # Filter for relevant subgroup
         filter_(paste(s, "== 1L")) %>%
-        # Drop students enrolled less than 50% of school year
-        filter(isp_days/instructional_days >= 0.5) %>%
-        group_by(year, system, system_name, school, school_name, grade) %>%
-        summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-            pct_chronically_absent = round(100 * mean(chronic_absence) + 1e-10, 1)) %>%
-        ungroup() %>%
-        mutate(subgroup = s) %>%
-        bind_rows(school_CA, .)
-
-    # School all grades
-    school_CA <- attendance %>%
-        # Filter for relevant subgroup
-        filter_(paste(s, "== 1L")) %>%
-        # Drop students enrolled less than 50% of school year
+    # Drop students enrolled less than 50% of school year
         filter(isp_days/instructional_days >= 0.5) %>%
         group_by(year, system, system_name, school, school_name) %>%
         summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-            pct_chronically_absent = round(100 * mean(chronic_absence) + 1e-10, 1)) %>%
+            pct_chronically_absent = round5(100 * mean(chronic_absence), 1)) %>%
         ungroup() %>%
         mutate(subgroup = s, grade = "All Grades") %>%
         bind_rows(school_CA, .)
     
-    # School by grade band
+# School by grade band
     system_CA <- attendance %>%
-        # Filter for relevant subgroup
+    # Filter for relevant subgroup
         filter_(paste(s, "== 1L")) %>%
-        # Collapse multiple enrollments in the same district
+    # Collapse multiple enrollments in the same district
         group_by(year, system, system_name, student_key, grade) %>%
         summarise(n_absences = sum(n_absences, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE),
             instructional_days = max(instructional_days)) %>%
         ungroup() %>%
-        # Drop students enrolled less than 50% of school year
+    # Drop students enrolled less than 50% of school year
         filter(isp_days/instructional_days >= 0.5) %>%
         mutate(n_students = 1,
             chronic_absence = as.numeric(n_absences/isp_days >= 0.1)) %>%
         group_by(year, system, system_name, grade) %>%
         summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-            pct_chronically_absent = round(100 * mean(chronic_absence) + 1e-10, 1)) %>%
+            pct_chronically_absent = round5(100 * mean(chronic_absence), 1)) %>%
         ungroup() %>%
         mutate(subgroup = s) %>%
         bind_rows(system_CA, .)
 
-    # System all grades
+# System all grades
     system_CA <- attendance %>%
-        # Filter for relevant subgroup
+    # Filter for relevant subgroup
         filter_(paste(s, "== 1L")) %>%
-        # Collapse multiple enrollments in the same district
+    # Collapse multiple enrollments in the same district
         group_by(year, system, system_name, student_key, grade) %>%
         summarise(n_absences = sum(n_absences, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE),
             instructional_days = max(instructional_days)) %>%
         ungroup() %>%
-        # Drop students enrolled less than 50% of school year
+    # Drop students enrolled less than 50% of school year
         filter(isp_days/instructional_days >= 0.5) %>%
         mutate(n_students = 1,
             chronic_absence = as.numeric(n_absences/isp_days >= 0.1)) %>%
         group_by(year, system, system_name) %>%
         summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-            pct_chronically_absent = round(100 * mean(chronic_absence) + 1e-10, 1)) %>%
+            pct_chronically_absent = round5(100 * mean(chronic_absence), 1)) %>%
         ungroup() %>%
         mutate(subgroup = s, grade = "All Grades") %>%
         bind_rows(system_CA, .)
     
-    # State by grade band
+# State by grade band
     state_CA <- attendance %>%
-        # Filter for relevant subgroup
+    # Filter for relevant subgroup
         filter_(paste(s, "== 1L")) %>%
-        # Add up absences and ISP days across every enrollment
+    # Add up absences and ISP days across every enrollment
         group_by(year, student_key, grade) %>%
         summarise(n_absences = sum(n_absences, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE),
             instructional_days = max(instructional_days)) %>%
@@ -174,16 +167,16 @@ for (s in c("All", "BHN", "ED", "SWD", "EL", "Black", "Hispanic", "Native", "HPI
             chronic_absence = as.numeric(n_absences/isp_days >= 0.1)) %>%
         group_by(year, grade) %>%
         summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-            pct_chronically_absent = round(100 * mean(chronic_absence) + 1e-10, 1)) %>%
+            pct_chronically_absent = round5(100 * mean(chronic_absence), 1)) %>%
         ungroup() %>%
         mutate(subgroup = s) %>%
         bind_rows(state_CA, .)
 
-    # State all grades
+# State all grades
     state_CA <- attendance %>%
-        # Filter for relevant subgroup
+    # Filter for relevant subgroup
         filter_(paste(s, "== 1L")) %>%
-        # Add up absences and ISP days across every enrollment
+    # Add up absences and ISP days across every enrollment
         group_by(year, student_key, grade) %>%
         summarise(n_absences = sum(n_absences, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE),
             instructional_days = max(instructional_days)) %>%
@@ -193,7 +186,7 @@ for (s in c("All", "BHN", "ED", "SWD", "EL", "Black", "Hispanic", "Native", "HPI
             chronic_absence = as.numeric(n_absences/isp_days >= 0.1)) %>%
         group_by(year) %>%
         summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-            pct_chronically_absent = round(100 * mean(chronic_absence) + 1e-10, 1)) %>%
+            pct_chronically_absent = round5(100 * mean(chronic_absence), 1)) %>%
         ungroup() %>%
         mutate(subgroup = s, grade = "All Grades") %>%
         bind_rows(state_CA, .)
@@ -202,7 +195,8 @@ for (s in c("All", "BHN", "ED", "SWD", "EL", "Black", "Hispanic", "Native", "HPI
 
 school_output <- school_CA %>%
     transmute(year, system, system_name, school, school_name,
-        subgroup = case_when(subgroup == "All" ~ "All Students",
+        subgroup = case_when(
+            subgroup == "All" ~ "All Students",
             subgroup == "BHN" ~ "Black/Hispanic/Native American",
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "SWD" ~ "Students with Disabilities",
@@ -212,16 +206,24 @@ school_output <- school_CA %>%
             subgroup == "Hispanic" ~ "Hispanic",
             subgroup == "Native" ~ "American Indian or Alaska Native",
             subgroup == "HPI" ~ "Native Hawaiian or Other Pacific Islander",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         grade_band = grade,
         n_students, n_chronically_absent, pct_chronically_absent) %>%
     arrange(system, school, subgroup, grade_band)
 
 write_csv(school_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/school_chronic_absenteeism.csv", na = "")
 
+school_targets <- school_output %>%
+    mutate(AMO_reduction_target = amo_reduction(n_students, pct_chronically_absent),
+        AMO_reduction_target_double = amo_reduction(n_students, pct_chronically_absent, double = TRUE))
+
+write_csv(school_targets, "K:/ORP_accountability/projects/2018_amo/chronic_absenteeism.csv", na = "")
+
 system_output <- system_CA %>%
     transmute(year, system, system_name,
-        subgroup = case_when(subgroup == "All" ~ "All Students",
+        subgroup = case_when(
+            subgroup == "All" ~ "All Students",
             subgroup == "BHN" ~ "Black/Hispanic/Native American",
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "SWD" ~ "Students with Disabilities",
@@ -231,7 +233,8 @@ system_output <- system_CA %>%
             subgroup == "Hispanic" ~ "Hispanic",
             subgroup == "Native" ~ "American Indian or Alaska Native",
             subgroup == "HPI" ~ "Native Hawaiian or Other Pacific Islander",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         grade_band = grade,
         n_students, n_chronically_absent, pct_chronically_absent) %>%
     arrange(system, subgroup, grade_band)
@@ -240,7 +243,8 @@ write_csv(system_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/sy
 
 state_output <- state_CA %>%
     transmute(year, system = 0, system_name = "State of Tennessee",
-        subgroup = case_when(subgroup == "All" ~ "All Students",
+        subgroup = case_when(
+            subgroup == "All" ~ "All Students",
             subgroup == "BHN" ~ "Black/Hispanic/Native American",
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "SWD" ~ "Students with Disabilities",
@@ -250,7 +254,8 @@ state_output <- state_CA %>%
             subgroup == "Hispanic" ~ "Hispanic",
             subgroup == "Native" ~ "American Indian or Alaska Native",
             subgroup == "HPI" ~ "Native Hawaiian or Other Pacific Islander",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         grade_band = grade,
         n_students, n_chronically_absent, pct_chronically_absent) %>%
     arrange(subgroup, grade_band)
@@ -260,7 +265,7 @@ write_csv(state_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/sta
 student_output <- attendance %>%
     transmute(system, system_name, school, school_name, student_id = student_key,
         n_absences, isp_days, instructional_calendar_days = instructional_days,
-        absentee_rate = round(100 * n_absences/isp_days + 1e-10, 1),
+        absentee_rate = round5(100 * n_absences/isp_days, 1),
         Black, Hispanic, Native, HPI, Asian, White, ED, SWD, EL) %>%
     mutate_at(c("Black", "Hispanic", "Native", "HPI", "Asian", "White", "ED", "SWD", "EL"),
         funs(if_else(is.na(.), 0, .)))
