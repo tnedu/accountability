@@ -1,4 +1,5 @@
 library(acct)
+library(haven)
 library(tidyverse)
 
 numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
@@ -7,7 +8,14 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-student_level <- haven::read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
+ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
+    mutate(subgroup = if_else(subgroup == "English Langauge Learners with T1/T2", "English Learners", subgroup)) %>%
+    filter(subgroup %in% numeric_subgroups) %>%
+    select(system, subject, grade, subgroup, valid_tests, n_on_track = n_21_orhigher) %>%
+    mutate_at(c("valid_tests", "n_on_track"), as.integer) %>%
+    mutate_at(c("valid_tests", "n_on_track"), funs(if_else(valid_tests < 30, 0L, .)))
+
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
     filter(greater_than_60_pct == "Y",
         original_subject != "US History",
         !(grade %in% c(3, 4) & original_subject == "Science")) %>%
@@ -65,6 +73,7 @@ system_base <- collapse %>%
 # Aggregate by replaced subjects
     group_by(system, subject, grade, subgroup) %>%
     summarise_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
+    bind_rows(ACT) %>%
 # Suppress for subjects with < 30 valid tests
     mutate_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), funs(if_else(valid_tests < 30, 0L, .))) %>%
 # Aggregate across replaced subjects
