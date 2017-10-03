@@ -35,7 +35,7 @@ race <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_
         Black = race == "Black", Hispanic = race == "Hispanic", Native = race == "Native",
         HPI = race == "HPI", Asian = race == "Asian", White = race == "White") %>%
     mutate_at(c("BHN", "Black", "Hispanic", "Native", "HPI", "Asian", "White"), as.numeric) %>%
-    # Apply race determinations (5.1.1)
+# Apply race determination (5.1.1)
     mutate(priority = case_when(
             race == "Hispanic" ~ 6,
             race == "Black" ~ 5,
@@ -113,7 +113,7 @@ for (s in c("All", "BHN", "ED", "SWD", "EL", "Black", "Hispanic", "Native", "HPI
         mutate(subgroup = s, grade = "All Grades") %>%
         bind_rows(school_CA, .)
     
-# School by grade band
+# System by grade band
     system_CA <- attendance %>%
     # Filter for relevant subgroup
         filter_(paste(s, "== 1L")) %>%
@@ -215,7 +215,8 @@ school_output <- school_CA %>%
 write_csv(school_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/school_chronic_absenteeism.csv", na = "")
 
 school_targets <- school_output %>%
-    mutate(AMO_reduction_target = amo_reduction(n_students, pct_chronically_absent),
+    mutate(year = 2018,
+        AMO_reduction_target = amo_reduction(n_students, pct_chronically_absent),
         AMO_reduction_target_double = amo_reduction(n_students, pct_chronically_absent, double = TRUE))
 
 write_csv(school_targets, "K:/ORP_accountability/projects/2018_amo/chronic_absenteeism.csv", na = "")
@@ -240,6 +241,14 @@ system_output <- system_CA %>%
     arrange(system, subgroup, grade_band)
 
 write_csv(system_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/system_chronic_absenteeism.csv", na = "")
+
+system_targets <- system_output %>%
+    filter(grade_band == "All Grades",
+        subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
+            "English Learners", "Students with Disabilities", "Super Subgroup")) %>%
+    mutate(year = 2018,
+        AMO_reduction_target = amo_reduction(n_students, pct_chronically_absent),
+        AMO_reduction_target_double = amo_reduction(n_students, pct_chronically_absent, double = TRUE))
 
 state_output <- state_CA %>%
     transmute(year, system = 0, system_name = "State of Tennessee",
