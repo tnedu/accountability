@@ -33,4 +33,4 @@ school_ACT_grad <- left_join(school_grad, school_ACT, by = c("system", "school",
         ACT_grad_target_double = amo_target(temp, ACT_grad, double = TRUE)) %>%
     select(-temp)
 
-write_csv(school_ACT_grad, path = "K:/ORP_accountability/projects/2018_amo/ready_grad.csv", na = "")
+write_csv(school_ACT_grad, path = "K:/ORP_accountability/projects/2018_amo/school_ready_grad.csv", na = "")
