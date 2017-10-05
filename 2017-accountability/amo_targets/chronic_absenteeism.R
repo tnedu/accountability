@@ -2,7 +2,7 @@ library(acct)
 library(tidyverse)
 
 instructional_days <- readxl::read_excel("K:/ORP_accountability/data/2017_chronic_absenteeism/School Level - Instructional days.xlsx") %>%
-    rename(year = SCHOOL_YEAR, system_name = DISTRICT_NAME, system = DISTRICT_NO,
+    transmute(year = 2017, system_name = DISTRICT_NAME, system = DISTRICT_NO,
         school_name = SCHOOL_NAME, school = SCHOOL_NO, instructional_days = INSTRUCTIONAL_DAYS)
 
 econ_dis <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_classification_JUIH only.txt",
