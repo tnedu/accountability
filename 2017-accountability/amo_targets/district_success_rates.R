@@ -8,6 +8,10 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
+# Names crosswalk
+system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
+
+# ACT for HS Success Rate AMOs
 ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
     mutate(subgroup = if_else(subgroup == "English Langauge Learners with T1/T2", "English Learners", subgroup)) %>%
     filter(subgroup %in% numeric_subgroups) %>%
@@ -48,7 +52,7 @@ for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Super")) {
     
 }
 
-system_base <- collapse %>%
+subjects_suppressed <- collapse %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
     mutate(subject = case_when(
             subject %in% math_eoc & grade %in% 3:8 ~ "Math",
@@ -72,31 +76,44 @@ system_base <- collapse %>%
     ) %>%
 # Aggregate by replaced subjects
     group_by(system, subject, grade, subgroup) %>%
-    summarise_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
+    summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
+    ungroup() %>%
     bind_rows(ACT) %>%
 # Suppress for subjects with < 30 valid tests
-    mutate_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), funs(if_else(valid_tests < 30, 0L, .))) %>%
-# Aggregate across replaced subjects
-    group_by(system, subgroup) %>%
-    summarise_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
+    mutate_at(c("valid_tests", "n_on_track", "n_mastered"), funs(if_else(valid_tests < 30, 0L, .)))
+
+# AMOs by 3-5, 6-8, HS English, Math, Science
+grade_subject_targets <- subjects_suppressed %>%
+    filter(subject != "ACT") %>%
+    mutate(subject = case_when(
+            subject %in% math_eoc ~ "HS Math",
+            subject %in% english_eoc ~ "HS English",
+            subject %in% science_eoc ~ "HS Science",
+            TRUE ~ subject
+        )
+    ) %>%
+    group_by(system, subject, subgroup, grade) %>%
+    summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
-    mutate(pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
-        pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
-        pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
-        pct_below = if_else(valid_tests != 0, round5(100 - pct_approaching - pct_on_track - pct_mastered, 1), NA_real_),
-        pct_on_mastered = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_))
-
-# Names crosswalk
-system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
-
-success_rate_AMO <- system_base %>%
     left_join(system_names, by = "system") %>%
-    transmute(year = 2018, system, system_name, subgroup, valid_tests_prior = valid_tests,
-        pct_below_prior = pct_below,
-        AMO_target_below = amo_reduction_double(valid_tests, pct_below),
-        AMO_target_below_4 = amo_reduction_double(valid_tests, pct_below, double = TRUE),
-        pct_on_mastered_prior = pct_on_mastered,
+    transmute(year = 2018, system, system_name, subject, grade, subgroup,
+        valid_tests_prior = valid_tests,
+        pct_on_mastered_prior = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests_prior, 1), NA_real_),
+        AMO_target = amo_target(valid_tests_prior, pct_on_mastered_prior),
+        AMO_target_4 = amo_target(valid_tests_prior, pct_on_mastered_prior, double = TRUE))
+
+write_csv(grade_subject_targets, path = "K:/ORP_accountability/projects/2018_amo/district_grade_subject.csv", na = "")
+
+success_rate_targets <- subjects_suppressed %>%
+# Aggregate across replaced subjects
+    group_by(system, subgroup, grade) %>%
+    summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
+    ungroup() %>%
+    mutate(pct_on_mastered = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_)) %>%
+    left_join(system_names, by = "system") %>%
+    transmute(year = 2018, system, system_name, grade, subgroup,
+        valid_tests_prior = valid_tests, pct_on_mastered_prior = pct_on_mastered,
         AMO_target = amo_target(valid_tests, pct_on_mastered),
         AMO_target_4 = amo_target(valid_tests, pct_on_mastered, double = TRUE))
 
-write_csv(success_rate_AMO, path = "K:/ORP_accountability/projects/2018_amo/district_success_rate.csv", na = "")
+write_csv(success_rate_targets, path = "K:/ORP_accountability/projects/2018_amo/district_success_rate.csv", na = "")
