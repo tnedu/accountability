@@ -14,7 +14,7 @@ pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountabil
 high_schools <- sum(pools_immune$pool == "HS", na.rm = TRUE)
 k8_schools <- sum(pools_immune$pool == "K8", na.rm = TRUE)
 
-one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct01.csv",
+one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     inner_join(pools_immune, by = c("system", "school")) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
