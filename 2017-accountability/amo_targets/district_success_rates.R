@@ -4,20 +4,13 @@ library(tidyverse)
 
 numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
     "English Learners", "Students with Disabilities", "Super Subgroup")
+
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
 # Names crosswalk
 system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
-
-# ACT for HS Success Rate AMOs
-ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
-    mutate(subgroup = if_else(subgroup == "English Langauge Learners with T1/T2", "English Learners", subgroup)) %>%
-    filter(subgroup %in% numeric_subgroups) %>%
-    select(system, subject, grade, subgroup, valid_tests, n_on_track = n_21_orhigher) %>%
-    mutate_at(c("valid_tests", "n_on_track"), as.integer) %>%
-    mutate_at(c("valid_tests", "n_on_track"), funs(if_else(valid_tests < 30, 0L, .)))
 
 student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
     filter(greater_than_60_pct == "Y",
@@ -38,6 +31,31 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
         Super = as.numeric(BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1))
 
+int_math_systems <- student_level %>%
+    filter(original_subject %in% c("Algebra I", "Integrated Math I")) %>%
+    count(system, original_subject) %>%
+    group_by(system) %>%
+    mutate(temp = max(n)) %>%
+    filter(n == temp, original_subject == "Integrated Math I") %>%
+    magrittr::extract2("system")
+
+# ACT for HS Success Rate AMOs
+ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
+    mutate(subgroup = if_else(subgroup == "English Langauge Learners with T1/T2", "English Learners", subgroup)) %>%
+    filter(subgroup %in% numeric_subgroups) %>%
+    select(system, subject, grade, subgroup, valid_tests, n_on_track = n_21_orhigher) %>%
+    mutate_at(c("valid_tests", "n_on_track"), as.integer) %>%
+    mutate_at(c("valid_tests", "n_on_track"), funs(if_else(valid_tests < 30, 0L, .)))
+
+ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_substitution_2017.csv") %>%
+    transmute(system,
+        subject = case_when(
+            subject == "ACT Reading" ~ "English III",
+            subject == "ACT Math" & system %in% int_math_systems ~ "Integrated Math III",
+            subject == "ACT Math" & !system %in% int_math_systems ~ "Algebra II"
+        ),
+        grade = 11, subgroup = "All", valid_tests, n_on_track = n_met_benchmark)
+
 collapse <- tibble()
 
 # Collapse proficiency by subject and subgroup
@@ -54,6 +72,7 @@ for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Super")) {
 
 subjects_suppressed <- collapse %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
+    bind_rows(ACT_substitution) %>%
     mutate(subject = case_when(
             subject %in% math_eoc & grade %in% 3:8 ~ "Math",
             subject %in% english_eoc & grade %in% 3:8 ~ "ELA",
