@@ -5,15 +5,6 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-# Integrated Math districts for reassigning ACT substitution
-int_math_systems <- haven::read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
-    filter(original_subject %in% c("Algebra I", "Integrated Math I")) %>%
-    count(system, original_subject) %>%
-    group_by(system) %>%
-    mutate(temp = max(n)) %>%
-    filter(n == temp, original_subject == "Integrated Math I") %>%
-    magrittr::extract2("system")
-
 priority_schools <- read_csv("K:/ORP_accountability/projects/2015_school_coding/Output/priority_schools_not_exiting_ap.csv") %>%
     select(system, school, priority)
 
@@ -26,14 +17,7 @@ k8_schools <- sum(pools_immune$pool == "K8", na.rm = TRUE)
 one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     inner_join(pools_immune, by = c("system", "school")) %>%
-    mutate(grade = if_else(subject == "Graduation Rate", "12", grade),
-        subject = case_when(
-            subject == "ACT Reading" ~ "English III",
-            subject == "ACT Math" & system %in% int_math_systems ~ "Integrated Math III",
-            subject == "ACT Math" & !system %in% int_math_systems ~ "Algebra II",
-            TRUE ~ subject
-        )
-    ) %>%
+    mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
     filter(year == 2017, subgroup == "All Students", grade %in% as.character(3:12),
         subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "Graduation Rate")) %>%
     mutate(grade = as.numeric(grade),

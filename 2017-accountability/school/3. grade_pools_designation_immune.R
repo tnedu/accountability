@@ -5,32 +5,12 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-student_level <- haven::read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta")
-
-# Integrated Math districts for reassigning ACT substitution
-int_math_systems <- student_level %>%
-    filter(original_subject %in% c("Algebra I", "Integrated Math I")) %>%
-    count(system, original_subject) %>%
-    group_by(system) %>%
-    mutate(temp = max(n)) %>%
-    filter(n == temp, original_subject == "Integrated Math I") %>%
-    magrittr::extract2("system")
-
 school_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(!system %in% c(960, 963, 964, 970, 972)) %>%
-    mutate(grade = if_else(subject == "Graduation Rate", "12", grade),
-        subject = case_when(
-            subject == "ACT Reading" ~ "English III",
-            subject == "ACT Math" & system %in% int_math_systems ~ "Integrated Math III",
-            subject == "ACT Math" & !system %in% int_math_systems ~ "Algebra II",
-            TRUE ~ subject
-        )
-    ) %>%
-    filter(year == 2017,
-        subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "Graduation Rate"),
-        grade %in% as.character(3:12),
-        subgroup == "All Students")
+    mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
+    filter(year == 2017, subgroup == "All Students", grade %in% as.character(3:12)) %>%
+    filter(subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "Graduation Rate"))
 
 # High Schools are schools with a grad cohort of at least 30
 high_schools <- school_base %>%
@@ -50,7 +30,7 @@ school_pools <- school_base %>%
             TRUE ~ subject
         )
     ) %>%
-# Aggregate by replaced subjects
+    # Aggregate by replaced subjects
     group_by(year, system, school, subject, pool) %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
