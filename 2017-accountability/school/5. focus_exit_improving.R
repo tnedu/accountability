@@ -13,7 +13,7 @@ focus_schools <- read_csv("K:/ORP_accountability/projects/2015_school_coding/Out
         subgroup_path_SWD, subgroup_path_ELL)
 
 pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
-    select(system, school, pool, designation_ineligible)
+    select(system, school, pool, designation_ineligible, grad_only_BHN, grad_only_ED, grad_only_SWD, grad_only_EL)
 
 one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
@@ -98,7 +98,8 @@ below_2015 <- read_csv("K:/ORP_accountability/data/2015_sas_accountability/schoo
 # Schools identified by subgroup path improve if subgroup earns a 15% or higher success rate
 subgroup_schools <- focus_schools %>%
     filter(subgroup_path_SWD == 1 | subgroup_path_ELL == 1) %>%
-    select(system, school, subgroup_path_SWD, subgroup_path_ELL)
+    select(system, school, subgroup_path_SWD, subgroup_path_ELL) %>%
+    inner_join(pools_immune, by = c("system", "school"))
 
 subgroup_exit <- one_year_success %>%
     filter(year == 2017,
@@ -107,16 +108,19 @@ subgroup_exit <- one_year_success %>%
     spread(subgroup, pct_on_mastered) %>%
     rename(pct_on_mastered_SWD = `Students with Disabilities`,
         pct_on_mastered_EL = `English Learners with T1/T2`) %>%
-    inner_join(subgroup_schools, by = c("system", "school")) %>%
+    inner_join(subgroup_schools, by = c("system", "school", "designation_ineligible")) %>%
     mutate(SWD_subgroup_exit = if_else(subgroup_path_SWD == 1, pct_on_mastered_SWD > 20, NA),
         SWD_subgroup_improving = if_else(subgroup_path_SWD == 1, pct_on_mastered_SWD >= 15 & pct_on_mastered_SWD <= 20, NA),
         EL_subgroup_exit = if_else(subgroup_path_ELL == 1, pct_on_mastered_EL > 20, NA),
         EL_subgroup_improving = if_else(subgroup_path_ELL == 1, pct_on_mastered_EL >= 15 & pct_on_mastered_EL <= 20, NA)) %>%
+# Schools can not exit if designation ineligible or grad only
     mutate_at(c("SWD_subgroup_exit", "SWD_subgroup_improving", "EL_subgroup_exit", "EL_subgroup_improving"),
-        funs(if_else(designation_ineligible == 1, NA_integer_, as.integer(.))))
+        funs(if_else(designation_ineligible == 1, NA_integer_, as.integer(.)))) %>%
+    mutate_at(c("SWD_subgroup_exit", "SWD_subgroup_improving"),
+        funs(if_else(grad_only_SWD == 1, NA_integer_, as.integer(.)))) %>%
+    mutate_at(c("EL_subgroup_exit", "EL_subgroup_improving"),
+        funs(if_else(grad_only_EL == 1, NA_integer_, as.integer(.))))
 
-# High schools identified by gap path exit if subgroup reduces % Below by 25 percentage points
-# High schools identified by gap path improve if subgroup reduces % Below by 12.5 percentage points
 gap_exit_HS <- one_year_success %>%
     filter(pool == "HS") %>%
     select(year, system, school, pool, designation_ineligible, subgroup, pct_below) %>%
@@ -131,6 +135,10 @@ gap_exit_HS <- one_year_success %>%
         pct_below_reduction_EL = `English Learners with T1/T2`) %>%
 # Merge on 2015 focus schools not exiting
     inner_join(select(focus_schools, system, school, ends_with("_gap_identified")), by = c("system", "school")) %>%
+# Merge on grad only
+    inner_join(pools_immune, by = c("system", "school", "pool", "designation_ineligible")) %>%
+# High schools identified by gap path exit if subgroup reduces % Below by 25 percentage points
+# High schools identified by gap path improve if subgroup reduces % Below by 12.5 percentage points
     mutate(BHN_gap_exit = if_else(BHN_gap_identified == 1, pct_below_reduction_BHN >= 25, NA),
         BHN_gap_improving = if_else(BHN_gap_identified == 1, pct_below_reduction_BHN >= 12.5 & pct_below_reduction_BHN < 25, NA),
         ED_gap_exit = if_else(ED_gap_identified == 1, pct_below_reduction_ED >= 25, NA),
@@ -139,12 +147,15 @@ gap_exit_HS <- one_year_success %>%
         SWD_gap_improving = if_else(SWD_gap_identified == 1, pct_below_reduction_SWD >= 12.5 & pct_below_reduction_SWD < 25, NA),
         EL_gap_exit = if_else(ELL_gap_identified == 1, pct_below_reduction_EL >= 25, NA),
         EL_gap_improving = if_else(ELL_gap_identified == 1, pct_below_reduction_EL >= 12.5 & pct_below_reduction_EL < 25, NA)) %>%
+# Schools can not exit if designation ineligible or grad only
     mutate_at(c("BHN_gap_exit", "BHN_gap_improving", "ED_gap_exit", "ED_gap_improving",
         "SWD_gap_exit", "SWD_gap_improving", "EL_gap_exit", "EL_gap_improving"),
-        funs(if_else(designation_ineligible == 1, NA_integer_, as.integer(.))))
+        funs(if_else(designation_ineligible == 1, NA_integer_, as.integer(.)))) %>%
+    mutate_at(c("BHN_gap_exit", "BHN_gap_improving"), funs(if_else(grad_only_BHN == 1, NA_integer_, as.integer(.)))) %>%
+    mutate_at(c("ED_gap_exit", "ED_gap_improving"), funs(if_else(grad_only_ED == 1, NA_integer_, as.integer(.)))) %>%
+    mutate_at(c("SWD_gap_exit", "SWD_gap_improving"), funs(if_else(grad_only_SWD == 1, NA_integer_, as.integer(.)))) %>%
+    mutate_at(c("EL_gap_exit", "EL_gap_improving"), funs(if_else(grad_only_EL == 1, NA_integer_, as.integer(.))))
 
-# K8 schools identified by gap path exit if subgroup reduces Below percentile rank by 25 percentage points
-# K8 schools identified by gap path improve if subgroup reduces Below percentile rank by 12.5 percentage points
 gap_exit_k8 <- one_year_success %>%
     filter(pool == "K8") %>%
     select(year, system, school, pool, designation_ineligible, subgroup, pct_below) %>%
@@ -169,6 +180,10 @@ gap_exit_k8 <- one_year_success %>%
         below_pctile_reduction_EL = `English Learners with T1/T2`) %>%
 # Merge on 2015 focus schools not exiting
     inner_join(select(focus_schools, system, school, ends_with("_gap_identified")), by = c("system", "school")) %>%
+# Merge on grad only
+    inner_join(pools_immune, by = c("system", "school", "pool", "designation_ineligible")) %>%
+# K8 schools identified by gap path exit if subgroup reduces Below percentile rank by 25 percentage points
+# K8 schools identified by gap path improve if subgroup reduces Below percentile rank by 12.5 percentage points
     mutate(BHN_gap_exit = if_else(BHN_gap_identified == 1, below_pctile_reduction_BHN >= 25, NA),
         BHN_gap_improving = if_else(BHN_gap_identified == 1, below_pctile_reduction_BHN >= 12.5 & below_pctile_reduction_BHN < 25, NA),
         ED_gap_exit = if_else(ED_gap_identified == 1, below_pctile_reduction_ED >= 25, NA),
@@ -177,12 +192,18 @@ gap_exit_k8 <- one_year_success %>%
         SWD_gap_improving = if_else(SWD_gap_identified == 1, below_pctile_reduction_SWD >= 12.5 & below_pctile_reduction_SWD < 25, NA),
         EL_gap_exit = if_else(ELL_gap_identified == 1, below_pctile_reduction_EL >= 25, NA),
         EL_gap_improving = if_else(ELL_gap_identified == 1, below_pctile_reduction_EL >= 12.5 & below_pctile_reduction_EL < 25, NA)) %>%
+# Schools can not exit if designation ineligible or grad only    
     mutate_at(c("BHN_gap_exit", "BHN_gap_improving", "ED_gap_exit", "ED_gap_improving",
         "SWD_gap_exit", "SWD_gap_improving", "EL_gap_exit", "EL_gap_improving"),
-        funs(if_else(designation_ineligible == 1, NA_integer_, as.integer(.))))
+        funs(if_else(designation_ineligible == 1, NA_integer_, as.integer(.)))) %>%
+    mutate_at(c("BHN_gap_exit", "BHN_gap_improving"), funs(if_else(grad_only_BHN == 1, NA_integer_, as.integer(.)))) %>%
+    mutate_at(c("ED_gap_exit", "ED_gap_improving"), funs(if_else(grad_only_ED == 1, NA_integer_, as.integer(.)))) %>%
+    mutate_at(c("SWD_gap_exit", "SWD_gap_improving"), funs(if_else(grad_only_SWD == 1, NA_integer_, as.integer(.)))) %>%
+    mutate_at(c("EL_gap_exit", "EL_gap_improving"), funs(if_else(grad_only_EL == 1, NA_integer_, as.integer(.))))
 
 focus_exit_improving <- bind_rows(gap_exit_HS, gap_exit_k8) %>%
-    full_join(subgroup_exit, by = c("system", "school", "designation_ineligible")) %>%
+    full_join(subgroup_exit, by = c("system", "school", "pool", "designation_ineligible",
+        "grad_only_BHN", "grad_only_ED", "grad_only_SWD", "grad_only_EL")) %>%
     rowwise() %>%
 # Schools exit if they meet exit criteria for all subgroups for which they are identified as focus
     mutate(gap_identified_count = sum(BHN_gap_identified, ED_gap_identified, SWD_gap_identified, ELL_gap_identified, na.rm = TRUE),
@@ -200,7 +221,7 @@ focus_exit_improving <- bind_rows(gap_exit_HS, gap_exit_k8) %>%
     mutate_at(c("gap_exit", "subgroup_exit", "focus_exit"), as.integer)
 
 output <- focus_exit_improving %>%
-    select(system, school, pool, designation_ineligible,
+    select(system, school, pool, designation_ineligible, starts_with("grad_only_"),
     # Subgroup exit variables    
         starts_with("subgroup_path"), starts_with("pct_on_mastered_"),
         SWD_subgroup_exit, SWD_subgroup_improving, EL_subgroup_exit, EL_subgroup_improving,
