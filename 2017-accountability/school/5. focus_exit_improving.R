@@ -229,3 +229,8 @@ output <- focus_exit_improving %>%
         pathway_identified_count, focus_exit_count, focus_exit)
 
 write_csv(output, path = "K:/ORP_accountability/projects/2017_school_accountability/focus_exit_improving.csv", na = "")
+
+# Focus not exiting for reward
+focus_not_exiting <- filter(output, focus_exit == 0 | is.na(focus_exit))
+
+write_csv(focus_not_exiting, path = "K:/ORP_accountability/projects/2017_school_accountability/focus_schools_not_exiting.csv", na = "")

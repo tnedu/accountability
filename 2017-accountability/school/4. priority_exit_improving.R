@@ -5,10 +5,8 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-student_level <- haven::read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta")
-
 # Integrated Math districts for reassigning ACT substitution
-int_math_systems <- student_level %>%
+int_math_systems <- haven::read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
     filter(original_subject %in% c("Algebra I", "Integrated Math I")) %>%
     count(system, original_subject) %>%
     group_by(system) %>%
@@ -69,16 +67,23 @@ priority_exit_improving <- one_year_success %>%
         ),
         pctile_rank_OM = round5(100 * rank_OM/denom, 1)) %>%
     ungroup() %>%
-    left_join(priority_schools, by = c("system", "school")) %>%
+    inner_join(priority_schools, by = c("system", "school")) %>%
     mutate(priority = if_else(is.na(priority), 0L, priority),
         priority_improving = case_when(
             designation_ineligible == 1 ~ NA_integer_,
-            priority == 1 & pctile_rank_OM > 10 & pctile_rank_OM <= 15 ~ 1L
+            priority == 1 & pctile_rank_OM > 10 & pctile_rank_OM <= 15 ~ 1L,
+            TRUE ~ 0L
         ),
         priority_exit = case_when(
             designation_ineligible == 1 ~ NA_integer_,
-            priority == 1 & pctile_rank_OM > 15 ~ 1L
+            priority == 1 & pctile_rank_OM > 15 ~ 1L,
+            TRUE ~ 0L
         )
     )
 
 write_csv(priority_exit_improving, path = "K:/ORP_accountability/projects/2017_school_accountability/priority_exit_improving.csv", na = "")
+
+# Priority not exiting for reward
+priority_not_exiting <- filter(priority_exit_improving, priority_exit == 0L | is.na(priority_exit))
+
+write_csv(priority_not_exiting, path = "K:/ORP_accountability/projects/2017_school_accountability/priority_schools_not_exiting.csv", na = "")
