@@ -10,12 +10,14 @@ gap_subgroups <- c("Black/Hispanic/Native American", "Economically Disadvantaged
 comparison_subgroups <- c("All Students", "Non-Economically Disadvantaged",
     "Non-Students with Disabilities", "Non-English Learners/T1 or T2")
 
+# Priority and Focus Schools --------------------------------------------------------------------------------------
 focus_schools <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/focus_schools_not_exiting.csv")
 priority_schools <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/priority_schools_not_exiting.csv")
 
 priority_focus <- bind_rows(focus_schools, priority_schools) %>%
     transmute(system, school, priority_focus = 1)
 
+# Pools/Immune ----------------------------------------------------------------------------------------------------
 pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool, designation_ineligible)
 
@@ -40,6 +42,12 @@ grad_only_EL <- read_csv("K:/ORP_accountability/projects/2017_school_accountabil
 
 grad_only <- bind_rows(grad_only_BHN, grad_only_ED, grad_only_SWD, grad_only_EL)
 
+# TVAAS for Reward Progress ---------------------------------------------------------------------------------------
+tvaas <- readxl::read_excel("K:/ORP_accountability/data/2017_tvaas/Schoolwide Composite Index.xlsx") %>%
+    transmute(system = as.integer(`District Number`), school = as.integer(`School Number`),
+        tvaas_index = `TCAP/EOC: School-Wide: Composite`)
+
+# Success Rates for Reward Performance ----------------------------------------------------------------------------
 one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
@@ -71,6 +79,7 @@ one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountabili
     # One year success rates
     mutate(pct_on_mastered = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_))
 
+# Reward Exemption ------------------------------------------------------------------------------------------------
 gaps_comparison <- one_year_success %>%
     filter(subgroup %in% comparison_subgroups) %>%
     transmute(year, system, school, pool, designation_ineligible,
@@ -99,14 +108,60 @@ reward_exemption <- one_year_success %>%
     summarise(reward_exemption = max(reward_exemption, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate(reward_exemption = if_else(reward_exemption == -Inf, 0, reward_exemption))
-    
-reward_performance <- one_year_success %>%
+
+
+# Reward Performance and Progress ---------------------------------------------------------------------------------
+reward <- one_year_success %>%
     filter(subgroup == "All Students") %>%
+    left_join(tvaas, by = c("system", "school")) %>%
     full_join(reward_exemption, by = c("system", "school")) %>%
     full_join(priority_focus, by = c("system", "school")) %>%
+    mutate(priority_focus = if_else(is.na(priority_focus), 0, priority_focus)) %>%
     group_by(pool, designation_ineligible, priority_focus, reward_exemption) %>%
-    mutate(rank_performance = if_else(designation_ineligible == 0 & !is.na(pool) &
-            is.na(priority_focus) & reward_exemption == 0, rank(-pct_on_mastered, ties = "min"), NA_integer_),
+    mutate(rank_performance = if_else(
+            condition = designation_ineligible == 0 & !is.na(pool) & priority_focus == 0 & reward_exemption == 0, 
+                rank(-pct_on_mastered, ties = "min"), NA_integer_),
+        rank_progress = if_else(
+            condition = designation_ineligible == 0 & !is.na(pool) & priority_focus == 0 & reward_exemption == 0,
+                rank(-tvaas_index, ties = "min"), NA_integer_),
     # Reward performance are 5 percent of non-exempt schools by pool with highest one-year success rate
         reward_performance = if_else(pool == "HS", rank_performance <= ceiling(0.05 * high_schools), NA),
-        reward_performance = if_else(pool == "K8", rank_performance <= ceiling(0.05 * k8_schools), reward_performance))
+        reward_performance = if_else(pool == "K8", rank_performance <= ceiling(0.05 * k8_schools), reward_performance),
+        reward_progress = FALSE) %>%
+    ungroup()
+
+# Reward progress are 5 percent of non-exempt schools by pool with highest TVAAS composite index
+reward_hs_count <- nrow(reward[reward$reward_progress == TRUE & reward$pool == "HS" & is.na(reward$reward_performance), ])
+    
+while (reward_hs_count < ceiling(0.05 * high_schools)) {
+
+    reward <- reward %>%
+        arrange(pool, designation_ineligible, reward_exemption, priority_focus, reward_progress, desc(tvaas_index))
+
+    reward[1, ]$reward_progress <- TRUE
+
+# Update count if selected a unique reward progress school
+    reward_hs_count <- nrow(reward[reward$reward_progress == TRUE & reward$pool == "HS" & reward$reward_performance == FALSE, ])
+
+}
+
+reward_k8_count <- nrow(reward[reward$reward_progress == TRUE & reward$pool == "K8" & is.na(reward$reward_performance), ])
+
+while (reward_k8_count < ceiling(0.05 * k8_schools)) {
+    
+    reward <- reward %>%
+        arrange(desc(pool), designation_ineligible, reward_exemption, priority_focus, reward_progress, desc(tvaas_index))
+    
+    reward[1, ]$reward_progress <- TRUE
+    
+# Update count if selected a unique reward progress school
+    reward_k8_count <- nrow(reward[reward$reward_progress == TRUE & reward$pool == "K8" & reward$reward_performance == FALSE, ])
+    
+}
+
+output <- reward %>%
+    transmute(system, school, pool, designation_ineligible, pct_on_mastered, tvaas_index,
+        reward_performance = if_else(reward_performance, 1L, 0L),
+        reward_progress = if_else(reward_progress, 1L, 0L))
+
+write_csv(output, "K:/ORP_accountability/projects/2017_school_accountability/reward.csv")
