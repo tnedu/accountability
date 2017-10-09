@@ -8,6 +8,7 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
+# Focus schools not exiting in 2015
 focus_schools <- read_csv("K:/ORP_accountability/projects/2015_school_coding/Output/focus_schools_not_exiting_ap.csv") %>%
     select(system, school, BHN_gap_identified, ED_gap_identified, SWD_gap_identified, ELL_gap_identified,
         subgroup_path_SWD, subgroup_path_ELL)
@@ -15,6 +16,7 @@ focus_schools <- read_csv("K:/ORP_accountability/projects/2015_school_coding/Out
 pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool, designation_ineligible, grad_only_BHN, grad_only_ED, grad_only_SWD, grad_only_EL)
 
+# One year success rates for Subgroup exit and Below for Gap exit
 one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
@@ -25,7 +27,6 @@ one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountabili
         !(year == 2016 & pool == "K8")) %>%
     mutate(grade = as.integer(grade),
         valid_tests = if_else(subject == "Graduation Rate", grad_cohort, valid_tests),
-        n_below = if_else(subject == "Graduation Rate", dropout_count, n_below),
         n_on_track = if_else(subject == "Graduation Rate", grad_count, n_on_track),
         subject = case_when(
             subject %in% math_eoc & grade %in% 3:8 ~ "Math",
@@ -62,7 +63,7 @@ below_2015 <- read_csv("K:/ORP_accountability/data/2015_sas_accountability/schoo
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade),
         system = as.numeric(system)) %>%
     filter(year == 2015,
-        subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "Graduation Rate"),
+        subject %in% c("Math", "RLA", "Science", math_eoc, english_eoc, science_eoc, "Graduation Rate"),
         grade %in% as.character(3:12),
         subgroup %in% c(accountability_subgroups, "English Language Learners with T1/T2")) %>%
     mutate_at(c("system", "grad_cohort", "grad_count"), as.integer) %>% 
@@ -71,7 +72,7 @@ below_2015 <- read_csv("K:/ORP_accountability/data/2015_sas_accountability/schoo
         n_prof = if_else(subject == "Graduation Rate", grad_count, n_prof),
         subject = case_when(
             subject %in% math_eoc & grade %in% 3:8 ~ "Math",
-            subject %in% english_eoc & grade %in% 3:8 ~ "ELA",
+            subject %in% english_eoc & grade %in% 3:8 ~ "RLA",
             subject %in% science_eoc & grade %in% 3:8 ~ "Science",
             TRUE ~ subject
         )
@@ -160,11 +161,12 @@ gap_exit_k8 <- one_year_success %>%
     filter(pool == "K8") %>%
     select(year, system, school, pool, designation_ineligible, subgroup, pct_below) %>%
     left_join(below_2015, by = c("system", "school", "subgroup")) %>%
+# Denominator for pctile ranks only counts non-designation ineligible schools with % below in both 2017 and 2015
     mutate(temp = !is.na(pct_below) & !is.na(pct_below_2015)) %>%
     group_by(subgroup, designation_ineligible) %>%
     mutate(denom = sum(temp, na.rm = TRUE)) %>%
     group_by(subgroup, designation_ineligible, temp) %>%
-# Rank percent below 
+# Rank percent below
     mutate(rank_below = if_else(!is.na(pct_below), rank(pct_below, ties.method = "max"), NA_integer_),
         rank_below_prior = if_else(!is.na(pct_below_2015), rank(pct_below_2015, ties.method = "max"), NA_integer_)) %>%
     ungroup() %>%
