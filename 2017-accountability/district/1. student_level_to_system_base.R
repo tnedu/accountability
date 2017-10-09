@@ -2,11 +2,10 @@ library(acct)
 library(haven)
 library(tidyverse)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
-    filter(!grade %in% c(1, 2)) %>%
-    # Residential Facility students are dropped from system level
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10092017.dta") %>%
+# Residential Facility students are dropped from system level
     filter(residential_facility != 1 | is.na(residential_facility)) %>%
-    # Proficiency and subgroup indicators for collapse
+# Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
         grade = if_else(is.na(grade), 0, grade),
@@ -182,4 +181,4 @@ base_2017 <- bind_rows(base_2016, system_base) %>%
     select(year, system, system_name, everything()) %>%
     mutate(grade = if_else(grade == "0", "Missing Grade", grade))
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct01.csv", na = "")
+write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct09.csv", na = "")

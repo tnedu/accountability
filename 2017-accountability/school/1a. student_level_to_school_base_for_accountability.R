@@ -2,10 +2,10 @@ library(acct)
 library(haven)
 library(tidyverse)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
-    filter(!grade %in% c(1, 2), greater_than_60_pct == "Y") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10092017.dta") %>%
+    filter(greater_than_60_pct == "Y",
 # Homebound and Residential Facility students are dropped from school level
-    filter(homebound == 0 | is.na(homebound),
+        homebound == 0 | is.na(homebound),
         residential_facility != 1 | is.na(residential_facility)) %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%

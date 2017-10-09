@@ -9,8 +9,8 @@ school_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_fi
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(!system %in% c(960, 963, 964, 970, 972)) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
-    filter(year == 2017, grade %in% as.character(3:12)) %>%
-    filter(subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "Graduation Rate"))
+    filter(year == 2017, grade %in% as.character(3:12),
+        subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "Graduation Rate"))
 
 # High Schools are schools with a grad cohort of at least 30
 high_schools <- school_base %>%

@@ -42,7 +42,7 @@ fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_081517.dt
         ri_status_final = if_else(is.na(ri_status_final), 0, ri_status_final),
         greater_than_60_pct = if_else(system == 94, "Y", greater_than_60_pct))
 
-cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_082317.dta") %>%
+cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_100917.dta") %>%
 # Student level file variables
     mutate(test = "EOC",
         semester = "Spring",
@@ -254,4 +254,4 @@ output <- dedup %>%
     arrange(system, school, state_student_id)
 
 # Output file
-write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_oct01.csv", na = "")
+write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_oct09.csv", na = "")

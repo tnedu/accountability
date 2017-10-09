@@ -20,12 +20,12 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_sub
         subgroup = "All",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
-    filter(!grade %in% c(1, 2), greater_than_60_pct == "Y") %>%
-    # Homebound and Residential Facility students are dropped from school level
-    filter(homebound == 0 | is.na(homebound),
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10092017.dta") %>%
+    filter(greater_than_60_pct == "Y",
+# Homebound and Residential Facility students are dropped from school level
+        homebound == 0 | is.na(homebound),
         residential_facility != 1 | is.na(residential_facility)) %>%
-    # Proficiency and subgroup indicators for collapse
+# Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
         grade = if_else(is.na(grade), 0, grade),
@@ -113,7 +113,7 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_ra
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate from Base
-base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct01.csv",
+base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct09.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
@@ -251,4 +251,4 @@ output <- numeric_2017 %>%
         grad_count, grad_cohort, grad_rate, dropout_count, dropout_rate)
 
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_oct01.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_oct09.csv", na = "")

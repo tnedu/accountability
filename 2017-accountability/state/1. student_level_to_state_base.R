@@ -2,8 +2,7 @@ library(acct)
 library(haven)
 library(tidyverse)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
-    filter(!grade %in% c(1, 2)) %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10092017.dta") %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
@@ -157,4 +156,4 @@ base_2017 <- bind_rows(base_2016, state_base, ACT, ACT_prior, ACT_substitution, 
         system_name = "State of Tennessee") %>%
     select(year, system, system_name, everything())
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_oct01.csv", na = "")
+write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_oct09.csv", na = "")

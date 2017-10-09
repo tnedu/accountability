@@ -4,8 +4,9 @@
 # State, system, and school releases
 */releases/
 
-# File which pieced together spring eoc cdf
+# File which pieced together spring eoc cdfs
 2017-accountability/build_spring_eoc_cdf.do
+2017-accountability/build_spring_eoc_cdf2.do
 
 # Data
 *.csv

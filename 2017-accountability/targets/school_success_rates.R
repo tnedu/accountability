@@ -12,7 +12,7 @@ science_eoc <- c("Biology I", "Chemistry")
 pools <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10012017.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10092017.dta") %>%
     filter(greater_than_60_pct == "Y",
         original_subject != "US History",
         !(grade %in% c(3, 4) & original_subject == "Science")) %>%
