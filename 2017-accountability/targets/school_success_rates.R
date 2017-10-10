@@ -15,14 +15,15 @@ pools <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/gra
 student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10092017.dta") %>%
     filter(greater_than_60_pct == "Y",
         original_subject != "US History",
-        !(grade %in% c(3, 4) & original_subject == "Science")) %>%
+        grade %in% 3:12,
+# Grades 3-4 science are omitted from 2018 success rate because of new standards setting
+        !(grade %in% c(3, 4) & original_subject == "Science"),
 # Homebound and Residential Facility students are dropped from system level
-    filter(homebound == 0 | is.na(homebound),
+        homebound == 0 | is.na(homebound),
         residential_facility != 1 | is.na(residential_facility)) %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(valid_test = as.integer(valid_test),
-        grade = if_else(is.na(grade), 0, grade),
         original_subject = if_else(test == "MSAA", subject, original_subject),
         n_below = if_else(performance_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
         n_approaching = if_else(performance_level %in% c("2. Approaching", "2. Basic"), 1L, NA_integer_),
@@ -42,11 +43,10 @@ int_math_systems <- student_level %>%
 
 # ACT for HS Success Rate AMOs
 ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
-    mutate(subgroup = if_else(subgroup == "English Langauge Learners with T1/T2", "English Learners", subgroup)) %>%
+    mutate(subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
     filter(subgroup %in% numeric_subgroups) %>%
     select(system, school, subject, grade, subgroup, valid_tests, n_on_track = n_21_orhigher) %>%
-    mutate_at(c("valid_tests", "n_on_track"), as.integer) %>%
-    mutate_at(c("valid_tests", "n_on_track"), funs(if_else(valid_tests < 30, 0L, .)))
+    mutate_at(c("valid_tests", "n_on_track"), funs(if_else(valid_tests < 30, 0L, as.integer(.))))
 
 ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_substitution_2017.csv") %>%
     transmute(system, school,
@@ -82,7 +82,7 @@ subjects_suppressed <- collapse %>%
         ),
         grade = case_when(
             grade %in% 3:8 ~ "3rd through 8th",
-            grade %in% c(0, 9:12) ~ "9th through 12th"
+            grade %in% 9:12 ~ "9th through 12th"
         ),
         subgroup = case_when(
             subgroup == "All" ~ "All Students",
@@ -128,10 +128,10 @@ success_rate_targets <- subjects_suppressed %>%
     group_by(system, school, pool, subgroup) %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
-    transmute(year = 2018, system, school, pool, subgroup,
+    transmute(year = 2018, system, school, pool, subject = "Success Rate", subgroup,
         valid_tests_prior = valid_tests,
         pct_on_mastered_prior = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_),
         AMO_target = amo_target(valid_tests_prior, pct_on_mastered_prior),
         AMO_target_4 = amo_target(valid_tests_prior, pct_on_mastered_prior, double = TRUE))
 
-write_csv(success_rate_targets, path = "K:/ORP_accountability/projects/2018_amo/school_success_rates.csv", na = "")
+write_csv(success_rate_targets, path = "K:/ORP_accountability/projects/2018_amo/school_success_rate.csv", na = "")
