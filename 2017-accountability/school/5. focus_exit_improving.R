@@ -13,10 +13,40 @@ focus_schools <- read_csv("K:/ORP_accountability/projects/2015_school_coding/Out
     select(system, school, BHN_gap_identified, ED_gap_identified, SWD_gap_identified, ELL_gap_identified,
         subgroup_path_SWD, subgroup_path_ELL)
 
+# Pools/Immune ----------------------------------------------------------------------------------------------------
 pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
-    select(system, school, pool, designation_ineligible, grad_only_BHN, grad_only_ED, grad_only_SWD, grad_only_EL)
+    select(system, school, pool, designation_ineligible, grad_only_BHN, grad_only_ED, grad_only_SWD, grad_only_EL,
+        grad_only_2016_BHN, grad_only_2016_ED, grad_only_2016_SWD, grad_only_2016_EL) %>%
+    mutate_at(c("grad_only_BHN", "grad_only_ED", "grad_only_SWD", "grad_only_EL",
+        "grad_only_2016_BHN", "grad_only_2016_ED", "grad_only_2016_SWD", "grad_only_2016_EL"),
+        funs(if_else(pool == "K8", NA_integer_, .)))
 
-# One year success rates for Subgroup exit and Below for Gap exit
+grad_only_subgroups_2016 <- pools_immune %>%
+    filter(pool == "HS") %>%
+    select(system, school, grad_only_2016_BHN, grad_only_2016_ED, grad_only_2016_SWD, grad_only_2016_EL) %>%
+    gather(subgroup, grad_only_2016, starts_with("grad_only_2016_")) %>%
+    mutate(subgroup = case_when(
+            subgroup == "grad_only_2016_BHN" ~ "Black/Hispanic/Native American",
+            subgroup == "grad_only_2016_ED" ~ "Economically Disadvantaged",
+            subgroup == "grad_only_2016_SWD" ~ "Students with Disabilities",
+            subgroup == "grad_only_2016_EL" ~ "English Learners with T1/T2"
+        )
+    )
+
+grad_only_subgroups <- pools_immune %>%
+    filter(pool == "HS") %>%
+    select(system, school, grad_only_BHN, grad_only_ED, grad_only_SWD, grad_only_EL) %>%
+    gather(subgroup, grad_only, grad_only_BHN, grad_only_ED, grad_only_SWD, grad_only_EL) %>%
+    mutate(subgroup = case_when(
+            subgroup == "grad_only_BHN" ~ "Black/Hispanic/Native American",
+            subgroup == "grad_only_ED" ~ "Economically Disadvantaged",
+            subgroup == "grad_only_SWD" ~ "Students with Disabilities",
+            subgroup == "grad_only_EL" ~ "English Learners with T1/T2"
+        )
+    ) %>%
+    full_join(grad_only_subgroups_2016, by = c("system", "school", "subgroup"))
+    
+# Success Rates for Subgroup Exit and Below for Gap Exit ----------------------------------------------------------
 one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
@@ -44,7 +74,7 @@ one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountabili
     group_by(year, system, school, pool, designation_ineligible, subgroup) %>%
     summarise_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
-# One year success rates
+# One year success rates and below
     mutate(pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
         pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
         pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
@@ -59,6 +89,7 @@ one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountabili
         pct_approaching = if_else(flag_approaching, 0, pct_approaching)) %>%
     select(year, system, school, pool, designation_ineligible, subgroup, valid_tests, pct_below, pct_on_mastered)
 
+# 2015 Below for K-8 Gap exit
 below_2015 <- read_csv("K:/ORP_accountability/data/2015_sas_accountability/school_base_2015_20jul2015.csv") %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade),
         system = as.numeric(system)) %>%
@@ -95,8 +126,7 @@ below_2015 <- read_csv("K:/ORP_accountability/data/2015_sas_accountability/schoo
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
         pct_below_2015 = pct_below_bsc)
 
-# Schools identified by subgroup path exit if subgroup earns a 20% or higher success rate
-# Schools identified by subgroup path improve if subgroup earns a 15% or higher success rate
+# Focus Subgroup Exit ---------------------------------------------------------------------------------------------
 subgroup_schools <- focus_schools %>%
     filter(subgroup_path_SWD == 1 | subgroup_path_ELL == 1) %>%
     select(system, school, subgroup_path_SWD, subgroup_path_ELL) %>%
@@ -110,6 +140,8 @@ subgroup_exit <- one_year_success %>%
     rename(pct_on_mastered_SWD = `Students with Disabilities`,
         pct_on_mastered_EL = `English Learners with T1/T2`) %>%
     inner_join(subgroup_schools, by = c("system", "school", "designation_ineligible")) %>%
+# Schools identified by subgroup path exit if subgroup earns a 20% or higher success rate
+# Schools identified by subgroup path improve if subgroup earns a 15% or higher success rate
     mutate(SWD_subgroup_exit = if_else(subgroup_path_SWD == 1, pct_on_mastered_SWD > 20, NA),
         SWD_subgroup_improving = if_else(subgroup_path_SWD == 1, pct_on_mastered_SWD >= 15 & pct_on_mastered_SWD <= 20, NA),
         EL_subgroup_exit = if_else(subgroup_path_ELL == 1, pct_on_mastered_EL > 20, NA),
@@ -122,10 +154,14 @@ subgroup_exit <- one_year_success %>%
     mutate_at(c("EL_subgroup_exit", "EL_subgroup_improving"),
         funs(if_else(grad_only_EL == 1, NA_integer_, as.integer(.))))
 
+# Focus Gap Exit --------------------------------------------------------------------------------------------------
 gap_exit_HS <- one_year_success %>%
     filter(pool == "HS") %>%
     select(year, system, school, pool, designation_ineligible, subgroup, pct_below) %>%
     spread(year, pct_below) %>%
+    left_join(grad_only_subgroups, by = c("system", "school", "subgroup")) %>%
+    mutate(`2016` = if_else(grad_only_2016 == 1, NA_real_, `2016`),
+        `2017` = if_else(grad_only == 1, NA_real_, `2017`)) %>%
 # Calculate precent below reduction
     transmute(system, school, pool, designation_ineligible, subgroup,
         pct_below_reduction = round5(100 * (`2016` - `2017`)/`2016`, 1)) %>%
@@ -182,8 +218,6 @@ gap_exit_k8 <- one_year_success %>%
         below_pctile_reduction_EL = `English Learners with T1/T2`) %>%
 # Merge on 2015 focus schools not exiting
     inner_join(select(focus_schools, system, school, ends_with("_gap_identified")), by = c("system", "school")) %>%
-# Merge on grad only
-    inner_join(pools_immune, by = c("system", "school", "pool", "designation_ineligible")) %>%
 # K8 schools identified by gap path exit if subgroup reduces Below percentile rank by 25 percentage points
 # K8 schools identified by gap path improve if subgroup reduces Below percentile rank by 12.5 percentage points
     mutate(BHN_gap_exit = if_else(BHN_gap_identified == 1, below_pctile_reduction_BHN >= 25, NA),
@@ -194,14 +228,10 @@ gap_exit_k8 <- one_year_success %>%
         SWD_gap_improving = if_else(SWD_gap_identified == 1, below_pctile_reduction_SWD >= 12.5 & below_pctile_reduction_SWD < 25, NA),
         EL_gap_exit = if_else(ELL_gap_identified == 1, below_pctile_reduction_EL >= 25, NA),
         EL_gap_improving = if_else(ELL_gap_identified == 1, below_pctile_reduction_EL >= 12.5 & below_pctile_reduction_EL < 25, NA)) %>%
-# Schools can not exit if designation ineligible or grad only    
+# Schools can not exit if designation ineligible
     mutate_at(c("BHN_gap_exit", "BHN_gap_improving", "ED_gap_exit", "ED_gap_improving",
         "SWD_gap_exit", "SWD_gap_improving", "EL_gap_exit", "EL_gap_improving"),
-        funs(if_else(designation_ineligible == 1, NA_integer_, as.integer(.)))) %>%
-    mutate_at(c("BHN_gap_exit", "BHN_gap_improving"), funs(if_else(grad_only_BHN == 1, NA_integer_, as.integer(.)))) %>%
-    mutate_at(c("ED_gap_exit", "ED_gap_improving"), funs(if_else(grad_only_ED == 1, NA_integer_, as.integer(.)))) %>%
-    mutate_at(c("SWD_gap_exit", "SWD_gap_improving"), funs(if_else(grad_only_SWD == 1, NA_integer_, as.integer(.)))) %>%
-    mutate_at(c("EL_gap_exit", "EL_gap_improving"), funs(if_else(grad_only_EL == 1, NA_integer_, as.integer(.))))
+        funs(if_else(designation_ineligible == 1, NA_integer_, as.integer(.))))
 
 focus_exit_improving <- bind_rows(gap_exit_HS, gap_exit_k8) %>%
     full_join(subgroup_exit, by = c("system", "school", "pool", "designation_ineligible",
