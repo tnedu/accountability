@@ -326,5 +326,18 @@ output <- percentile_ranks %>%
         grad_count, grad_cohort, grad_rate, dropout_count, dropout_rate,
         below_percentile, OM_percentile, BB_percentile_2015, PA_percentile_2015)
 
+# Merge on 10/1 Percentile ranks and take the better of 10/1 and 10/9 files
+pctile_ranks_10_1 <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/October 1/system_numeric_2017_oct01.csv",
+    col_types = c("iicccciiiidiiidddddddddddcciididdddd")) %>%
+    filter(year == 2017) %>%
+    select(year, system, subject, grade, subgroup,
+        below_percentile_10_1 = below_percentile, OM_percentile_10_1 = OM_percentile)
+
+percentile_rank_update <- output %>%
+    full_join(pctile_ranks_10_1, by = c("year", "system", "subject", "grade", "subgroup")) %>%
+    mutate(below_percentile = pmin(below_percentile, below_percentile_10_1, na.rm = TRUE),
+        OM_percentile = pmax(OM_percentile, OM_percentile_10_1, na.rm = TRUE)) %>%
+    select(-below_percentile_10_1, -OM_percentile_10_1)
+
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_oct11.csv", na = "")
+write_csv(percentile_rank_update, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_oct11.csv", na = "")
