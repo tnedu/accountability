@@ -219,7 +219,7 @@ school_targets <- school_output %>%
         AMO_reduction_target = amo_reduction(n_students, pct_chronically_absent),
         AMO_reduction_target_double = amo_reduction(n_students, pct_chronically_absent, double = TRUE))
 
-write_csv(school_targets, "K:/ORP_accountability/projects/2018_amo/chronic_absenteeism.csv", na = "")
+write_csv(school_targets, "K:/ORP_accountability/projects/2018_amo/school_chronic_absenteeism.csv", na = "")
 
 system_output <- system_CA %>%
     transmute(year, system, system_name,
@@ -249,6 +249,8 @@ system_targets <- system_output %>%
     mutate(year = 2018,
         AMO_reduction_target = amo_reduction(n_students, pct_chronically_absent),
         AMO_reduction_target_double = amo_reduction(n_students, pct_chronically_absent, double = TRUE))
+
+write_csv(system_targets, "K:/ORP_accountability/projects/2018_amo/system_chronic_absenteeism.csv", na = "")
 
 state_output <- state_CA %>%
     transmute(year, system = 0, system_name = "State of Tennessee",
