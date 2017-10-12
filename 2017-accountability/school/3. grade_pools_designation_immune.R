@@ -31,7 +31,7 @@ school_pools <- school_base %>%
             TRUE ~ subject
         )
     ) %>%
-    # Aggregate by replaced subjects
+# Aggregate by replaced subjects
     group_by(year, system, school, subject, pool) %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
@@ -96,16 +96,55 @@ grad_only <- school_base %>%
         grad_only_Non_SWD = `Non-Students with Disabilities`,
         grad_only_Non_EL = `Non-English Learners/T1 or T2`)
 
+grad_only_2016 <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
+        col_types = c("iiicccddddddddddddddddddddddddd")) %>%
+    filter(!system %in% c(960, 963, 964, 970, 972)) %>%
+    mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
+    filter(year == 2016, grade %in% as.character(3:12),
+        subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "Graduation Rate"),
+        subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
+                "Students with Disabilities", "English Learners with T1/T2"),
+        !subject %in% c("ACT Math", "ACT Reading", "ACT Composite"),
+        grade != "All Grades" | subject == "Graduation Rate") %>%
+    mutate(valid_tests = if_else(subject == "Graduation Rate", grad_cohort, valid_tests),
+        subject = case_when(
+            subject %in% math_eoc & grade %in% as.character(3:8) ~ "Math",
+            subject %in% english_eoc & grade %in% as.character(3:8) ~ "ELA",
+            subject %in% science_eoc & grade %in% as.character(3:8) ~ "Science",
+            TRUE ~ subject
+        )
+    ) %>%
+    group_by(system, school, subgroup, subject) %>%
+    summarise_at("valid_tests", sum, na.rm = TRUE) %>%
+    ungroup() %>%
+    mutate(tests_30 = valid_tests >= 30,
+        tests_30_nograd = if_else(subject != "Graduation Rate", valid_tests >= 30, NA)) %>%
+    group_by(system, school, subgroup) %>%
+    mutate(temp = max(tests_30, na.rm = TRUE),
+           temp2 = max(tests_30_nograd, na.rm = TRUE)) %>%
+    ungroup() %>%
+    mutate(grad_only = as.numeric(temp == 1 & (temp2 %in% c(0, -Inf)))) %>%
+    select(system, school, subgroup, grad_only) %>%
+    distinct() %>%
+    spread(subgroup, grad_only) %>%
+    rename(grad_only_2016_BHN = `Black/Hispanic/Native American`,
+        grad_only_2016_ED = `Economically Disadvantaged`,
+        grad_only_2016_SWD = `Students with Disabilities`,
+        grad_only_2016_EL = `English Learners with T1/T2`)
+
 grade_pools_designation_immune <- school_base %>%
     select(system, school) %>%
+    filter(school != 0) %>%
     distinct() %>%
     left_join(school_pools, by = c("system", "school")) %>%
     left_join(grad_only, by = c("system", "school")) %>%
+    left_join(grad_only_2016, by = c("system", "school")) %>%
     left_join(special_ed, by = c("system", "school")) %>%
     left_join(cte_alt_adult, by = c("system", "school")) %>%
     left_join(closed, by = c("system", "school")) %>%
     mutate_at(c("grad_only_All", "grad_only_BHN", "grad_only_ED", "grad_only_SWD", "grad_only_EL",
         "grad_only_Non_ED", "grad_only_Non_SWD", "grad_only_Non_EL",
+        "grad_only_2016_BHN", "grad_only_2016_ED", "grad_only_2016_SWD", "grad_only_2016_EL",
         "special_ed", "cte_alt_adult", "closed"), funs(if_else(is.na(.), 0, .))) %>%
     mutate(designation_ineligible = as.numeric(grad_only_All == 1 | special_ed == 1 | cte_alt_adult == 1 | closed == 1))
 
