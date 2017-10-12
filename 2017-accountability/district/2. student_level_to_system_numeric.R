@@ -19,7 +19,7 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_sub
         grade = "9th through 12th",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10092017.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10112017.dta") %>%
     filter(greater_than_60_pct == "Y",
 # Residential Facility students are dropped from system level
         residential_facility != 1 | is.na(residential_facility)) %>%
@@ -109,7 +109,7 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/District_grad_
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate from Base
-base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct09.csv",
+base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct11.csv",
         col_types = c("ddccccddddddddddddddddddddddddd")) %>%
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
@@ -327,4 +327,4 @@ output <- percentile_ranks %>%
         below_percentile, OM_percentile, BB_percentile_2015, PA_percentile_2015)
 
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_oct09.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_oct11.csv", na = "")

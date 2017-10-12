@@ -20,7 +20,7 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_sub
         subgroup = "All",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10092017.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10112017.dta") %>%
     filter(greater_than_60_pct == "Y",
 # Homebound and Residential Facility students are dropped from school level
         homebound == 0 | is.na(homebound),
@@ -37,7 +37,7 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
         Super = as.numeric(BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1)
     ) %>%
-    # Numeric subject/grade combinations
+# Numeric subject/grade combinations
     filter(subject %in% c("Math", "ELA", math_eoc, english_eoc)) %>%
     mutate(grade = case_when(
             grade %in% 3:5 ~ "3rd through 5th",
@@ -113,7 +113,7 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_ra
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate from Base
-base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct09.csv",
+base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct11.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
@@ -251,4 +251,4 @@ output <- numeric_2017 %>%
         grad_count, grad_cohort, grad_rate, dropout_count, dropout_rate)
 
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_oct09.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_oct11.csv", na = "")
