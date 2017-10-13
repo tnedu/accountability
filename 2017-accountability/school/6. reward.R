@@ -99,11 +99,11 @@ reward_exemption <- one_year_success %>%
 # Blank out gaps if either subgroup is grad only
     mutate(gap = if_else(grad_only_target == 1 | grad_only_comparison == 1, NA_real_, gap)) %>%
     group_by(designation_ineligible, pool, subgroup) %>%
-    mutate(rank_gap = if_else(designation_ineligible == 0 & !is.na(gap), rank(-gap, ties.method = "min"), NA_integer_),
+    mutate(rank_gap = if_else(designation_ineligible == 0 & !is.na(gap), rank(gap, ties.method = "max"), NA_integer_),
         denom = if_else(designation_ineligible == 0, sum(!is.na(gap)), NA_integer_)) %>%
     ungroup() %>%
     mutate(pctile_rank_gap = round5(100 * rank_gap/denom, 1),
-        reward_exemption = as.integer(pctile_rank_gap <= 25)) %>%
+        reward_exemption = as.integer(pctile_rank_gap >= 75)) %>%
     group_by(system, school) %>%
     summarise(reward_exemption = max(reward_exemption, na.rm = TRUE)) %>%
     ungroup() %>%
@@ -119,10 +119,10 @@ reward <- one_year_success %>%
     mutate(priority_focus = if_else(is.na(priority_focus), 0, priority_focus)) %>%
     group_by(pool, designation_ineligible, priority_focus, reward_exemption) %>%
     mutate(rank_performance = if_else(
-            condition = designation_ineligible == 0 & !is.na(pool) & priority_focus == 0 & reward_exemption == 0, 
+            designation_ineligible == 0 & !is.na(pool) & priority_focus == 0 & reward_exemption == 0, 
                 rank(-pct_on_mastered, ties = "min"), NA_integer_),
         rank_progress = if_else(
-            condition = designation_ineligible == 0 & !is.na(pool) & priority_focus == 0 & reward_exemption == 0,
+            designation_ineligible == 0 & !is.na(pool) & priority_focus == 0 & reward_exemption == 0,
                 rank(-tvaas_index, ties = "min"), NA_integer_),
     # Reward performance are 5 percent of non-exempt schools by pool with highest one-year success rate
         reward_performance = if_else(pool == "HS", rank_performance <= ceiling(0.05 * high_schools), NA),
@@ -160,8 +160,28 @@ while (reward_k8_count < ceiling(0.05 * k8_schools)) {
 }
 
 output <- reward %>%
-    transmute(system, school, pool, designation_ineligible, pct_on_mastered, tvaas_index,
+    transmute(system, school, pool, designation_ineligible, pct_on_mastered, tvaas_index, reward_exemption,
         reward_performance = if_else(reward_performance, 1L, 0L),
         reward_progress = if_else(reward_progress, 1L, 0L))
 
 write_csv(output, "K:/ORP_accountability/projects/2017_school_accountability/reward.csv")
+
+
+# School Summary File Metrics -------------------------------------------------------------------------------------
+reward_exemption_output <- one_year_success %>%
+    filter(subgroup %in% gap_subgroups) %>%
+    select(year, system, school, pool, designation_ineligible, subgroup, pct_on_mastered_target = pct_on_mastered) %>%
+    full_join(gaps_comparison, by = c("year", "system", "school", "pool", "designation_ineligible", "subgroup")) %>%
+    mutate(gap = pct_on_mastered_comparison - pct_on_mastered_target) %>%
+    left_join(grad_only, by = c("system", "school", "subgroup")) %>%
+    # Blank out gaps if either subgroup is grad only
+    mutate(gap = if_else(grad_only_target == 1 | grad_only_comparison == 1, NA_real_, gap)) %>%
+    group_by(designation_ineligible, pool, subgroup) %>%
+    mutate(rank_gap = if_else(designation_ineligible == 0 & !is.na(gap), rank(gap, ties.method = "max"), NA_integer_),
+           denom = if_else(designation_ineligible == 0, sum(!is.na(gap)), NA_integer_)) %>%
+    ungroup() %>%
+    transmute(system, school, pool, subgroup, gap,
+        pctile_rank_gap = round5(100 * rank_gap/denom, 1),
+        reward_exemption = as.integer(pctile_rank_gap >= 75))
+
+write_csv(reward_exemption_output, path = "K:/ORP_accountability/data/2017_final_accountability_files/reward_metrics.csv", na = "")
