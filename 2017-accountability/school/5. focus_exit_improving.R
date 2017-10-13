@@ -198,13 +198,13 @@ gap_exit_k8 <- one_year_success %>%
     select(year, system, school, pool, designation_ineligible, subgroup, pct_below) %>%
     left_join(below_2015, by = c("system", "school", "subgroup")) %>%
 # Denominator for pctile ranks only counts non-designation ineligible schools with % below in both 2017 and 2015
-    mutate(temp = !is.na(pct_below) & !is.na(pct_below_2015)) %>%
+    mutate(both_years = !is.na(pct_below) & !is.na(pct_below_2015)) %>%
     group_by(subgroup, designation_ineligible) %>%
-    mutate(denom = sum(temp, na.rm = TRUE)) %>%
-    group_by(subgroup, designation_ineligible, temp) %>%
+    mutate(denom = sum(both_years, na.rm = TRUE)) %>%
+    group_by(subgroup, designation_ineligible, both_years) %>%
 # Rank percent below
-    mutate(rank_below = if_else(!is.na(pct_below), rank(pct_below, ties.method = "max"), NA_integer_),
-        rank_below_prior = if_else(!is.na(pct_below_2015), rank(pct_below_2015, ties.method = "max"), NA_integer_)) %>%
+    mutate(rank_below = if_else(!is.na(pct_below) & both_years, rank(pct_below, ties.method = "max"), NA_integer_),
+        rank_below_prior = if_else(!is.na(pct_below_2015) & both_years, rank(pct_below_2015, ties.method = "max"), NA_integer_)) %>%
     ungroup() %>%
 # Calculate below percentile change
     mutate(pctile_below = round5(100 * rank_below/denom, 1),
@@ -271,3 +271,63 @@ write_csv(output, path = "K:/ORP_accountability/projects/2017_school_accountabil
 focus_not_exiting <- filter(output, focus_exit == 0 | is.na(focus_exit))
 
 write_csv(focus_not_exiting, path = "K:/ORP_accountability/projects/2017_school_accountability/focus_schools_not_exiting.csv", na = "")
+
+
+# School Summary File Metrics -------------------------------------------------------------------------------------
+pct_below_2016 <- one_year_success %>%
+    filter(year == 2016) %>%
+    select(system, school, subgroup, pct_below_2016 = pct_below) %>%
+    left_join(grad_only_subgroups, by = c("system", "school", "subgroup")) %>%
+    mutate(pct_below_2016 = if_else(grad_only_2016 == 1, NA_real_, pct_below_2016)) %>%
+    select(-grad_only, -grad_only_2016)
+
+pct_below_2017 <- one_year_success %>%
+    filter(year == 2017) %>%
+    select(system, school, subgroup, pct_below_2017 = pct_below) %>%
+    left_join(grad_only_subgroups, by = c("system", "school", "subgroup")) %>%
+    mutate(grad_only = if_else(is.na(grad_only), 0L, grad_only),
+        pct_below_2017 = if_else(grad_only == 1, NA_real_, pct_below_2017)) %>%
+    select(-grad_only, -grad_only_2016)
+
+pct_below_2015 <- below_2015 %>%
+    left_join(pools_immune, by = c("system", "school")) %>%
+    filter(pool == "K8") %>%
+    select(system, school, subgroup, pct_below_2015)
+
+hs_below_reduction <- one_year_success %>%
+    filter(pool == "HS") %>%
+    select(year, system, school, pool, designation_ineligible, subgroup, pct_below) %>%
+    spread(year, pct_below) %>%
+    left_join(grad_only_subgroups, by = c("system", "school", "subgroup")) %>%
+    mutate(`2016` = if_else(grad_only_2016 == 1, NA_real_, `2016`),
+        `2017` = if_else(grad_only == 1, NA_real_, `2017`)) %>% 
+# Calculate precent below reduction
+    transmute(system, school, subgroup, pct_below_reduction = round5(100 * (`2016` - `2017`)/`2016`, 1))
+
+k8_below_ranking <- one_year_success %>%
+    filter(pool == "K8") %>%
+    select(year, system, school, pool, designation_ineligible, subgroup, pct_below) %>%
+    left_join(below_2015, by = c("system", "school", "subgroup")) %>%
+# Denominator for pctile ranks only counts non-designation ineligible schools with % below in both 2017 and 2015
+    mutate(both_years = !is.na(pct_below) & !is.na(pct_below_2015)) %>%
+    group_by(subgroup, designation_ineligible) %>%
+    mutate(denom = sum(both_years, na.rm = TRUE)) %>%
+    group_by(subgroup, designation_ineligible, both_years) %>%
+# Rank percent below
+    mutate(rank_below = if_else(!is.na(pct_below) & both_years, rank(pct_below, ties.method = "max"), NA_integer_),
+        rank_below_prior = if_else(!is.na(pct_below_2015) & both_years, rank(pct_below_2015, ties.method = "max"), NA_integer_)) %>%
+    ungroup() %>%
+# Calculate below percentile change
+    transmute(system, school, subgroup,
+        pctile_below_2015 = round5(100 * rank_below_prior/denom, 1),
+        pctile_below_2017 = round5(100 * rank_below/denom, 1),
+        pctile_below_reduction = pctile_below_2017 - pctile_below_2015)
+
+focus_metrics <- pct_below_2015 %>%
+    full_join(pct_below_2016, by = c("system", "school", "subgroup")) %>%
+    full_join(pct_below_2017, by = c("system", "school", "subgroup")) %>%
+    full_join(k8_below_ranking, by = c("system", "school", "subgroup")) %>%
+    full_join(hs_below_reduction, by = c("system", "school", "subgroup")) %>%
+    left_join(select(pools_immune, system, school, pool), by = c("system", "school"))
+
+write_csv(focus_metrics, path = "K:/ORP_accountability/data/2017_final_accountability_files/focus_metrics.csv", na = "")
