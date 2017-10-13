@@ -11,7 +11,8 @@ priority_schools <- read_csv("K:/ORP_accountability/projects/2015_school_coding/
 
 # Pools/Immune ----------------------------------------------------------------------------------------------------
 pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
-    select(system, school, pool, designation_ineligible)
+    select(system, school, pool, designation_ineligible) %>%
+    filter(!is.na(pool))
 
 high_schools <- sum(pools_immune$pool == "HS", na.rm = TRUE)
 k8_schools <- sum(pools_immune$pool == "K8", na.rm = TRUE)
