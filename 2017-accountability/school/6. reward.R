@@ -179,8 +179,8 @@ reward_exemption_output <- one_year_success %>%
     mutate(rank_gap = if_else(designation_ineligible == 0 & !is.na(gap), rank(gap, ties.method = "max"), NA_integer_),
         denom = if_else(designation_ineligible == 0, sum(!is.na(gap)), NA_integer_)) %>%
     ungroup() %>%
-    transmute(system, school, pool, subgroup, gap,
-        pctile_rank_gap = round5(100 * rank_gap/denom, 1),
-        reward_exemption = as.integer(pctile_rank_gap >= 75))
+    transmute(system, school, subgroup, 
+        pct_on_mastered_target, pct_on_mastered_comparison, gap,
+        pctile_rank_gap = round5(100 * rank_gap/denom, 1))
 
 write_csv(reward_exemption_output, path = "K:/ORP_accountability/projects/2017_school_accountability/reward_metrics.csv", na = "")

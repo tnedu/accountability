@@ -327,7 +327,6 @@ focus_metrics <- pct_below_2015 %>%
     full_join(pct_below_2016, by = c("system", "school", "subgroup")) %>%
     full_join(pct_below_2017, by = c("system", "school", "subgroup")) %>%
     full_join(k8_below_ranking, by = c("system", "school", "subgroup")) %>%
-    full_join(hs_below_reduction, by = c("system", "school", "subgroup")) %>%
-    left_join(select(pools_immune, system, school, pool), by = c("system", "school"))
+    full_join(hs_below_reduction, by = c("system", "school", "subgroup"))
 
 write_csv(focus_metrics, path = "K:/ORP_accountability/projects/2017_school_accountability/focus_metrics.csv", na = "")
