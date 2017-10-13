@@ -109,7 +109,6 @@ reward_exemption <- one_year_success %>%
     ungroup() %>%
     mutate(reward_exemption = if_else(reward_exemption == -Inf, 0, reward_exemption))
 
-
 # Reward Performance and Progress ---------------------------------------------------------------------------------
 reward <- one_year_success %>%
     filter(subgroup == "All Students") %>%
@@ -174,14 +173,14 @@ reward_exemption_output <- one_year_success %>%
     full_join(gaps_comparison, by = c("year", "system", "school", "pool", "designation_ineligible", "subgroup")) %>%
     mutate(gap = pct_on_mastered_comparison - pct_on_mastered_target) %>%
     left_join(grad_only, by = c("system", "school", "subgroup")) %>%
-    # Blank out gaps if either subgroup is grad only
+# Blank out gaps if either subgroup is grad only
     mutate(gap = if_else(grad_only_target == 1 | grad_only_comparison == 1, NA_real_, gap)) %>%
     group_by(designation_ineligible, pool, subgroup) %>%
     mutate(rank_gap = if_else(designation_ineligible == 0 & !is.na(gap), rank(gap, ties.method = "max"), NA_integer_),
-           denom = if_else(designation_ineligible == 0, sum(!is.na(gap)), NA_integer_)) %>%
+        denom = if_else(designation_ineligible == 0, sum(!is.na(gap)), NA_integer_)) %>%
     ungroup() %>%
     transmute(system, school, pool, subgroup, gap,
         pctile_rank_gap = round5(100 * rank_gap/denom, 1),
         reward_exemption = as.integer(pctile_rank_gap >= 75))
 
-write_csv(reward_exemption_output, path = "K:/ORP_accountability/data/2017_final_accountability_files/reward_metrics.csv", na = "")
+write_csv(reward_exemption_output, path = "K:/ORP_accountability/projects/2017_school_accountability/reward_metrics.csv", na = "")
