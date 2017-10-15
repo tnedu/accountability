@@ -34,7 +34,8 @@ ach_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/38_cdf_091417.dta") %>%
         el_excluded = as.numeric(el_excluded == 1 | EL_accommodationsU_part1 == "U" | EL_accommodationsU_part2 == "U"),
         scale_score_lb_ci = as.numeric(scale_score_lb_ci),
         ri_status_final = if_else(content_area_code == "ENG" & el_excluded == 1, 0, ri_status_final)) %>%
-    filter(content_area_code != "SOC")
+    filter(content_area_code != "SOC") %>%
+    filter(!(system == 541 & content_area_code == "MAT" & grade == 8))
 
 fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_081517.dta") %>%
 # Student level file variables
@@ -45,9 +46,12 @@ fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_081517.dt
             if_else(!is.na(ri_status_part_2), ri_status_part_2, ri_status_part_1), ri_status_part_1),
         ri_status_final = if_else(el_excluded == 1, 0, ri_status_final),
         ri_status_final = if_else(is.na(ri_status_final), 0, ri_status_final),
+    # McKenzie SSD Modification on Appeal
         greater_than_60_pct = if_else(system == 94, "Y", greater_than_60_pct))
 
 cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_101117.dta") %>%
+# Van Buren Modification on Appeal
+    mutate(greater_than_60_pct = if_else(system == 880, "Y", greater_than_60_pct)) %>%
 # Student level file variables
     mutate(test = "EOC",
         semester = "Spring",
@@ -63,7 +67,6 @@ cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_101117.dta")
             content_area_code == "ENG" ~ "ELA",
             content_area_code == "MAT" ~ "Math",
             content_area_code == "SCI" ~ "Science",
-            content_area_code == "A1" ~ "Algebra I",
             content_area_code == "A1" ~ "Algebra I",
             content_area_code == "A2" ~ "Algebra II",
             content_area_code == "B1" ~ "Biology I",
@@ -259,4 +262,4 @@ output <- dedup %>%
     arrange(system, school, state_student_id)
 
 # Output file
-write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_oct11.csv", na = "")
+write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_oct15.csv", na = "")
