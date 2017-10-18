@@ -238,29 +238,33 @@ focus_exit_improving <- bind_rows(gap_exit_HS, gap_exit_k8) %>%
 # Schools exit if they meet exit criteria for all subgroups for which they are identified as focus
     mutate(gap_identified_count = sum(BHN_gap_identified, ED_gap_identified, SWD_gap_identified, ELL_gap_identified, na.rm = TRUE),
         gap_exit_count = sum(BHN_gap_exit, ED_gap_exit, SWD_gap_exit, EL_gap_exit, na.rm = TRUE),
+        gap_improving_count = sum(BHN_gap_improving, ED_gap_improving, SWD_gap_improving, EL_gap_improving, na.rm = TRUE),
         subgroup_identified_count = sum(subgroup_path_SWD, subgroup_path_ELL, na.rm = TRUE),
-        subgroup_exit_count = sum(SWD_subgroup_exit, EL_subgroup_exit, na.rm = TRUE)) %>%
+        subgroup_exit_count = sum(SWD_subgroup_exit, EL_subgroup_exit, na.rm = TRUE),
+        subgroup_improving_count = sum(SWD_subgroup_improving, EL_subgroup_improving, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate(gap_exit = if_else(gap_identified_count != 0, gap_identified_count == gap_exit_count, NA),
+        gap_improving = if_else(gap_identified_count != 0 & !gap_exit, gap_identified_count == gap_exit_count + gap_improving_count, NA),
         subgroup_exit = if_else(subgroup_identified_count != 0, subgroup_identified_count == subgroup_exit_count, NA),
+        subgroup_improving = if_else(subgroup_identified_count != 0, subgroup_identified_count == subgroup_improving_count, NA),
         pathway_identified_count = (gap_identified_count != 0) + (subgroup_identified_count != 0)) %>%
     rowwise() %>%
     mutate(focus_exit_count = sum(gap_exit, subgroup_exit, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate(focus_exit = focus_exit_count == pathway_identified_count) %>%
-    mutate_at(c("gap_exit", "subgroup_exit", "focus_exit"), as.integer)
+    mutate_at(c("gap_exit", "gap_improving", "subgroup_exit", "focus_exit"), as.integer)
 
 output <- focus_exit_improving %>%
     select(system, school, pool, designation_ineligible, starts_with("grad_only_"),
-    # Subgroup exit variables    
+    # Subgroup exit variables
         starts_with("subgroup_path"), starts_with("pct_on_mastered_"),
         SWD_subgroup_exit, SWD_subgroup_improving, EL_subgroup_exit, EL_subgroup_improving,
     # Gap exit variables
         ends_with("_gap_identified"), starts_with("pct_below_reduction_"),
         starts_with("below_pctile_reduction_"), contains("_gap_"),
     # Summative variables
-        subgroup_identified_count, subgroup_exit_count, subgroup_exit,
-        gap_identified_count, gap_exit_count, gap_exit,
+        subgroup_identified_count, subgroup_exit_count, subgroup_exit, subgroup_improving, subgroup_improving_count,
+        gap_identified_count, gap_exit_count, gap_exit, gap_improving, gap_improving_count,
         pathway_identified_count, focus_exit_count, focus_exit)
 
 write_csv(output, path = "K:/ORP_accountability/projects/2017_school_accountability/focus_exit_improving.csv", na = "")
