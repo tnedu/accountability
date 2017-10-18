@@ -1,4 +1,5 @@
 library(acct)
+library(readxl)
 library(tidyverse)
 
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
@@ -43,7 +44,7 @@ grad_only_EL <- read_csv("K:/ORP_accountability/projects/2017_school_accountabil
 grad_only <- bind_rows(grad_only_BHN, grad_only_ED, grad_only_SWD, grad_only_EL)
 
 # TVAAS for Reward Progress ---------------------------------------------------------------------------------------
-tvaas <- readxl::read_excel("K:/ORP_accountability/data/2017_tvaas/Schoolwide Composite Index.xlsx") %>%
+tvaas <- read_excel("K:/ORP_accountability/data/2017_tvaas/Schoolwide Composite Index.xlsx") %>%
     transmute(system = as.integer(`District Number`), school = as.integer(`School Number`),
         tvaas_index = `TCAP/EOC: School-Wide: Composite`)
 
@@ -159,11 +160,26 @@ while (reward_k8_count < ceiling(0.05 * k8_schools)) {
 }
 
 output <- reward %>%
-    transmute(system, school, pool, designation_ineligible, pct_on_mastered, tvaas_index, reward_exemption,
+    transmute(system, school, pool, designation_ineligible, priority_focus, pct_on_mastered, tvaas_index, reward_exemption,
         reward_performance = if_else(reward_performance, 1L, 0L),
         reward_progress = if_else(reward_progress, 1L, 0L))
 
-write_csv(output, "K:/ORP_accountability/projects/2017_school_accountability/reward.csv")
+# Identify additional reward schools with suppression TVAAS files
+tvaas_new <- read_excel("K:/ORP_accountability/data/2017_tvaas/SAS-NIET School-Wide Indexes-E1E2M2-Suppressions.xlsx") %>%
+    transmute(system = as.integer(`District Number`), school = as.integer(`School Number`),
+        tvaas_new = `TCAP/EOC: School-Wide: Composite`)
+
+new_output <- output %>%
+    group_by(pool, reward_progress) %>%
+    mutate(temp = min(tvaas_index)) %>%
+    group_by(pool) %>%
+    mutate(cutoff = max(temp, na.rm = TRUE)) %>%
+    ungroup() %>%
+    full_join(tvaas_new, by = c("system", "school")) %>%
+    mutate(reward_progress_new = if_else(!is.na(pool) & priority_focus == 0 & designation_ineligible == 0 & reward_exemption == 0 & reward_progress == 0 & tvaas_new >= cutoff, 1L, 0L),
+        reward_progress = if_else(!is.na(pool) & priority_focus == 0 & designation_ineligible == 0 & reward_exemption == 0 & tvaas_new >= cutoff, 1L, reward_progress))
+
+write_csv(new_output, "K:/ORP_accountability/projects/2017_school_accountability/reward.csv")
 
 
 # School Summary File Metrics -------------------------------------------------------------------------------------
