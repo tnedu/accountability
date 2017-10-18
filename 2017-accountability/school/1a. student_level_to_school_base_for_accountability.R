@@ -2,7 +2,7 @@ library(acct)
 library(haven)
 library(tidyverse)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10112017.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10162017.dta") %>%
     filter(greater_than_60_pct == "Y",
 # Homebound and Residential Facility students are dropped from school level
         homebound == 0 | is.na(homebound),
