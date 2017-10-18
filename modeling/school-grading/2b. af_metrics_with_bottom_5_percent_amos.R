@@ -1,5 +1,6 @@
 ## Dashboard Model: F Assigned to Bottom 5%; A-D Grades Assigned to Metrics with AMOs
 
+library(acct)
 library(tidyverse)
 
 school_accountability <- read_csv("data/school_accountability_file_Sep06.csv", col_types = c("cicicccciddddddddcc"))
@@ -49,21 +50,24 @@ ach_growth <- school_accountability %>%
             pctile_rank_PA >= 60 ~ "B",
             pctile_rank_PA >= 40 ~ "C",
             pctile_rank_PA >= 20 ~ "D",
-            pctile_rank_PA < 20 ~ "F"),
+            pctile_rank_PA < 20 ~ "F"
+        ),
         grade_achievement_AMO = case_when(
             valid_tests < 30 ~ NA_character_,
             pct_prof_adv >= AMO_target_PA_4 ~ "A",
             pct_prof_adv > AMO_target_PA ~ "B",
             upper_bound_ci_PA >= AMO_target_PA ~ "C",
             upper_bound_ci_PA > pct_prof_adv_prior ~ "D",
-            upper_bound_ci_PA <= pct_prof_adv_prior ~ "F"),
+            upper_bound_ci_PA <= pct_prof_adv_prior ~ "F"
+        ),
         grade_TVAAS = case_when(
             TVAAS_level == "Level 5" ~ "A",
             TVAAS_level == "Level 4" ~ "B",
             TVAAS_level == "Level 3" ~ "C",
             TVAAS_level == "Level 2" ~ "D",
-            TVAAS_level == "Level 1" ~ "F")
-        ) %>%
+            TVAAS_level == "Level 1" ~ "F"
+        )
+    ) %>%
     left_join(subgroup_growth, by = c("system", "school", "subgroup")) %>%
     select(system, system_name, school, school_name, subgroup, pool, designation_ineligible,
         grade_relative_achievement, grade_achievement_AMO, grade_TVAAS, grade_growth)
@@ -99,12 +103,12 @@ AF_grades_metrics <- ach_growth %>%
         weight_growth = if_else(is.na(grade_ELPA) & !is.na(weight_growth) & pool == "HS", 0.3, weight_growth)) %>%
     rowwise() %>%
     mutate(total_weight = sum(weight_achievement, weight_growth, weight_opportunity, weight_grad, weight_ready_grad, weight_ELPA, na.rm = TRUE),
-        subgroup_average = round(sum(weight_achievement * grade_achievement,
+        subgroup_average = round5(sum(weight_achievement * grade_achievement,
             weight_growth * grade_growth,
             weight_opportunity * grade_absenteeism,
             weight_grad * grade_grad,
             weight_ready_grad * grade_ready_grad,
-            weight_ELPA * grade_ELPA, na.rm = TRUE)/total_weight + 1e-10, 1)) %>%
+            weight_ELPA * grade_ELPA, na.rm = TRUE)/total_weight, 1)) %>%
     ungroup()
 
 # Achievement grades
@@ -117,11 +121,13 @@ all_students_grades_final <- AF_grades_metrics %>%
             achievement_average > 2 ~ "B",
             achievement_average > 1 ~ "C",
             achievement_average > 0 ~ "D",
-            achievement_average == 0 ~ "F")
+            achievement_average == 0 ~ "F"
+        )
     )
 
 # Targeted support schools
 targeted_support <- AF_grades_metrics %>%
+    mutate(subgroup_average = if_else(total_weight != 1, NA_real_, subgroup_average)) %>%
     filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged",
         "English Learners", "Students with Disabilities",
         "Black", "Hispanic", "Native American", "Hawaiian/Pacific Islander", "Asian", "White")) %>%
@@ -166,21 +172,22 @@ subgroup_grades_final <- AF_grades_metrics %>%
     summarise_at(c("total_weight", "subgroup_average_weighted"), sum, na.rm = TRUE) %>%
     ungroup() %>%
     transmute(system, system_name, school, school_name,
-        gap_closure_average = round(subgroup_average_weighted/total_weight + 1e-10, 1),
+        gap_closure_average = round5(subgroup_average_weighted/total_weight, 1),
         gap_closure_grade = case_when(
             gap_closure_average > 3 ~ "A",
             gap_closure_average > 2 ~ "B",
             gap_closure_average > 1 ~ "C",
             gap_closure_average > 0 ~ "D",
             gap_closure_average == 0 ~ "F",
-            is.na(gap_closure_average) ~ NA_character_)
+            is.na(gap_closure_average) ~ NA_character_
+        )
     )
 
 AF_grades_final <- all_students_grades_final %>%
     full_join(subgroup_grades_final, by = c("system", "system_name", "school", "school_name")) %>%
     full_join(F_schools, by = c("system", "system_name", "school", "school_name")) %>%
     full_join(targeted_support, by = c("system", "school")) %>%
-    mutate(overall_average = round(0.6 * achievement_average + 0.4 * gap_closure_average + 1e-10, 1),
+    mutate(overall_average = round5(0.6 * achievement_average + 0.4 * gap_closure_average, 1),
         overall_average = if_else(is.na(overall_average), achievement_average, overall_average),
         final_grade = case_when(
             designation_ineligible == 1 ~ NA_character_,
@@ -189,7 +196,8 @@ AF_grades_final <- all_students_grades_final %>%
             overall_average > 2 ~ "B",
             overall_average > 1 ~ "C",
             overall_average > 0 ~ "D",
-            TRUE ~ final_grade),
+            TRUE ~ final_grade
+        ),
         targeted_support = if_else(final_grade == "D", 1L, targeted_support),
         targeted_support = if_else(designation_ineligible == 1, NA_integer_, targeted_support),
         priority_grad = if_else(is.na(priority_grad), FALSE, priority_grad),
@@ -213,7 +221,7 @@ AF_grades_final %>%
     mutate(title_1 = if_else(is.na(title_1), 0, title_1)) %>%
     write_csv(path = paste0("data/AF_bottom_five_amos_final_grades_", format(Sys.Date(), "%b%d"), ".csv"), na = "")
 
-# Create presentation
+# Create Presentation ---------------------------------------------------------------------------------------------
 options(java.home = "C:/Program Files/Java/jre1.8.0_51", "ReporteRs-default-font" = "Calibri")
 library(ReporteRs)
 library(ggthemes)
