@@ -94,7 +94,7 @@ system_numeric <- collapse %>%
     select(year, system, subject, grade, subgroup, valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
-# Append ACT, grad
+# 2017 ACT and Grad -----------------------------------------------------------------------------------------------
 ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
     transmute(year = 2017, system, subject = "ACT Composite", grade = "All Grades", subgroup,
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
@@ -220,7 +220,7 @@ AMOs <- read_excel("K:/ORP_accountability/data/2016_AMOs/2016_system_eoc_amos.xl
     transmute(year = 2017, system, subject, grade, subgroup, AMO_target_below, AMO_target_below_4, AMO_target, AMO_target_4) %>%
     bind_rows(ACT_grad_amo)
 
-# 2015 Percentile Ranks
+# 2015 Percentile Ranks for 3-8
 pctile_2015 <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/system_numeric_with_super_subgroup_2016.csv") %>%
     filter(year == 2015, grade %in% c("3rd through 5th", "6th through 8th")) %>%
     transmute(year = 2017, system, subject, grade,
@@ -307,6 +307,7 @@ TVAAS_2017_subgroups <- TVAAS_2017_subgroups_1 %>%
     full_join(TVAAS_2017_subgroups_2, by = c("system", "subgroup", "subject", "grade")) %>%
     mutate(year = 2017,
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
+        subgroup = if_else(subgroup == "Students With Disabilities", "Students with Disabilities", subgroup),
         TVAAS_index = pmax(Index_1, Index_2, na.rm = TRUE),
         TVAAS_level = case_when(
             Index_1 >= Index_2 ~ Level_1,
@@ -341,7 +342,8 @@ numeric_2017 <- system_numeric %>%
         lower_bound_ci_below = ci_lower_bound(valid_tests, pct_below),
         pct_below = if_else(subject == "Graduation Rate", NA_real_, pct_below),
         valid_tests = if_else(subject == "Graduation Rate", NA_real_, valid_tests))
-    
+
+# Percentile Ranks ------------------------------------------------------------------------------------------------
 percentile_ranks_38 <- numeric_2017 %>%
     filter(grade %in% c("3rd through 5th", "6th through 8th")) %>%
     mutate(pctile_rank_eligible = valid_tests >= 30 & !is.na(PA_percentile_2015)) %>%
@@ -358,8 +360,7 @@ percentile_ranks_38 <- numeric_2017 %>%
         OM_percentile = if_else(pctile_rank_eligible, round5(100 * OM_rank/denom, 1), NA_real_)) %>%
     ungroup() %>%
     select(-pctile_rank_eligible)
-    
-# Percentile Ranks ------------------------------------------------------------------------------------------------
+
 percentile_ranks <- numeric_2017 %>%
     filter(!grade %in% c("3rd through 5th", "6th through 8th")) %>%
     group_by(system, subject, grade, subgroup) %>%
