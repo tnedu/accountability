@@ -1,5 +1,6 @@
 ## ELPA Indicator for A-F School Grading
 
+library(acct)
 library(haven)
 library(tidyverse)
 
@@ -31,7 +32,8 @@ elpa16 <- read_dta("K:/ORP_accountability/data/2016_WIDA_Access/old/2016_State_S
             timeinlepellinus == "6y" ~ 6,
             timeinlepellinus == "7y" ~ 7,
             timeinlepellinus == "8y" ~ 8,
-            timeinlepellinus == "  " ~ grade),
+            timeinlepellinus == "  " ~ grade
+        ),
         black = raceblack, hispanic = ethnicityhispaniclatino, native = raceamericanindianalaskanative,
         hpi = racepacificislander, asian = raceasian, white = racewhite, swd = iepstatus,
         literacy = as.numeric(literacyperformancelevel), composite = as.numeric(performancelevelcomposite)) %>%
@@ -102,26 +104,29 @@ elpa_indicator <- bind_rows(elpa_all, elpa_ed, elpa_bhn, elpa_swd, elpa_el,
             time_in_esl == 3 ~ 0.8,
             time_in_esl == 4 ~ 1.0,
             time_in_esl >= 5 | is.na(time_in_esl) ~ 1.2,
-            !valid_tests ~ NA_real_),
+            !valid_tests ~ NA_real_
+        ),
         growth_standard_denom = !is.na(composite) & !is.na(composite_prior),
         met_growth_standard = composite - composite_prior >= 0.7) %>%
     group_by(system, school, subgroup) %>%
     summarise_at(c("valid_tests", "exit_count", "exit_denom", "growth_standard_denom", "met_growth_standard"), sum, na.rm = TRUE) %>%
     ungroup() %>%
-    mutate(exit_percent = if_else(valid_tests >= 10, round(100 * exit_count/exit_denom + 1e-10, 1), NA_real_),
+    mutate(exit_percent = if_else(valid_tests >= 10, round5(100 * exit_count/exit_denom, 1), NA_real_),
         grade_exit = case_when(
             exit_percent >= 36 ~ "A",
             exit_percent >= 24 ~ "B",
             exit_percent >= 12 ~ "C",
             exit_percent >= 6 ~ "D",
-            exit_percent < 6 ~ "F"),
-        met_growth_percent = if_else(growth_standard_denom >= 10, round(100 * met_growth_standard/growth_standard_denom, 1), NA_real_),
+            exit_percent < 6 ~ "F"
+        ),
+        met_growth_percent = if_else(growth_standard_denom >= 10, round5(100 * met_growth_standard/growth_standard_denom, 1), NA_real_),
         grade_growth_standard = case_when(
             met_growth_percent >= 70 ~ "A",
             met_growth_percent >= 60 ~ "B",
             met_growth_percent >= 45 ~ "C",
             met_growth_percent >= 30 ~ "D",
-            met_growth_percent < 30 ~ "F")
+            met_growth_percent < 30 ~ "F"
+        )
     )
 
 write_csv(elpa_indicator, path = "data/elpa_indicator.csv", na = "")

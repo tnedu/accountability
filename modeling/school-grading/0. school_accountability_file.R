@@ -1,5 +1,6 @@
 ## School Accountability File with Super Subgroup and Science
 
+library(acct)
 library(haven)
 library(readxl)
 library(tidyverse)
@@ -21,13 +22,16 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
         subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
             "Students with Disabilities", "English Language Learners with T1/T2", "Super Subgroup",
             "Black or African American", "Hispanic", "American Indian or Alaska Native",
-            "Native Hawaiian or Other Pacific Islander", "Asian", "White")) %>%
+            "Native Hawaiian or Other Pacific Islander", "Asian", "White"
+        )
+    ) %>%
     mutate(subgroup = case_when(
             subgroup == "Black or African American" ~ "Black",
             subgroup == "English Language Learners with T1/T2" ~ "English Learners",
             subgroup == "American Indian or Alaska Native" ~ "Native American",
             subgroup == "Native Hawaiian or Other Pacific Islander" ~ "Hawaiian/Pacific Islander",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
     # Reassign counts for grad and ACT
         grade = if_else(subject %in% c("ACT Composite", "Graduation Rate"), "12", grade),
         valid_tests = if_else(subject == "Graduation Rate", grad_cohort, valid_tests),
@@ -39,7 +43,8 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
             subject %in% c("Algebra I", "Algebra II") & grade <= 8 ~ "Math",
             subject %in% c("English I", "English II", "English III") & grade <= 8 ~ "ELA",
             subject %in% c("Biology I", "Chemistry") & grade <= 8 ~ "Science",
-            TRUE ~ subject)
+            TRUE ~ subject
+        )
     ) %>%
     inner_join(grade_pools, by = c("system", "system_name", "school", "school_name")) %>%
 # Aggregate across grades
@@ -52,7 +57,8 @@ school_base <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/s
             subject %in% c("Algebra I", "Algebra II") ~ "HS Math",
             subject %in% c("English I", "English II", "English III") ~ "HS English",
             subject %in% c("Biology I", "Chemistry") ~ "HS Science",
-            TRUE ~ subject)
+            TRUE ~ subject
+        )
     )
 
 # ACT for success rates (with all test takers as denominator)
@@ -65,7 +71,8 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2014_modeli
             subgroup == "English Language Learners with T1/T2" ~ "English Learners",
             subgroup == "Black or African American" ~ "Black",
             subgroup == "HPI" ~ "Hawaiian/Pacific Islander",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         n_prof = if_else(valid_tests_nogradcohort < 30, 0, num_21_orhigher_nogradcohort),
         valid_tests = if_else(valid_tests_nogradcohort < 30, 0, valid_tests_nogradcohort)) %>%
     inner_join(grade_pools, by = c("system", "school"))
@@ -79,7 +86,8 @@ ACT <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2015_modeling.dta
             subgroup == "English Language Learners with T1/T2" ~ "English Learners",
             subgroup == "Black or African American" ~ "Black",
             subgroup == "HPI" ~ "Hawaiian/Pacific Islander",
-            TRUE ~ subgroup),
+            TRUE ~ subgroup
+        ),
         n_prof = if_else(valid_tests_nogradcohort < 30, 0, num_21_orhigher_nogradcohort),
         valid_tests = if_else(valid_tests_nogradcohort < 30, 0, valid_tests_nogradcohort)) %>%
     inner_join(grade_pools, by = c("system", "school"))
@@ -108,15 +116,15 @@ ACT_grad <- school_base %>%
     mutate(year = as.character(year))
 
 success_rates_all <- bind_rows(success_rates_1yr, success_rates_3yr, ACT_grad) %>%
-    mutate(pct_prof_adv = round(100 * (n_prof + n_adv)/valid_tests + 1e-10, 1))
+    mutate(pct_prof_adv = round5(100 * (n_prof + n_adv)/valid_tests, 1))
 
 # AMOs
 AMOs <- success_rates_all %>%
     filter(year == "2014") %>%
     transmute(year = "2015", system, system_name, school, school_name, subject, subgroup,
         valid_tests_prior = valid_tests, pct_prof_adv_prior = pct_prof_adv,
-        AMO_target_PA = if_else(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/16 + 1e-10, 1), NA_real_),
-        AMO_target_PA_4 = if_else(valid_tests >= 30, round(pct_prof_adv + (100 - pct_prof_adv)/8 + 1e-10, 1), NA_real_))
+        AMO_target_PA = amo_target(valid_tests, pct_prof_adv),
+        AMO_target_PA_4 = amo_target(valid_tests, pct_prof_adv, double = TRUE))
 
 # School Composite TVAAS
 TVAAS_prior <- read_csv("K:/Research and Policy/ORP_Data/Educator_Evaluation/TVAAS/Raw_Files/2013-14/URM School Value-Added and Composites.csv") %>%
@@ -135,14 +143,11 @@ school_accountability <- success_rates_all %>%
     filter(year != "2014") %>%
     left_join(AMOs, by = c("year", "system", "system_name", "school", "school_name", "subgroup", "subject")) %>%
     left_join(TVAAS, by = c("system", "school", "subject", "subgroup")) %>%
-    mutate(pct_prof_adv = pct_prof_adv/100,
-        upper_bound_ci_PA = round(100 * valid_tests/(valid_tests + qnorm(0.975)^2) * (pct_prof_adv + qnorm(0.975)^2/(2 * valid_tests) +
-            qnorm(0.975) * sqrt(pct_prof_adv * (1 - pct_prof_adv)/valid_tests + qnorm(0.975)^2/(4 * valid_tests^2))), 1),
-        pct_prof_adv = 100 * pct_prof_adv) %>%
+    mutate(upper_bound_ci_PA = ci_upper_bound(valid_tests, pct_prof_adv)) %>%
     group_by(year, subject, subgroup, designation_ineligible, pool) %>%
     mutate(rank_PA = if_else(valid_tests >= 30, rank(pct_prof_adv, ties.method = "max"), NA_integer_),
         denom = sum(valid_tests >= 30, na.rm = TRUE),
-        pctile_rank_PA = if_else(!designation_ineligible, round(100 * rank_PA/denom + 1e-10, 1), NA_real_)) %>%
+        pctile_rank_PA = if_else(!designation_ineligible, round5(100 * rank_PA/denom, 1), NA_real_)) %>%
     ungroup() %>%
     select(year, system, system_name, school, school_name, pool, subject, subgroup, designation_ineligible,
         valid_tests_prior, valid_tests, pct_prof_adv_prior, pct_prof_adv, upper_bound_ci_PA,
