@@ -318,7 +318,8 @@ TVAAS_2017_subgroups <- TVAAS_2017_subgroups_1 %>%
     ) %>%
     select(year, system, subject, grade, subgroup, TVAAS_index, TVAAS_level)
 
-TVAAS <- bind_rows(TVAAS_2017_all, TVAAS_2017_subgroups, TVAAS_2016)
+TVAAS <- bind_rows(TVAAS_2017_all, TVAAS_2017_subgroups, TVAAS_2016) %>%
+    mutate(year = if_else(subject == "ACT Composite", 2017, year))
 
 # Put everything together
 numeric_2017 <- system_numeric %>%
