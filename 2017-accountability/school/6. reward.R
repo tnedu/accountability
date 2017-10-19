@@ -177,7 +177,6 @@ new_output <- output %>%
     ungroup() %>%
     full_join(tvaas_new, by = c("system", "school")) %>%
     mutate(reward_progress_new = if_else(!is.na(pool) & priority_focus == 0 & designation_ineligible == 0 & reward_exemption == 0 & reward_progress == 0 & tvaas_new >= cutoff, 1L, 0L),
-        reward_progress = if_else(!is.na(pool) & priority_focus == 0 & designation_ineligible == 0 & reward_exemption == 0 & tvaas_new >= cutoff, 1L, reward_progress))
 
 write_csv(new_output, "K:/ORP_accountability/projects/2017_school_accountability/reward.csv")
 
