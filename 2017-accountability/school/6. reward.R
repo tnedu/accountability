@@ -104,7 +104,17 @@ reward_exemption <- one_year_success %>%
         denom = if_else(designation_ineligible == 0, sum(!is.na(gap)), NA_integer_)) %>%
     ungroup() %>%
     mutate(pctile_rank_gap = round5(100 * rank_gap/denom, 1),
-        reward_exemption = as.integer(pctile_rank_gap >= 75)) %>%
+        reward_exemption = as.integer(pctile_rank_gap >= 75))
+
+reward_exemption_by_subgroup <- reward_exemption %>%
+    select(system, school, subgroup, reward_exemption) %>%
+    spread(subgroup, reward_exemption) %>%
+    rename(reward_exemption_BHN = `Black/Hispanic/Native American`,
+        reward_exemption_ED = `Economically Disadvantaged`,
+        reward_exemption_SWD = `Students with Disabilities`,
+        reward_exemption_EL = `English Learners with T1/T2`)
+
+reward_exemption_overall <- reward_exemption %>%
     group_by(system, school) %>%
     summarise(reward_exemption = max(reward_exemption, na.rm = TRUE)) %>%
     ungroup() %>%
@@ -114,7 +124,7 @@ reward_exemption <- one_year_success %>%
 reward <- one_year_success %>%
     filter(subgroup == "All Students") %>%
     left_join(tvaas, by = c("system", "school")) %>%
-    full_join(reward_exemption, by = c("system", "school")) %>%
+    full_join(reward_exemption_overall, by = c("system", "school")) %>%
     full_join(priority_focus, by = c("system", "school")) %>%
     mutate(priority_focus = if_else(is.na(priority_focus), 0, priority_focus)) %>%
     group_by(pool, designation_ineligible, priority_focus, reward_exemption) %>%
@@ -177,6 +187,13 @@ new_output <- output %>%
     ungroup() %>%
     full_join(tvaas_new, by = c("system", "school")) %>%
     mutate(reward_progress_new = if_else(!is.na(pool) & priority_focus == 0 & designation_ineligible == 0 & reward_exemption == 0 & reward_progress == 0 & tvaas_new >= cutoff, 1L, 0L),
+        reward_progress = if_else(!is.na(pool) & priority_focus == 0 & designation_ineligible == 0 & reward_exemption == 0 & tvaas_new >= cutoff, 1L, reward_progress)) %>%
+    select(-temp) %>%
+    full_join(reward_exemption_by_subgroup, by = c("system", "school")) %>%
+    select(system, school, pool, designation_ineligible, priority_focus,
+        starts_with("reward_exemption_"), reward_exemption,
+        pct_on_mastered, reward_performance,
+        tvaas_index, tvaas_new, cutoff, reward_progress, reward_progress_new)
 
 write_csv(new_output, "K:/ORP_accountability/projects/2017_school_accountability/reward.csv")
 
