@@ -195,7 +195,7 @@ new_output <- output %>%
         pct_on_mastered, reward_performance,
         tvaas_index, tvaas_new, cutoff, reward_progress, reward_progress_new)
 
-write_csv(new_output, "K:/ORP_accountability/projects/2017_school_accountability/reward.csv")
+write_csv(new_output, "K:/ORP_accountability/projects/2017_school_accountability/reward_Oct19.csv")
 
 
 # School Summary File Metrics -------------------------------------------------------------------------------------
