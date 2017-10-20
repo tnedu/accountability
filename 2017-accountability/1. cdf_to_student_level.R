@@ -36,7 +36,9 @@ ach_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/38_cdf_091417.dta") %>%
         ri_status_final = if_else(content_area_code == "ENG" & el_excluded == 1, 0, ri_status_final)) %>%
     filter(content_area_code != "SOC") %>%
 # Drop 8th grade math for Athens City on appeals
-    filter(!(system == 541 & content_area_code == "MAT" & grade == 8))
+    filter(!(system == 541 & content_area_code == "MAT" & grade == 8)) %>%
+# Van Buren Modification on Appeal
+    mutate(greater_than_60_pct = if_else(system == 880 & grade >= 6, "Y", greater_than_60_pct))
 
 fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_081517.dta") %>%
 # Student level file variables
@@ -88,6 +90,7 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
+# Integrated Math districts for reassigning MSAA subjects
 int_math_systems <- cdf %>%
     filter(content_area_code %in% c("A1", "M1")) %>%
     count(system, content_area_code) %>%
@@ -263,4 +266,4 @@ output <- dedup %>%
     arrange(system, school, state_student_id)
 
 # Output file
-write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_oct15.csv", na = "")
+write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_oct19.csv", na = "")

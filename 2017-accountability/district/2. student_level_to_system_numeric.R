@@ -19,7 +19,7 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_sub
         grade = "9th through 12th",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10162017.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
     filter(greater_than_60_pct == "Y",
 # Residential Facility students are dropped from system level
         residential_facility != 1 | is.na(residential_facility)) %>%
@@ -420,4 +420,4 @@ percentile_rank_update <- output %>%
     select(-below_percentile_10_11, -OM_percentile_10_11)
 
 # Output file
-write_csv(percentile_rank_update, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_oct17.csv", na = "")
+write_csv(percentile_rank_update, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_oct19.csv", na = "")

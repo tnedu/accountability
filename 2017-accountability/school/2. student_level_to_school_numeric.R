@@ -20,7 +20,7 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_sub
         subgroup = "All",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10162017.dta") %>%
+student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
     filter(greater_than_60_pct == "Y",
 # Homebound and Residential Facility students are dropped from school level
         homebound == 0 | is.na(homebound),
@@ -251,4 +251,4 @@ output <- numeric_2017 %>%
         grad_count, grad_cohort, grad_rate, dropout_count, dropout_rate)
 
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_oct17.csv", na = "")
+write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_oct19.csv", na = "")
