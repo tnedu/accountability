@@ -13,6 +13,8 @@ pools <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/gra
     select(system, school, pool)
 
 student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
+# Combine two Bartlett schools that merged
+    mutate(school = if_else(system == 794 & school == 170, 25, school)) %>%
     filter(greater_than_60_pct == "Y",
         original_subject != "US History",
         grade %in% 3:12,

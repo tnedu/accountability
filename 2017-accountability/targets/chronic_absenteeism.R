@@ -57,6 +57,8 @@ attendance <- haven::read_dta("K:/ORP_accountability/data/2017_chronic_absenteei
     transmute(instructional_program_num, system = district_no, school = school_no, grade,
         student_key = as.integer(student_key), begin_date, end_date, isp_days,
         count_total = if_else(is.na(cnt_total), 0, cnt_total)) %>%
+# Combine two Bartlett schools that merged
+    mutate(school = if_else(system == 794 & school == 170, 25, school)) %>%
 # For students with same system, school, student ID, enrollment dates, take maximum instructional program days
 # (Doesn't drop any records)
     group_by(system, school, student_key, grade, begin_date, end_date) %>%
