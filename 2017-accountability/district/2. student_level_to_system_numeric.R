@@ -163,7 +163,7 @@ participation <- participation_1yr %>%
 ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2016.dta") %>%
     transmute(year = 2016, system, subject = "ACT Composite", grade = "All Grades",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
-        participation_rate_1yr = round(100 * tested/enrolled + 1e-10),
+        participation_rate_1yr = round5(100 * tested/enrolled),
         enrolled, tested, valid_tests, n_on_track = n_21_orhigher, n_below = n_below19,
         pct_below = pct_below19, pct_on_mastered = pct_21_orhigher_reporting) %>%
     filter(subgroup %in% numeric_subgroups)
