@@ -11,15 +11,19 @@ numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Econom
 system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
 # Data download files are suppressed for n < 10 (*) or any individual proficiency band < 1% or > 99% (**)
-suppress <- function(file) {
+suppress <- function(file, threshold = 1) {
     file %>%
+        rowwise() %>% 
+        mutate(temp = any(pct_below < threshold, pct_below > (100 - threshold),
+            pct_approaching < threshold, pct_approaching > (100 - threshold),
+            pct_on_track < threshold, pct_on_track > (100 - threshold),
+            pct_mastered < threshold, pct_mastered > (100 - threshold))) %>%
+        ungroup() %>%
         mutate_at(c("n_below", "n_approaching", "n_on_track", "n_mastered",
                 "pct_below", "pct_approaching", "pct_on_track", "pct_mastered", "pct_on_mastered"),
-            funs(if_else(pct_below < 1 | pct_below > 99 | pct_approaching < 1 | pct_approaching > 99 |
-                pct_on_track < 1 | pct_on_track > 99 | pct_mastered < 1 | pct_mastered > 99,
-                "**", as.character(.))
-            )
+            funs(if_else(temp, "**", as.character(.)))
         ) %>%
+        select(-temp) %>%
         mutate_at(c("n_below", "n_approaching", "n_on_track", "n_mastered",
                 "pct_below", "pct_approaching", "pct_on_track", "pct_mastered", "pct_on_mastered"),
             funs(if_else(valid_tests < 10, "*", as.character(.))))
@@ -78,7 +82,7 @@ system_numeric_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_acc
 
 write_csv(system_numeric_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/system_numeric_suppressed.csv", na = "")
 
-
+## School files are suppressed for < 5% or > 95%
 # School Base
 school_base_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct17.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
@@ -87,7 +91,7 @@ school_base_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accoun
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered) %>%
     arrange(system, school, grade, subject, subgroup) %>%
-    suppress()
+    suppress(threshold = 5)
 
 write_csv(school_base_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_base_suppressed.csv", na = "")
 
@@ -100,6 +104,6 @@ school_numeric_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_acc
         pct_below = pct_below_bsc, pct_approaching = pct_approach_bsc, pct_on_track = pct_ontrack_prof, pct_mastered = pct_mastered_adv,
         pct_on_mastered = pct_ontrack_prof_adv) %>%
     arrange(system, school, grade, subject, subgroup) %>%
-    suppress()
+    suppress(threshold = 5)
 
 write_csv(school_numeric_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_numeric_suppressed.csv", na = "")
