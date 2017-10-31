@@ -95,6 +95,17 @@ school_base_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accoun
 
 write_csv(school_base_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_base_suppressed.csv", na = "")
 
+school_base_60_pct_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
+        col_types = c("iiicccddddddddddddddddddddddddd")) %>%
+    filter(year == 2017, subject %in% base_subjects, grade != "Missing Grade") %>%
+    select(year, system, school, subject, grade, subgroup,
+        valid_tests, n_below, n_approaching, n_on_track, n_mastered,
+        pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered) %>%
+    arrange(system, school, grade, subject, subgroup) %>%
+    suppress(threshold = 5)
+
+write_csv(school_base_60_pct_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_base_60_pct_suppressed.csv", na = "")
+
 # School Numeric
 school_numeric_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_JW_10242017.csv") %>%
     mutate(subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
