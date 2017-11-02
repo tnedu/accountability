@@ -43,7 +43,8 @@ write_csv(state_base_suppressed, path = "K:/ORP_accountability/data/2017_final_a
 
 # State Numeric
 state_numeric_suppressed <- haven::read_dta("K:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017_JW_final_10242017.dta") %>%
-    mutate(subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
+    mutate(subject = if_else(subject == "HS ELA", "HS English", subject),
+        subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
     filter(year == 2017, subject %in% numeric_subjects, subgroup %in% numeric_subgroups) %>%
     transmute(year, system = 0, system_name = "State of Tennessee", subject, grade, subgroup,
         valid_tests, n_below = n_below_bsc, n_approaching = n_approach_bsc, n_on_track = n_ontrack_prof, n_mastered = n_mastered_adv,
@@ -69,7 +70,8 @@ write_csv(system_base_suppressed, path = "K:/ORP_accountability/data/2017_final_
 
 # System Numeric
 system_numeric_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/Non-official files/system_numeric_2017_JW_10232017.csv") %>%
-    mutate(subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
+    mutate(subject = if_else(subject == "HS ELA", "HS English", subject),
+        subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
     filter(year == 2017, subject %in% numeric_subjects, subgroup %in% numeric_subgroups) %>%
     left_join(system_names, by = "system") %>%
     select(year, system, system_name, subject, grade, subgroup,
@@ -107,8 +109,9 @@ school_base_60_pct_suppressed <- read_csv("K:/ORP_accountability/data/2017_final
 write_csv(school_base_60_pct_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_base_60_pct_suppressed.csv", na = "")
 
 # School Numeric
-school_numeric_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_JW_10242017.csv") %>%
-    mutate(subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
+school_numeric_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/Non-official files/school_numeric_2017_JW_wHSScience_11012017.csv") %>%
+    mutate(subject = if_else(subject == "HS ELA", "HS English", subject),
+        subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
     filter(year == 2017, subject %in% numeric_subjects, subgroup %in% numeric_subgroups) %>%
     select(year, system, school, subject, grade, subgroup,
         valid_tests, n_below = n_below_bsc, n_approaching = n_approach_bsc, n_on_track = n_ontrack_prof, n_mastered = n_mastered_adv,

@@ -70,7 +70,7 @@ school_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_fi
         !subject %in% c("Graduation Rate", "ACT Composite", "ACT Math", "ACT Reading")) %>%
     mutate(school = as.numeric(school))
 
-school_numeric <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/Non-official files/school_numeric_2017_JW_10022017.csv") %>%
+school_numeric <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/Non-official files/school_numeric_2017_JW_wHSScience_11012017.csv") %>%
     filter(year == 2017,
         subject %in% c("HS Math", "HS ELA", "HS Science"),
         subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
