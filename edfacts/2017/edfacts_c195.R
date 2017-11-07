@@ -1,10 +1,6 @@
 library(acct)
 library(tidyverse)
 
-instructional_days <- readxl::read_excel("K:/ORP_accountability/data/2017_chronic_absenteeism/School Level - Instructional days.xlsx") %>%
-    transmute(year = 2017, system_name = DISTRICT_NAME, system = DISTRICT_NO,
-        school_name = SCHOOL_NAME, school = SCHOOL_NO, instructional_days = INSTRUCTIONAL_DAYS)
-
 econ_dis <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_classification_JUIH only.txt",
         delim = "\t") %>%
     transmute(student_key = STUDENT_KEY, ED = 1, 
@@ -83,8 +79,6 @@ attendance <- haven::read_dta("K:/ORP_accountability/data/2017_chronic_absenteei
     group_by(system, school, grade, student_key, gender) %>%
     summarise(n_absences = sum(count_total, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE)) %>%
     ungroup() %>%
-    # Merge on instructional calendar file
-    inner_join(instructional_days, by = c("system", "school")) %>%
     mutate(n_students = 1,
         grade = case_when(
             grade %in% c("K", "01", "02", "03", "04", "05", "06", "07", "08") ~ "K-8",
@@ -95,19 +89,20 @@ attendance <- haven::read_dta("K:/ORP_accountability/data/2017_chronic_absenteei
     left_join(race, by = "student_key") %>%
     left_join(econ_dis, by = "student_key") %>%
     left_join(special_ed, by = "student_key") %>%
-    left_join(el, by = "student_key")
-
+    left_join(el, by = "student_key") %>%
+# For Edfacts, taking students who are enrolled for 10 or more days
+    filter(isp_days >= 10)
+    
 school_CA <- tibble()
 
-for (s in c("All", "BHN", "ED", "SWD", "EL", "Homeless", "Native", "Black", "Asian", "Hispanic", "HPI", "White")) {
+for (s in c("SWD", "EL", "Homeless", "Native", "Black", "Asian", "Hispanic", "HPI", "White")) {
     
-    # School all grades
+# School all grades
     school_CA <- attendance %>%
         # Filter for relevant subgroup
         filter_(paste(s, "== 1L")) %>%
-        # Drop students enrolled less than 50% of school year
-        filter(isp_days/instructional_days >= 0.5) %>%
-        group_by(year, system, system_name, school, school_name, gender) %>%
+    # Calculate absenteeism by subgroup and gender
+        group_by(system, school, gender) %>%
         summarise(n_chronically_absent = sum(chronic_absence)) %>%
         ungroup() %>%
         mutate(subgroup = s) %>%
@@ -115,12 +110,32 @@ for (s in c("All", "BHN", "ED", "SWD", "EL", "Homeless", "Native", "Black", "Asi
 
 }
 
+# All Students Absenteeism (not by gender)
+school_CA <- attendance %>%
+    filter(All == 1) %>%
+    group_by(system, school) %>%
+    summarise(n_chronically_absent = sum(chronic_absence)) %>%
+    ungroup() %>%
+    mutate(subgroup = "All") %>%
+    bind_rows(school_CA, .)
+
+school_master <- readxl::read_excel("H:/EDEN Data/EDEN 16-17/2016-17 EDFacts School Master File_4-5-17.xlsx") %>%
+    transmute(system = as.numeric(STATE_LEAID), school = as.numeric(STATE_SCHID))
+
+disability_504_missing <- bind_rows(
+        school_master %>% mutate(gender = "M", n_chronically_absent = NA, subgroup = "504"),
+        school_master %>% mutate(gender = "F", n_chronically_absent = NA, subgroup = "504")
+    )
+
 school_output <- school_CA %>%
+    filter(gender != "U" | is.na(gender)) %>%
+    inner_join(school_master, by = c("system", "school")) %>%
+#    bind_rows(disability_504_missing) %>%
     arrange(system, school, subgroup, gender) %>%
     rowid_to_column(var = "first") %>%
-    transmute(first, state_code = "TN",
+    transmute(first, state_code = 47,
         state_agency = "01",
-        system = sprintf("%03d", system),
+        system = sprintf("%05d", system),
         school = sprintf("%04d", school),
         table_name = "CHRONABSENT",
         gender,
@@ -133,10 +148,11 @@ school_output <- school_CA %>%
             subgroup == "White" ~ "WH7"
         ),
         disability = if_else(subgroup == "SWD", "WDIS", ""),
+        disability_504 = if_else(subgroup == "504", "DISAB504STAT", ""),
         lep = if_else(subgroup == "EL", "LEP", ""),
-        homeless = if_else(subgroup == "Homeless", "HOMELESENRL", ""),
+        homeless = if_else(subgroup == "Homeless", "HOMELSENRL", ""),
         filler = "",
-        total_indicator = "N",
+        total_indicator = if_else(subgroup == "All", "Y", "N"),
         explanation = "",
         student_count = n_chronically_absent)
 
