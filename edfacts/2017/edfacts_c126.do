@@ -125,10 +125,12 @@ preserve;
 
 import excel "H:\EDEN Data\EDEN 15-16\Done\C126\T1T2 Counts/C126_1516_T1T2_COUNTS_11-22-16.xlsx", firstrow sheet(TITLEIII_DISTRICTS_1516) clear;
 
-drop if LEAID == .;
-drop if TitleIII == "N";
+import excel "K:\ORP_accountability\projects\Jessica\Data Returns\Data\WIDA\EdFacts\title III districts\16-17/TITLEIII_DISTRICTS_2016-17_FOR_CPM_9-11-17.xlsx", firstrow clear;
 
-keep LEAID;
+drop if leaid == .;
+drop if titleiii == "N";
+
+keep leaid;
 
 tempfile title_III;
 save `title_III', replace;
@@ -142,7 +144,7 @@ append using `prof_system';
 replace el_t1_t2 = "1YEAR" if el_t1_t2 == "T1";
 replace el_t1_t2 = "2YEAR" if el_t1_t2 == "T2";
 
-mmerge system using `title_III', type(n:1) umatch(LEAID);
+mmerge system using `title_III', type(n:1) umatch(leaid);
 keep if _merge == 3;
 drop _merge;
 
