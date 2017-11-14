@@ -52,7 +52,15 @@ race <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_
     filter(!duplicated(student_key)) %>%
     select(-c(race, priority, temp))
 
+attendance_henry <- readxl::read_excel("K:/ORP_accountability/data/2017_chronic_absenteeism/Absenteeism - Henry Co  SY 2016-17.xlsx") %>%
+    mutate_at(c("BEGIN_DATE", "END_DATE", "WITHDRAWAL_REASON", "DATE_OF_BIRTH", "SCHOOL_BU_ID", "DISTRICT_BU_ID",
+        "CNT_UNEXCUSED", "CNT_UNEXCUSED_TRANS"), as.character)
+
+names(attendance_henry) <- tolower(names(attendance_henry))
+
 attendance <- haven::read_dta("K:/ORP_accountability/data/2017_chronic_absenteeism/Attendance data as of 08152017.dta") %>%
+    filter(district_no != 400) %>%
+    bind_rows(attendance_henry) %>%
     filter(grade %in% c("K", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")) %>%
     transmute(instructional_program_num, system = district_no, school = school_no, grade,
         student_key = as.integer(student_key), begin_date, end_date, isp_days,
