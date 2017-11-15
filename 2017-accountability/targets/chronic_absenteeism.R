@@ -54,7 +54,8 @@ race <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_
 
 attendance_henry <- readxl::read_excel("K:/ORP_accountability/data/2017_chronic_absenteeism/Absenteeism - Henry Co  SY 2016-17.xlsx") %>%
     mutate_at(c("BEGIN_DATE", "END_DATE", "WITHDRAWAL_REASON", "DATE_OF_BIRTH", "SCHOOL_BU_ID", "DISTRICT_BU_ID",
-        "CNT_UNEXCUSED", "CNT_UNEXCUSED_TRANS"), as.character)
+        "CNT_UNEXCUSED", "CNT_UNEXCUSED_TRANS"), as.character) %>%
+    mutate(GRADE = if_else(GRADE %in% as.character(1:9), paste0("0", GRADE), GRADE))
 
 names(attendance_henry) <- tolower(names(attendance_henry))
 
