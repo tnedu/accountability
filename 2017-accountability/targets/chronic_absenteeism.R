@@ -65,6 +65,8 @@ attendance <- haven::read_dta("K:/ORP_accountability/data/2017_chronic_absenteei
     filter(grade %in% c("K", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")) %>%
     transmute(instructional_program_num, system = district_no, school = school_no, grade,
         student_key = as.integer(student_key), begin_date, end_date, isp_days,
+        count_excused = if_else(is.na(cnt_excused), 0, as.numeric(cnt_excused)),
+        count_unexcused = if_else(cnt_unexcused == "", 0, as.numeric(cnt_unexcused)),
         count_total = if_else(is.na(cnt_total), 0, cnt_total)) %>%
 # Combine two Bartlett schools that merged
     mutate(school = if_else(system == 794 & school == 170, 25, school)) %>%
@@ -88,8 +90,9 @@ attendance <- haven::read_dta("K:/ORP_accountability/data/2017_chronic_absenteei
     mutate(count = 1, temp = cumsum(count)) %>%
     filter(temp == 1) %>%
 # Collapse multiple enrollments at the same school
+    rename(n_absences = count_total) %>%
     group_by(system, school, grade, student_key) %>%
-    summarise(n_absences = sum(count_total, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE)) %>%
+    summarise_at(c("count_excused", "count_unexcused", "n_absences", "isp_days"), sum, na.rm = TRUE) %>%
     ungroup() %>%
 # Merge on instructional calendar file
     inner_join(instructional_days, by = c("system", "school")) %>%
@@ -99,6 +102,8 @@ attendance <- haven::read_dta("K:/ORP_accountability/data/2017_chronic_absenteei
             grade %in% c("09", "10", "11", "12") ~ "9-12"
         ),
         chronic_absence = as.numeric(n_absences/isp_days >= 0.1),
+        absent_10_to_20_pct = as.numeric(n_absences/isp_days >= 0.1 & n_absences/isp_days <= 0.2),
+        absent_greater_than_20_pct = as.numeric(n_absences/isp_days > 0.2),
         All = 1L) %>%
     left_join(race, by = "student_key") %>%
     left_join(econ_dis, by = "student_key") %>%
@@ -119,7 +124,10 @@ for (s in c("All", "BHN", "ED", "SWD", "EL", "Black", "Hispanic", "Native", "HPI
         filter(isp_days/instructional_days >= 0.5) %>%
         group_by(year, system, system_name, school, school_name) %>%
         summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-            pct_chronically_absent = round5(100 * mean(chronic_absence), 1)) %>%
+            days_excused = sum(count_excused), days_unexcused = sum(count_unexcused),
+            pct_chronically_absent = round5(100 * mean(chronic_absence), 1),
+            pct_10_to_20_pct = round5(100 * mean(absent_10_to_20_pct), 1),
+            pct_greater_than_20_pct = round5(100 * mean(absent_greater_than_20_pct), 1)) %>%
         ungroup() %>%
         mutate(subgroup = s, grade = "All Grades") %>%
         bind_rows(school_CA, .)
@@ -131,15 +139,22 @@ for (s in c("All", "BHN", "ED", "SWD", "EL", "Black", "Hispanic", "Native", "HPI
     # Collapse multiple enrollments in the same district
         group_by(year, system, system_name, student_key, grade) %>%
         summarise(n_absences = sum(n_absences, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE),
+            count_excused = sum(count_excused, na.rm = TRUE), count_unexcused = sum(count_unexcused, na.rm = TRUE),
             instructional_days = max(instructional_days)) %>%
         ungroup() %>%
     # Drop students enrolled less than 50% of school year
         filter(isp_days/instructional_days >= 0.5) %>%
         mutate(n_students = 1,
-            chronic_absence = as.numeric(n_absences/isp_days >= 0.1)) %>%
+            chronic_absence = as.numeric(n_absences/isp_days >= 0.1),
+            absent_10_to_20_pct = as.numeric(n_absences/isp_days >= 0.1 & n_absences/isp_days <= 0.2),
+            absent_greater_than_20_pct = as.numeric(n_absences/isp_days > 0.2)) %>%
         group_by(year, system, system_name, grade) %>%
-        summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-            pct_chronically_absent = round5(100 * mean(chronic_absence), 1)) %>%
+        summarise(n_students = sum(n_students, na.rm = TRUE), n_chronically_absent = sum(chronic_absence),
+            days_excused = sum(count_excused, na.rm = TRUE),
+            days_unexcused = sum(count_unexcused, na.rm = TRUE),
+            pct_chronically_absent = round5(100 * mean(chronic_absence), 1),
+            pct_10_to_20_pct = round5(100 * mean(absent_10_to_20_pct), 1),
+            pct_greater_than_20_pct = round5(100 * mean(absent_greater_than_20_pct), 1)) %>%
         ungroup() %>%
         mutate(subgroup = s) %>%
         bind_rows(system_CA, .)
@@ -151,15 +166,22 @@ for (s in c("All", "BHN", "ED", "SWD", "EL", "Black", "Hispanic", "Native", "HPI
     # Collapse multiple enrollments in the same district
         group_by(year, system, system_name, student_key, grade) %>%
         summarise(n_absences = sum(n_absences, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE),
+            count_excused = sum(count_excused), count_unexcused = sum(count_unexcused),
             instructional_days = max(instructional_days)) %>%
         ungroup() %>%
     # Drop students enrolled less than 50% of school year
         filter(isp_days/instructional_days >= 0.5) %>%
         mutate(n_students = 1,
-            chronic_absence = as.numeric(n_absences/isp_days >= 0.1)) %>%
+            chronic_absence = as.numeric(n_absences/isp_days >= 0.1),
+            absent_10_to_20_pct = as.numeric(n_absences/isp_days >= 0.1 & n_absences/isp_days <= 0.2),
+            absent_greater_than_20_pct = as.numeric(n_absences/isp_days > 0.2)) %>%
         group_by(year, system, system_name) %>%
         summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-            pct_chronically_absent = round5(100 * mean(chronic_absence), 1)) %>%
+            days_excused = sum(count_excused, na.rm = TRUE),
+            days_unexcused = sum(count_unexcused, na.rm = TRUE),
+            pct_chronically_absent = round5(100 * mean(chronic_absence), 1),
+            pct_10_to_20_pct = round5(100 * mean(absent_10_to_20_pct), 1),
+            pct_greater_than_20_pct = round5(100 * mean(absent_greater_than_20_pct), 1)) %>%
         ungroup() %>%
         mutate(subgroup = s, grade = "All Grades") %>%
         bind_rows(system_CA, .)
@@ -171,14 +193,21 @@ for (s in c("All", "BHN", "ED", "SWD", "EL", "Black", "Hispanic", "Native", "HPI
     # Add up absences and ISP days across every enrollment
         group_by(year, student_key, grade) %>%
         summarise(n_absences = sum(n_absences, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE),
+            count_excused = sum(count_excused), count_unexcused = sum(count_unexcused),
             instructional_days = max(instructional_days)) %>%
         ungroup() %>%
         filter(isp_days >= 45) %>%
         mutate(n_students = 1,
-            chronic_absence = as.numeric(n_absences/isp_days >= 0.1)) %>%
+            chronic_absence = as.numeric(n_absences/isp_days >= 0.1),
+            absent_10_to_20_pct = as.numeric(n_absences/isp_days >= 0.1 & n_absences/isp_days <= 0.2),
+            absent_greater_than_20_pct = as.numeric(n_absences/isp_days > 0.2)) %>%
         group_by(year, grade) %>%
         summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-            pct_chronically_absent = round5(100 * mean(chronic_absence), 1)) %>%
+            days_excused = sum(count_excused, na.rm = TRUE),
+            days_unexcused = sum(count_unexcused, na.rm = TRUE),
+            pct_chronically_absent = round5(100 * mean(chronic_absence), 1),
+            pct_10_to_20_pct = round5(100 * mean(absent_10_to_20_pct), 1),
+            pct_greater_than_20_pct = round5(100 * mean(absent_greater_than_20_pct), 1)) %>%
         ungroup() %>%
         mutate(subgroup = s) %>%
         bind_rows(state_CA, .)
@@ -190,14 +219,21 @@ for (s in c("All", "BHN", "ED", "SWD", "EL", "Black", "Hispanic", "Native", "HPI
     # Add up absences and ISP days across every enrollment
         group_by(year, student_key, grade) %>%
         summarise(n_absences = sum(n_absences, na.rm = TRUE), isp_days = sum(isp_days, na.rm = TRUE),
+            count_excused = sum(count_excused), count_unexcused = sum(count_unexcused),
             instructional_days = max(instructional_days)) %>%
         ungroup() %>%
         filter(isp_days >= 45) %>%
         mutate(n_students = 1,
-            chronic_absence = as.numeric(n_absences/isp_days >= 0.1)) %>%
+            chronic_absence = as.numeric(n_absences/isp_days >= 0.1),
+            absent_10_to_20_pct = as.numeric(n_absences/isp_days >= 0.1 & n_absences/isp_days <= 0.2),
+            absent_greater_than_20_pct = as.numeric(n_absences/isp_days > 0.2)) %>%
         group_by(year) %>%
         summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-            pct_chronically_absent = round5(100 * mean(chronic_absence), 1)) %>%
+            days_excused = sum(count_excused, na.rm = TRUE),
+            days_unexcused = sum(count_unexcused, na.rm = TRUE),
+            pct_chronically_absent = round5(100 * mean(chronic_absence), 1),
+            pct_10_to_20_pct = round5(100 * mean(absent_10_to_20_pct), 1),
+            pct_greater_than_20_pct = round5(100 * mean(absent_greater_than_20_pct), 1)) %>%
         ungroup() %>%
         mutate(subgroup = s, grade = "All Grades") %>%
         bind_rows(state_CA, .)
@@ -220,7 +256,8 @@ school_output <- school_CA %>%
             TRUE ~ subgroup
         ),
         grade_band = grade,
-        n_students, n_chronically_absent, pct_chronically_absent) %>%
+        n_students, days_excused, days_unexcused,
+        n_chronically_absent, pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
     arrange(system, school, subgroup, grade_band)
 
 write_csv(school_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/school_chronic_absenteeism.csv", na = "")
@@ -248,7 +285,8 @@ system_output <- system_CA %>%
             TRUE ~ subgroup
         ),
         grade_band = grade,
-        n_students, n_chronically_absent, pct_chronically_absent) %>%
+        n_students, days_excused, days_unexcused,
+        n_chronically_absent, pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
     arrange(system, subgroup, grade_band)
 
 write_csv(system_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/system_chronic_absenteeism.csv", na = "")
@@ -279,7 +317,8 @@ state_output <- state_CA %>%
             TRUE ~ subgroup
         ),
         grade_band = grade,
-        n_students, n_chronically_absent, pct_chronically_absent) %>%
+        n_students, days_excused, days_unexcused,
+        n_chronically_absent, pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
     arrange(subgroup, grade_band)
 
 write_csv(state_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/state_chronic_absenteeism.csv", na = "")
