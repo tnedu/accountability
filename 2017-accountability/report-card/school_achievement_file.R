@@ -101,7 +101,7 @@ school_numeric <- collapse %>%
 # Output file
 school_numeric %>%
     arrange(system, school, subject, grade, subgroup) %>%
-    transmute(year, system, school, grade, subgroup,
+    transmute(year, system, school, subject, grade, subgroup,
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_on_track, pct_mastered, pct_on_mastered, pct_approaching, pct_below, tab = "B") %>%
     write_csv("K:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_school_complete.csv", na = "")
