@@ -54,6 +54,22 @@ for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Black", "Hispanic", "Native"
         mutate(subgroup = s) %>%
         bind_rows(collapse, .)
     
+    collapse <- student_level %>%
+        filter_(paste(s, "== 1")) %>%
+        group_by(year, system, school, subject, grade) %>%
+        summarise_at(c("valid_test", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
+        ungroup() %>%
+        mutate(subgroup = s) %>%
+        bind_rows(collapse, .)
+    
+    collapse <- student_level %>%
+        filter_(paste(s, "== 1")) %>%
+        group_by(year, subject, grade) %>%
+        summarise_at(c("valid_test", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
+        ungroup() %>%
+        mutate(subgroup = s) %>%
+        bind_rows(collapse, .)
+    
 }
 
 hs_subjects <- collapse %>%
@@ -64,14 +80,16 @@ hs_subjects <- collapse %>%
             subject %in% science_eoc ~ "HS Science"
         )
     ) %>%
-    group_by(year, system, subject, grade, subgroup) %>%
+    group_by(year, system, school, subject, grade, subgroup) %>%
     summarise_at(c("valid_test", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup()
 
-system_numeric <- collapse %>%
+numeric <- collapse %>%
     bind_rows(hs_subjects) %>%
     rename(valid_tests = valid_test) %>%
-    mutate(pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
+    mutate(system = if_else(is.na(system), 0, system),
+        school = if_else(is.na(school), 0, school),
+        pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
         pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
         pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
         pct_below = if_else(valid_tests != 0, round5(100 - pct_approaching - pct_on_track - pct_mastered, 1), NA_real_),
@@ -94,17 +112,21 @@ system_numeric <- collapse %>%
             TRUE ~ subgroup
         )
     ) %>%
-    select(year, system, subject, grade, subgroup, valid_tests, n_below, n_approaching, n_on_track, n_mastered,
+    select(year, system, school, subject, grade, subgroup, valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 # Merge on names
 system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
 # Output files
-system_numeric %>%
+numeric %>%
     left_join(system_names, by = "system") %>%
-    arrange(system, subject, grade, subgroup) %>%
-    transmute(Level = "System", year, system, system_name, school = 0, school_name = "", subject, grade,
+    transmute(Level = case_when(
+            system == 0 & school == 0 ~ "State",
+            system != 0 & school == 0 ~ "System",
+            system != 0 & school != 0 ~ "School"
+        ),
+        year, system, system_name, school, school_name = "", subject, grade,
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
         participation_rate_1yr = NA, participation_rate_2yr = NA, participation_rate_3yr = NA,
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
@@ -114,9 +136,11 @@ system_numeric %>%
         tvaas = NA, upper_bound_ci = NA, red_perc_below_or_bsc_1yr = NA, red_perc_below_or_bsc_2yr = NA,
         red_perc_below_or_bsc_3yr = NA, year_to_year_diff = NA, maas_adjusted_amo_target = NA,
         maas_adjusted_gap_target = NA, maas_adjusted_prior_pct_prof_adv = NA, maas_adj_year_to_year_diff = NA) %>%
+    arrange(Level, system, school, subject, grade, subgroup) %>%
     write_csv("K:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_Numeric_Part_Prof.csv", na = "")
 
-system_numeric %>%
+numeric %>%
+    filter(Level = "System") %>%
     select(year, system, subject, grade, subgroup, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered,
         pct_on_track, pct_mastered, pct_on_mastered, pct_approaching, pct_below) %>%
