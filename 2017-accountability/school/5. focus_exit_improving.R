@@ -230,7 +230,9 @@ gap_exit_k8 <- one_year_success %>%
 # Schools can not exit if designation ineligible
     mutate_at(c("BHN_gap_exit", "BHN_gap_improving", "ED_gap_exit", "ED_gap_improving",
         "SWD_gap_exit", "SWD_gap_improving", "EL_gap_exit", "EL_gap_improving"),
-        funs(if_else(designation_ineligible == 1, NA_integer_, as.integer(.))))
+        funs(if_else(designation_ineligible == 1, NA_integer_, as.integer(.)))) %>%
+# Dibrell Elementary School was retroactively added as a Focus Exit School
+    mutate(SWD_gap_exit = if_else(system == 890 & school == 20, 1L, SWD_gap_exit))
 
 focus_exit_improving <- bind_rows(gap_exit_HS, gap_exit_k8) %>%
     full_join(subgroup_exit, by = c("system", "school", "pool", "designation_ineligible")) %>%
