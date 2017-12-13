@@ -118,6 +118,24 @@ numeric <- collapse %>%
 # Merge on names
 system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
+suppress <- function(file, threshold = 1) {
+    file %>%
+        rowwise() %>% 
+        mutate(temp = any(pct_below < threshold, pct_below > (100 - threshold),
+            pct_approaching < threshold, pct_approaching > (100 - threshold),
+            pct_on_track < threshold, pct_on_track > (100 - threshold),
+            pct_mastered < threshold, pct_mastered > (100 - threshold))) %>%
+        ungroup() %>%
+        mutate_at(c("n_below", "n_approaching", "n_on_track", "n_mastered",
+                "pct_below", "pct_approaching", "pct_on_track", "pct_mastered", "pct_on_mastered"),
+            funs(if_else(temp, "*", as.character(.)))
+        ) %>%
+        select(-temp) %>%
+        mutate_at(c("n_below", "n_approaching", "n_on_track", "n_mastered",
+                "pct_below", "pct_approaching", "pct_on_track", "pct_mastered", "pct_on_mastered"),
+            funs(if_else(valid_tests < 10, "**", as.character(.))))
+}
+
 # Output files
 numeric %>%
     left_join(system_names, by = "system") %>%
@@ -136,11 +154,12 @@ numeric %>%
         tvaas = NA, upper_bound_ci = NA, red_perc_below_or_bsc_1yr = NA, red_perc_below_or_bsc_2yr = NA,
         red_perc_below_or_bsc_3yr = NA, year_to_year_diff = NA, maas_adjusted_amo_target = NA,
         maas_adjusted_gap_target = NA, maas_adjusted_prior_pct_prof_adv = NA, maas_adj_year_to_year_diff = NA) %>%
+    suppress() %>%
     arrange(Level, system, school, subject, grade, subgroup) %>%
     write_csv("K:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_Numeric_Part_Prof.csv", na = "")
 
 numeric %>%
-    filter(Level = "System") %>%
+    suppress() %>%
     select(year, system, subject, grade, subgroup, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered,
         pct_on_track, pct_mastered, pct_on_mastered, pct_approaching, pct_below) %>%

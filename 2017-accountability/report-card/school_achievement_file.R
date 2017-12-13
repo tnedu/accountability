@@ -98,8 +98,27 @@ school_numeric <- collapse %>%
     select(year, system, school, subject, grade, subgroup, valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
+suppress <- function(file, threshold = 1) {
+    file %>%
+        rowwise() %>% 
+        mutate(temp = any(pct_below < threshold, pct_below > (100 - threshold),
+            pct_approaching < threshold, pct_approaching > (100 - threshold),
+            pct_on_track < threshold, pct_on_track > (100 - threshold),
+            pct_mastered < threshold, pct_mastered > (100 - threshold))) %>%
+        ungroup() %>%
+        mutate_at(c("n_below", "n_approaching", "n_on_track", "n_mastered",
+                "pct_below", "pct_approaching", "pct_on_track", "pct_mastered", "pct_on_mastered"),
+            funs(if_else(temp, "*", as.character(.)))
+        ) %>%
+        select(-temp) %>%
+        mutate_at(c("n_below", "n_approaching", "n_on_track", "n_mastered",
+                "pct_below", "pct_approaching", "pct_on_track", "pct_mastered", "pct_on_mastered"),
+            funs(if_else(valid_tests < 10, "**", as.character(.))))
+}
+
 # Output file
 school_numeric %>%
+    suppress() %>%
     arrange(system, school, subject, grade, subgroup) %>%
     transmute(year, system, school, subject, grade, subgroup,
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
