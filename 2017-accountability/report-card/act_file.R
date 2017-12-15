@@ -1,7 +1,7 @@
 library(haven)
 library(tidyverse)
 
-act_state <- read_dta("K:/ORP_accountability/data/2017_ACT/ACT_state2018.dta") %>%
+act_state <- read_dta("K:/ORP_accountability/data/2017_ACT/ACT_state2018_appeals.dta") %>%
     filter(subgroup == "All Students") %>%
     transmute(District_ID = 0, School_ID = 0, `Analysis Level` = "State", `District Name` = "",
         `ACT Dist Code` = "", `HS Name` = "", `Grad Year` = 2017, N = valid_tests,
@@ -13,9 +13,9 @@ act_state <- read_dta("K:/ORP_accountability/data/2017_ACT/ACT_state2018.dta") %
         n_male_21_or_higher = NA, pct_male_21_or_higher = male_pct21orhigher,
         n_gender_missing_21_or_higher = nmissing_21_orhigher, pct_gender_missing_21_or_higher = 0, pct_gender_missing_below_19 = "")
 
-act_district <- read_dta("K:/ORP_accountability/data/2017_ACT/ACT_district2018.dta") %>%
+act_district <- read_dta("K:/ORP_accountability/data/2017_ACT/ACT_district2018_appeals.dta") %>%
     filter(subgroup == "All Students") %>%
-    transmute(District_ID = system, School_ID = 0, `Analysis Level` = "District", `District Name` = "",
+    transmute(District_ID = as.numeric(system), School_ID = 0, `Analysis Level` = "District", `District Name` = "",
         `ACT Dist Code` = "", `HS Name` = "All Schools", `Grad Year` = 2017, N = valid_tests,
         `Avg Eng` = english_avg, `Avg Math` = math_avg, `Avg Reading` = reading_avg, `Avg Sci` = science_avg, `Avg Comp` = act_composite_avg,
         `CRB % Eng` = pct_met_CRB_english, `CRB % Math` = pct_met_CRB_math, `CRB % Reading` = pct_met_CRB_reading,
@@ -25,9 +25,9 @@ act_district <- read_dta("K:/ORP_accountability/data/2017_ACT/ACT_district2018.d
         n_male_21_or_higher = NA, pct_male_21_or_higher = male_pct21orhigher,
         n_gender_missing_21_or_higher = nmissing_21_orhigher, pct_gender_missing_21_or_higher = 0, pct_gender_missing_below_19 = "")
 
-act_school <- read_dta("K:/ORP_accountability/data/2017_ACT/ACT_school2018.dta") %>%
+act_school <- read_dta("K:/ORP_accountability/data/2017_ACT/ACT_school2018_appeals.dta") %>%
     filter(subgroup == "All Students") %>%
-    transmute(District_ID = system, School_ID = school, `Analysis Level` = "School", `District Name` = "",
+    transmute(District_ID = as.numeric(system), School_ID = as.numeric(school), `Analysis Level` = "School", `District Name` = "",
         `ACT Dist Code` = "", `HS Name` = "", `Grad Year` = 2017, N = valid_tests,
         `Avg Eng` = english_avg, `Avg Math` = math_avg, `Avg Reading` = reading_avg, `Avg Sci` = science_avg, `Avg Comp` = act_composite_avg,
         `CRB % Eng` = pct_met_CRB_english, `CRB % Math` = pct_met_CRB_math, `CRB % Reading` = pct_met_CRB_reading,
