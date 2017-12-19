@@ -28,7 +28,7 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         Native = race == "American Indian or Alaskan Native",
         EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2)
     ) %>%
-    filter(subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc)) %>%
+    filter(subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "US History")) %>%
     mutate(subject = case_when(
             subject %in% math_eoc & grade %in% 3:8 ~ "Math",
             subject %in% english_eoc & grade %in% 3:8 ~ "ELA",
