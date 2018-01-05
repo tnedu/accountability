@@ -4,8 +4,8 @@ library(readxl)
 library(tidyverse)
 
 numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
-    "English Learners", "Students with Disabilities",
-    "Black or African American", "Hispanic", "American Indian or Alaska Native")
+    "English Learners", "Students with Disabilities", "Asian",
+    "Black or African American", "Hispanic", "American Indian or Alaska Native", "White")
 
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
 english_eoc <- c("English I", "English II", "English III")
@@ -23,10 +23,13 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
         n_on_track = if_else(performance_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
         n_mastered = if_else(performance_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_),
         All = 1L,
+        Asian = race == "Asian",
         Black = race == "Black or African American",
+        Hawaiian = race == "Native Hawaiian or Pacific Islander",
         Hispanic = race == "Hispanic",
         Native = race == "American Indian or Alaskan Native",
-        EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2)
+        EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
+        White = race == "White"
     ) %>%
     filter(subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc, "US History")) %>%
     mutate(subject = case_when(
@@ -44,7 +47,7 @@ student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_fil
 collapse <- tibble()
 
 # Collapse proficiency by subject and subgroup
-for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Black", "Hispanic", "Native")) {
+for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Asian", "Black", "Hawaiian", "Hispanic", "Native", "White")) {
     
     collapse <- student_level %>%
         filter_(paste(s, "== 1")) %>%
@@ -154,12 +157,13 @@ numeric %>%
         tvaas = NA, upper_bound_ci = NA, red_perc_below_or_bsc_1yr = NA, red_perc_below_or_bsc_2yr = NA,
         red_perc_below_or_bsc_3yr = NA, year_to_year_diff = NA, maas_adjusted_amo_target = NA,
         maas_adjusted_gap_target = NA, maas_adjusted_prior_pct_prof_adv = NA, maas_adj_year_to_year_diff = NA) %>%
-    suppress() %>%
+    # suppress() %>%
     arrange(Level, system, school, subject, grade, subgroup) %>%
     write_csv("K:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_Numeric_Part_Prof.csv", na = "")
 
 numeric %>%
-    suppress() %>%
+    filter(school == 0 & system != 0) %>%
+    # suppress() %>%
     select(year, system, subject, grade, subgroup, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered,
         pct_on_track, pct_mastered, pct_on_mastered, pct_approaching, pct_below) %>%
