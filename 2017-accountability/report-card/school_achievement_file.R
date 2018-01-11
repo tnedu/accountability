@@ -51,6 +51,7 @@ collapse <- tibble()
 for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Asian", "Black", "Hawaiian", "Hispanic", "Native", "White")) {
     
     collapse <- student_level %>%
+        filter(school != 0) %>%
         filter_(paste(s, "== 1")) %>%
         group_by(year, system, school, subject, grade) %>%
         summarise_at(c("valid_test", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
@@ -127,3 +128,4 @@ school_numeric %>%
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_on_track, pct_mastered, pct_on_mastered, pct_approaching, pct_below, tab = "B") %>%
     write_csv("K:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_school_complete.csv", na = "")
+  

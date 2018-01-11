@@ -49,6 +49,7 @@ collapse <- tibble()
 # Collapse proficiency by subject and subgroup
 for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Asian", "Black", "Hawaiian", "Hispanic", "Native", "White")) {
     
+    # District
     collapse <- student_level %>%
         filter_(paste(s, "== 1")) %>%
         group_by(year, system, subject, grade) %>%
@@ -57,7 +58,9 @@ for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Asian", "Black", "Hawaiian",
         mutate(subgroup = s) %>%
         bind_rows(collapse, .)
     
+    # School
     collapse <- student_level %>%
+        filter(school != 0) %>%
         filter_(paste(s, "== 1")) %>%
         group_by(year, system, school, subject, grade) %>%
         summarise_at(c("valid_test", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
@@ -65,6 +68,7 @@ for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Asian", "Black", "Hawaiian",
         mutate(subgroup = s) %>%
         bind_rows(collapse, .)
     
+    # State
     collapse <- student_level %>%
         filter_(paste(s, "== 1")) %>%
         group_by(year, subject, grade) %>%
