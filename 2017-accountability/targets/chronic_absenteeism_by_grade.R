@@ -112,6 +112,7 @@ school_CA <- attendance %>%
     filter(isp_days/instructional_days >= 0.5) %>%
     group_by(year, system, system_name, school, school_name, grade) %>%
     summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
+        n_10_to_20_pct = sum(absent_10_to_20_pct), n_greater_than_20_pct = sum(absent_greater_than_20_pct),
         days_excused = sum(count_excused), days_unexcused = sum(count_unexcused),
         pct_chronically_absent = round5(100 * mean(chronic_absence), 1),
         pct_10_to_20_pct = round5(100 * mean(absent_10_to_20_pct), 1),
@@ -133,9 +134,9 @@ system_CA <- attendance %>%
         absent_10_to_20_pct = as.numeric(n_absences/isp_days >= 0.1 & n_absences/isp_days <= 0.2),
         absent_greater_than_20_pct = as.numeric(n_absences/isp_days > 0.2)) %>%
     group_by(year, system, system_name, grade) %>%
-    summarise(n_students = sum(n_students, na.rm = TRUE), n_chronically_absent = sum(chronic_absence),
-        days_excused = sum(count_excused, na.rm = TRUE),
-        days_unexcused = sum(count_unexcused, na.rm = TRUE),
+    summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
+        n_10_to_20_pct = sum(absent_10_to_20_pct), n_greater_than_20_pct = sum(absent_greater_than_20_pct),
+        days_excused = sum(count_excused), days_unexcused = sum(count_unexcused),
         pct_chronically_absent = round5(100 * mean(chronic_absence), 1),
         pct_10_to_20_pct = round5(100 * mean(absent_10_to_20_pct), 1),
         pct_greater_than_20_pct = round5(100 * mean(absent_greater_than_20_pct), 1)) %>%
@@ -156,8 +157,8 @@ state_CA <- attendance %>%
         absent_greater_than_20_pct = as.numeric(n_absences/isp_days > 0.2)) %>%
     group_by(year, grade) %>%
     summarise(n_students = sum(n_students), n_chronically_absent = sum(chronic_absence),
-        days_excused = sum(count_excused, na.rm = TRUE),
-        days_unexcused = sum(count_unexcused, na.rm = TRUE),
+        n_10_to_20_pct = sum(absent_10_to_20_pct), n_greater_than_20_pct = sum(absent_greater_than_20_pct),
+        days_excused = sum(count_excused), days_unexcused = sum(count_unexcused),
         pct_chronically_absent = round5(100 * mean(chronic_absence), 1),
         pct_10_to_20_pct = round5(100 * mean(absent_10_to_20_pct), 1),
         pct_greater_than_20_pct = round5(100 * mean(absent_greater_than_20_pct), 1)) %>%
@@ -166,7 +167,8 @@ state_CA <- attendance %>%
 school_output <- school_CA %>%
     transmute(year, system, system_name, school, school_name, grade,
         n_students, days_excused, days_unexcused,
-        n_chronically_absent, pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
+        n_chronically_absent, n_10_to_20_pct, n_greater_than_20_pct,
+        pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
     arrange(system, school, grade)
 
 write_csv(school_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/school_chronic_absenteeism_by_grade.csv", na = "")
@@ -174,7 +176,8 @@ write_csv(school_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/sc
 system_output <- system_CA %>%
     transmute(year, system, system_name, grade,
         n_students, days_excused, days_unexcused,
-        n_chronically_absent, pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
+        n_chronically_absent, n_10_to_20_pct, n_greater_than_20_pct,
+        pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
     arrange(system, grade)
 
 write_csv(system_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/system_chronic_absenteeism_by_grade.csv", na = "")
@@ -182,7 +185,8 @@ write_csv(system_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/sy
 state_output <- state_CA %>%
     transmute(year, system = 0, system_name = "State of Tennessee", grade,
         n_students, days_excused, days_unexcused,
-        n_chronically_absent, pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
+        n_chronically_absent, n_10_to_20_pct, n_greater_than_20_pct,
+        pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
     arrange(grade)
 
 write_csv(state_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/state_chronic_absenteeism_by_grade.csv", na = "")
