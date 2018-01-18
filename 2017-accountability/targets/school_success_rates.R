@@ -50,7 +50,7 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
     select(system, school, subject, grade, subgroup, valid_tests, n_on_track = n_21_orhigher) %>%
     mutate_at(c("valid_tests", "n_on_track"), funs(if_else(valid_tests < 30, 0L, as.integer(.))))
 
-ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_substitution_2017.csv") %>%
+ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/Pre-Appeals Data/school_act_substitution_2017.csv") %>%
     transmute(system, school,
         subject = case_when(
             subject == "ACT Reading" ~ "English III",
