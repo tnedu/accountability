@@ -12,7 +12,7 @@ Do File description:  Student Level to School Base
 
 Edited last by:  Alexander Poon
 
-Date edited last:  6/9/2017
+Date edited last:  1/19/2018
 ***************************************************************/
 
 use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
@@ -48,6 +48,9 @@ replace original_subject = "Integrated Math I" if original_subject == "Math" & t
 	system == 850 | system == 890 | system == 930);
 
 replace original_subject = "English II" if test == "MSAA" & original_subject == "ELA";
+
+* Drop greater than 60 percent for 2018 school grading preview;
+drop if greater_than_60_pct == "N";
 
 * Residential Facility and Homebound students are dropped from school level;
 drop if residential_facility_part_1 == 1 | residential_facility_part_2 == 1;
@@ -197,5 +200,4 @@ order year system school subject grade subgroup enrolled enrolled_part_1_only en
 
 compress;
 
-save "K:\ORP_accountability\data\2016_accountability/school_base_with_unaka_correction_2016.dta", replace;
-export excel using "K:\ORP_accountability\data\2016_accountability/school_base_with_unaka_correction_2016.xlsx", firstrow(var) replace;
+export delim "K:/ORP_accountability/data/2016_accountability/school_base_2016_for_accountability.csv", delim(",") replace;
