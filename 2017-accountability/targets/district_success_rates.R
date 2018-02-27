@@ -40,14 +40,8 @@ int_math_systems <- student_level %>%
     filter(n == temp, original_subject == "Integrated Math I") %>%
     magrittr::extract2("system")
 
-# ACT for HS Success Rate AMOs
-ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
-    mutate(subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
-    filter(subgroup %in% numeric_subgroups) %>%
-    select(system, subject, grade, subgroup, valid_tests, n_on_track = n_21_orhigher) %>%
-    mutate_at(c("valid_tests", "n_on_track"), funs(if_else(valid_tests < 30, 0L, as.integer(.))))
-
-ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_substitution_2017.csv") %>%
+# ACT Sub for HS Success Rate AMOs
+ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/Pre-Appeals Data/system_act_substitution_2017.csv") %>%
     transmute(system,
         subject = case_when(
             subject == "ACT Reading" ~ "English III",
@@ -97,13 +91,11 @@ subjects_suppressed <- collapse %>%
     group_by(system, subject, grade, subgroup) %>%
     summarise_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
-    bind_rows(ACT) %>%
 # Suppress for subjects with < 30 valid tests
     mutate_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), funs(if_else(valid_tests < 30, 0L, .)))
 
 # AMOs by 3-5, 6-8, HS English, Math, Science
 grade_subject_targets <- subjects_suppressed %>%
-    filter(subject != "ACT") %>%
     mutate(subject = case_when(
             subject %in% math_eoc ~ "HS Math",
             subject %in% english_eoc ~ "HS English",
