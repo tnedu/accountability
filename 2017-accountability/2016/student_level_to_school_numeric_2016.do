@@ -15,7 +15,7 @@ Edited last by:  Alexander Poon
 Date edited last:  8/1/2017
 ***************************************************************/
 
-use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
+use "N:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
 
 * Unaka High School Correction;
 drop if subject == "Integrated Math I" & (unique_student_id == 3288069 | unique_student_id == 3288078 |
@@ -102,7 +102,7 @@ rename (original_subject valid_test) (subject valid_tests);
 * ACT Substitution;
 preserve;
 
-use "K:\ORP_accountability\data\2016_ACT/school_act_substitution_2016.dta", clear;
+use "N:\ORP_accountability\data\2016_ACT/school_act_substitution_2016.dta", clear;
 
 destring grade, replace;
 
@@ -193,4 +193,4 @@ order year system school subject grade subgroup participation_rate_1yr enrolled 
 
 compress;
 
-export delim using "K:\ORP_accountability\data\2016_accountability/school_numeric_with_unaka_correction_2016.csv", delim(",") replace;
+export delim using "N:\ORP_accountability\data\2016_accountability/school_numeric_with_unaka_correction_2016.csv", delim(",") replace;

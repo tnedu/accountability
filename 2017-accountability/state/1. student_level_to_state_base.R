@@ -2,7 +2,7 @@ library(acct)
 library(haven)
 library(tidyverse)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10162017.dta") %>%
+student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10162017.dta") %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
@@ -89,7 +89,7 @@ state_base <- collapse %>%
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 # Append ACT, substitution, grad, 2016 base
-ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_state2017.dta") %>%
+ACT <- read_dta("N:/ORP_accountability/data/2016_ACT/ACT_state2017.dta") %>%
     transmute(year = 2017, subject = "ACT Composite", grade = "All Grades",
         subgroup = case_when(
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
@@ -99,7 +99,7 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_state2017.dta") %>%
         enrolled, tested, valid_tests, n_below = n_below19, n_on_track = n_21_orhigher,
         ACT_21_and_above = pct_21_orhigher, ACT_18_and_below = pct_below19)
 
-ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_state2016.dta") %>%
+ACT_prior <- read_dta("N:/ORP_accountability/data/2015_ACT/ACT_state2016.dta") %>%
     transmute(year = 2016, subject = "ACT Composite", grade = "All Grades",
         subgroup = case_when(
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
@@ -109,17 +109,17 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_state2016.dta") %
         enrolled, tested, valid_tests, n_below = n_below19, n_on_track = n_21_orhigher,
         ACT_21_and_above = pct_21_orhigher_reporting, ACT_18_and_below = pct_below19)
 
-ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/state_ACT_substitution_2017.csv") %>%
+ACT_substitution <- read_csv("N:/ORP_accountability/data/2017_ACT/state_ACT_substitution_2017.csv") %>%
     mutate(grade = as.character(grade)) %>%
     rename(n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark,
        pct_approaching = pct_not_met_benchmark, pct_on_track = pct_met_benchmark)
 
-ACT_substitution_prior <- read_csv("K:/ORP_accountability/data/2016_ACT/state_ACT_substitution_2016.csv") %>%
+ACT_substitution_prior <- read_csv("N:/ORP_accountability/data/2016_ACT/state_ACT_substitution_2016.csv") %>%
     mutate(grade = as.character(grade)) %>%
     rename(n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark,
         pct_approaching = pct_not_met_benchmark, pct_on_track = pct_met_benchmark)
 
-grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/state_grad_rate2016.dta") %>%
+grad_prior <- read_dta("N:/ORP_accountability/data/2015_graduation_rate/state_grad_rate2016.dta") %>%
     transmute(year = 2016, subject, grade = "All Grades",
         subgroup = case_when(
             subgroup == "Black" ~ "Black or African American",
@@ -131,7 +131,7 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/state_gr
         ),
         grad_cohort, grad_count, grad_rate, dropout_count = drop_count, dropout_rate = drop_rate)
 
-grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/State_grad_rate2017_JP.dta") %>%
+grad <- read_dta("N:/ORP_accountability/data/2016_graduation_rate/State_grad_rate2017_JP.dta") %>%
     transmute(year, subject, grade = "All Grades",
         subgroup = case_when(
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
@@ -141,7 +141,7 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/State_grad_rat
         ),
         grad_count, grad_cohort, grad_rate, dropout_count = drop_count, dropout_rate)
 
-base_2016 <- read_csv("K:/ORP_accountability/data/2016_accountability/state_base_with_super_subgroup_2016.csv") %>%
+base_2016 <- read_csv("N:/ORP_accountability/data/2016_accountability/state_base_with_super_subgroup_2016.csv") %>%
     select(year, subject, grade, subgroup,
         enrolled, enrolled_part_1 = enrolled_part_1_only, enrolled_part_2 = enrolled_part_2_only, enrolled_both,
         tested, tested_part_1 = tested_part_1_only, tested_part_2 = tested_part_2_only, tested_both,
@@ -156,4 +156,4 @@ base_2017 <- bind_rows(base_2016, state_base, ACT, ACT_prior, ACT_substitution, 
         system_name = "State of Tennessee") %>%
     select(year, system, system_name, everything())
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_oct17.csv", na = "")
+write_csv(base_2017, path = "N:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_oct17.csv", na = "")

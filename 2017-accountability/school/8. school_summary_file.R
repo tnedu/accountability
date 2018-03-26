@@ -1,26 +1,26 @@
 library(tidyverse)
 
 # District and School Names ---------------------------------------------------------------------------------------
-system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
+system_names <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
-school_names <- readxl::read_excel("K:/ORP_accountability/data/2017_final_accountability_files/school_name_crosswalk.xlsx") %>%
+school_names <- readxl::read_excel("N:/ORP_accountability/data/2017_final_accountability_files/school_name_crosswalk.xlsx") %>%
     select(system, school, school_name) %>%
     inner_join(system_names, by = "system") %>%
     select(system, system_name, school, school_name)
 
 # Pools/Immune ----------------------------------------------------------------------------------------------------
-pools <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
+pools <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool, designation_ineligible) %>%
     filter(!is.na(pool))
 
 # Summary File Metrics --------------------------------------------------------------------------------------------
-priority <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/priority_exit_improving.csv",
+priority <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/priority_exit_improving.csv",
         col_types = c("iiicicdiidiidiii")) %>%
     select(system, school, subgroup, success_rate_2017, success_rate_2017_pctile = pctile_rank_OM)
 
-focus <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/focus_metrics.csv")
+focus <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/focus_metrics.csv")
 
-reward <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/reward_metrics.csv")
+reward <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/reward_metrics.csv")
 
 summary <- priority %>%
     bind_rows(focus) %>%
@@ -46,4 +46,4 @@ summary <- priority %>%
         school_name = if_else(system == 985 & school == 8035, "Klondike Perparatory Academy", school_name),
         school_name = if_else(system == 985 & school == 8080, "KIPP Memphis University Middle", school_name))
 
-write_csv(summary, path = "K:/ORP_accountability/projects/2017_school_accountability/school_summary_file.csv", na = "")
+write_csv(summary, path = "N:/ORP_accountability/projects/2017_school_accountability/school_summary_file.csv", na = "")

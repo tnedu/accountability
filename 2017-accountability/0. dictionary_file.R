@@ -54,7 +54,7 @@ layout <- tribble(
 )
 
 # Read in cdf according to layout
-cdf <- read_fwf(file = "K:/ORP_accountability/data/2017_cdf/2016 EOC Fall CDF_Public20170526.txt",
+cdf <- read_fwf(file = "N:/ORP_accountability/data/2017_cdf/2016 EOC Fall CDF_Public20170526.txt",
     col_positions = fwf_positions(
         start = layout$start,
         end = layout$end,
@@ -63,4 +63,4 @@ cdf <- read_fwf(file = "K:/ORP_accountability/data/2017_cdf/2016 EOC Fall CDF_Pu
 )
 
 # Export cdf
-write_csv(cdf, path = "K:/ORP_accountability/projects/2017_dictionary_coding/fall_eoc_cdf.csv", na = "")
+write_csv(cdf, path = "N:/ORP_accountability/projects/2017_dictionary_coding/fall_eoc_cdf.csv", na = "")

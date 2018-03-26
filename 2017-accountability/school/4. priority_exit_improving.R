@@ -6,11 +6,11 @@ english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
 # Priority schools not exiting in 2015
-priority_schools <- read_csv("K:/ORP_accountability/projects/2015_school_coding/Output/priority_schools_not_exiting_ap.csv") %>%
+priority_schools <- read_csv("N:/ORP_accountability/projects/2015_school_coding/Output/priority_schools_not_exiting_ap.csv") %>%
     select(system, school, priority)
 
 # Pools/Immune ----------------------------------------------------------------------------------------------------
-pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
+pools_immune <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool, designation_ineligible) %>%
     filter(!is.na(pool))
 
@@ -18,7 +18,7 @@ high_schools <- sum(pools_immune$pool == "HS", na.rm = TRUE)
 k8_schools <- sum(pools_immune$pool == "K8", na.rm = TRUE)
 
 # Success Rates with Grad -----------------------------------------------------------------------------------------
-one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
+one_year_success <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     inner_join(pools_immune, by = c("system", "school")) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
@@ -73,9 +73,9 @@ priority_exit_improving <- one_year_success %>%
         )
     )
 
-write_csv(priority_exit_improving, path = "K:/ORP_accountability/projects/2017_school_accountability/priority_exit_improving.csv", na = "")
+write_csv(priority_exit_improving, path = "N:/ORP_accountability/projects/2017_school_accountability/priority_exit_improving.csv", na = "")
 
 # Priority not exiting for reward
 priority_not_exiting <- filter(priority_exit_improving, priority == 1 & (priority_exit == 0L | is.na(priority_exit)))
 
-write_csv(priority_not_exiting, path = "K:/ORP_accountability/projects/2017_school_accountability/priority_schools_not_exiting.csv", na = "")
+write_csv(priority_not_exiting, path = "N:/ORP_accountability/projects/2017_school_accountability/priority_schools_not_exiting.csv", na = "")

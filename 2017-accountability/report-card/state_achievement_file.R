@@ -11,7 +11,7 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
+student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
@@ -125,4 +125,4 @@ state_numeric %>%
         grade, subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with T1/T2", subgroup),
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         system = "", pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered) %>%
-    write_csv("K:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_state_complete.csv", na = "")
+    write_csv("N:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_state_complete.csv", na = "")

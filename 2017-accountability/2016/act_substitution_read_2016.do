@@ -15,8 +15,8 @@ Edited last by:  Alexander Poon
 Date edited last:  7/31/2017
 ***************************************************************/
 
-global act "K:\ORP_accountability\projects\2016_acct_modeling\ACT\TN_790Select_2016.dta";
-global school_crosswalk "K:\ORP_accountability\projects\2015_fall_district_preview/ACT-SchCrosswalk2015rev.csv";
+global act "N:\ORP_accountability\projects\2016_acct_modeling\ACT\TN_790Select_2016.dta";
+global school_crosswalk "N:\ORP_accountability\projects\2015_fall_district_preview/ACT-SchCrosswalk2015rev.csv";
 
 * ACT HS Crosswalk;
 import delim using $school_crosswalk, clear;
@@ -65,7 +65,7 @@ tempfile act_student_math;
 save `act_student_math', replace;
 
 * Merging ACT onto Student Level file;
-use "K:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
+use "N:\ORP_accountability\projects\2016_student_level_file/state_student_level_2016.dta", clear;
 
 preserve;
 
@@ -135,8 +135,8 @@ gen year = 2016;
 
 order year system school subject subgroup grade valid_tests n_not_met_benchmark n_met_benchmark pct_not_met_benchmark pct_met_benchmark;
 
-save "K:\ORP_accountability\data\2016_ACT\school_act_substitution_2016.dta", replace;
-export delim using "K:\ORP_accountability\data\2016_ACT\school_act_substitution_2016.csv", delim(",") replace;
+save "N:\ORP_accountability\data\2016_ACT\school_act_substitution_2016.dta", replace;
+export delim using "N:\ORP_accountability\data\2016_ACT\school_act_substitution_2016.csv", delim(",") replace;
 
 * System;
 
@@ -145,8 +145,8 @@ collapse (sum) valid_tests n_not_met_benchmark n_met_benchmark, by(year system s
 gen pct_met_benchmark = round(1000 * n_met_benchmark/valid_tests)/10;
 gen pct_not_met_benchmark = 100 - pct_met_benchmark;
 
-save "K:\ORP_accountability\data\2016_ACT\system_act_substitution_2016.dta", replace;
-export delim using "K:\ORP_accountability\data\2016_ACT\system_act_substitution_2016.csv", delim(",") replace;
+save "N:\ORP_accountability\data\2016_ACT\system_act_substitution_2016.dta", replace;
+export delim using "N:\ORP_accountability\data\2016_ACT\system_act_substitution_2016.csv", delim(",") replace;
 
 * State;
 collapse (sum) valid_tests n_not_met_benchmark n_met_benchmark, by(year subject subgroup grade);
@@ -154,5 +154,5 @@ collapse (sum) valid_tests n_not_met_benchmark n_met_benchmark, by(year subject 
 gen pct_met_benchmark = round(1000 * n_met_benchmark/valid_tests)/10;
 gen pct_not_met_benchmark = 100 - pct_met_benchmark;
 
-save "K:\ORP_accountability\data\2016_ACT/state_act_substitution_2016.dta", replace;
-export delim using "K:\ORP_accountability\data\2016_ACT/state_act_substitution_2016.csv", delim(",") replace;
+save "N:\ORP_accountability\data\2016_ACT/state_act_substitution_2016.dta", replace;
+export delim using "N:\ORP_accountability\data\2016_ACT/state_act_substitution_2016.csv", delim(",") replace;

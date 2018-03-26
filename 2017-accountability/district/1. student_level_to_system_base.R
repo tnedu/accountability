@@ -2,7 +2,7 @@ library(acct)
 library(haven)
 library(tidyverse)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10162017.dta") %>%
+student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10162017.dta") %>%
 # Residential Facility students are dropped from system level
     filter(residential_facility != 1 | is.na(residential_facility)) %>%
 # Proficiency and subgroup indicators for collapse
@@ -92,7 +92,7 @@ system_base <- collapse %>%
         n_below, n_approaching, n_on_track, n_mastered, pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 # Append ACT, ACT Substitution, grad, 2016 base
-ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
+ACT <- read_dta("N:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
     transmute(year = 2017, system, subject = "ACT Composite", grade = "All Grades",
         subgroup = case_when(
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
@@ -102,7 +102,7 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
         enrolled, tested, valid_tests, n_on_track = n_21_orhigher, n_below = n_below19,
         ACT_21_and_above = pct_21_orhigher, ACT_18_and_below = pct_below19)
 
-ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2016.dta") %>%
+ACT_prior <- read_dta("N:/ORP_accountability/data/2015_ACT/ACT_district2016.dta") %>%
     transmute(year = 2016, system, subject = "ACT Composite", grade = "All Grades",
         subgroup = case_when(
             subgroup == "English Language Learners with T1/T2" ~ "English Learners with T1/T2",
@@ -112,12 +112,12 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2016.dta"
         enrolled, tested, valid_tests, n_below = n_below19, n_on_track = n_21_orhigher,
         ACT_21_and_above = pct_21_orhigher_reporting, ACT_18_and_below = pct_below19)
 
-ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_substitution_2017.csv") %>%
+ACT_substitution <- read_csv("N:/ORP_accountability/data/2017_ACT/system_act_substitution_2017.csv") %>%
     mutate(grade = as.character(grade)) %>%
     rename(n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark,
         pct_approaching = pct_not_met_benchmark, pct_on_track = pct_met_benchmark)
 
-grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/district_grad_rate2016.dta") %>%
+grad_prior <- read_dta("N:/ORP_accountability/data/2015_graduation_rate/district_grad_rate2016.dta") %>%
     filter(system != 90) %>%
     transmute(year = 2016, system, subject, grade = "All Grades",
         subgroup = case_when(
@@ -130,7 +130,7 @@ grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/district
         ),
         grad_cohort, grad_count, grad_rate, dropout_count = drop_count, dropout_rate = drop_rate)
 
-grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/District_grad_rate2017_JP.dta") %>%
+grad <- read_dta("N:/ORP_accountability/data/2016_graduation_rate/District_grad_rate2017_JP.dta") %>%
     filter(system != 90) %>%
     transmute(year, system, subject, grade = "All Grades",
         subgroup = case_when(
@@ -141,7 +141,7 @@ grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/District_grad_
         ),
         grad_count, grad_cohort, grad_rate, dropout_count = drop_count, dropout_rate)
 
-base_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/system_base_with_unaka_correction_2016.xlsx") %>%
+base_2016 <- readxl::read_excel("N:/ORP_accountability/data/2016_accountability/system_base_with_unaka_correction_2016.xlsx") %>%
     select(year, system, subject, grade, subgroup,
         enrolled, enrolled_part_1 = enrolled_part_1_only, enrolled_part_2 = enrolled_part_2_only, enrolled_both,
         tested, tested_part_1 = tested_part_1_only, tested_part_2 = tested_part_2_only, tested_both,
@@ -149,7 +149,7 @@ base_2016 <- readxl::read_excel("K:/ORP_accountability/data/2016_accountability/
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 # Names crosswalk
-system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
+system_names <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
 # Create new rows (with 0 enrolled, tested, etc.) for missing year/grade/subject/subgroup combinations
 all_combinations <- expand.grid(stringsAsFactors = FALSE,
@@ -181,4 +181,4 @@ base_2017 <- bind_rows(base_2016, system_base) %>%
     select(year, system, system_name, everything()) %>%
     mutate(grade = if_else(grade == "0", "Missing Grade", grade))
 
-write_csv(base_2017, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct17.csv", na = "")
+write_csv(base_2017, path = "N:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct17.csv", na = "")

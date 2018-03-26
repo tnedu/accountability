@@ -10,9 +10,9 @@ english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
 # Names crosswalk
-system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
+system_names <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
+student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
     filter(greater_than_60_pct == "Y",
         original_subject != "US History",
         grade %in% 3:12,
@@ -41,7 +41,7 @@ int_math_systems <- student_level %>%
     magrittr::extract2("system")
 
 # ACT Sub for HS Success Rate AMOs
-ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/Pre-Appeals Data/system_act_substitution_2017.csv") %>%
+ACT_substitution <- read_csv("N:/ORP_accountability/data/2017_ACT/Pre-Appeals Data/system_act_substitution_2017.csv") %>%
     transmute(system,
         subject = case_when(
             subject == "ACT Reading" ~ "English III",
@@ -114,7 +114,7 @@ grade_subject_targets <- subjects_suppressed %>%
         AMO_target = amo_target(valid_tests_prior, pct_on_mastered_prior),
         AMO_target_4 = amo_target(valid_tests_prior, pct_on_mastered_prior, double = TRUE))
 
-write_csv(grade_subject_targets, path = "K:/ORP_accountability/projects/2018_amo/district_grade_subject.csv", na = "")
+write_csv(grade_subject_targets, path = "N:/ORP_accountability/projects/2018_amo/district_grade_subject.csv", na = "")
 
 success_rate_targets <- subjects_suppressed %>%
 # Aggregate across replaced subjects
@@ -129,4 +129,4 @@ success_rate_targets <- subjects_suppressed %>%
         AMO_target = amo_target(valid_tests, pct_on_mastered_prior),
         AMO_target_4 = amo_target(valid_tests, pct_on_mastered_prior, double = TRUE))
 
-write_csv(success_rate_targets, path = "K:/ORP_accountability/projects/2018_amo/district_success_rate.csv", na = "")
+write_csv(success_rate_targets, path = "N:/ORP_accountability/projects/2018_amo/district_success_rate.csv", na = "")

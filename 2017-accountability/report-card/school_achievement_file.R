@@ -11,7 +11,7 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
+student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
 # Homebound and Residential Facility students are dropped from school level
     filter(homebound == 0 | is.na(homebound),
         residential_facility != 1 | is.na(residential_facility)) %>%
@@ -127,5 +127,5 @@ school_numeric %>%
     transmute(year, system, school, subject, grade, subgroup,
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_on_track, pct_mastered, pct_on_mastered, pct_approaching, pct_below, tab = "B") %>%
-    write_csv("K:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_school_complete.csv", na = "")
+    write_csv("N:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_school_complete.csv", na = "")
   

@@ -1,27 +1,27 @@
 library(acct)
 library(tidyverse)
 
-instructional_days <- readxl::read_excel("K:/ORP_accountability/data/2017_chronic_absenteeism/School Level - Instructional days.xlsx") %>%
+instructional_days <- readxl::read_excel("N:/ORP_accountability/data/2017_chronic_absenteeism/School Level - Instructional days.xlsx") %>%
     transmute(year = 2017, system_name = DISTRICT_NAME, system = DISTRICT_NO,
         school_name = SCHOOL_NAME, school = SCHOOL_NO, instructional_days = INSTRUCTIONAL_DAYS)
 
-econ_dis <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_classification_JUIH only.txt",
+econ_dis <- read_delim("N:/ORP_accountability/data/2017_chronic_absenteeism/Student_classification_JUIH only.txt",
         delim = "\t") %>%
     transmute(student_key = STUDENT_KEY, ED = 1) %>%
     filter(!duplicated(student_key))
 
-special_ed <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo_Special Education.txt",
+special_ed <- read_delim("N:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo_Special Education.txt",
         delim = "\t") %>%
     filter(SPECIAL_ED_LEVEL == "P" & !OPTION_NUMBER %in% c(3, 16)) %>%
     transmute(student_key = STUDENT_KEY, SWD = 1) %>%
     filter(!duplicated(student_key))
 
-el <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo.txt", delim = "\t") %>%
+el <- read_delim("N:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo.txt", delim = "\t") %>%
     filter(ENGLISH_LANGUAGE_BACKGROUND %in% c("L", "W", "1", "2", "3", "4")) %>%
     transmute(student_key = STUDENT_KEY, EL = 1) %>%
     filter(!duplicated(student_key))
 
-race <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo.txt", delim = "\t") %>%
+race <- read_delim("N:/ORP_accountability/data/2017_chronic_absenteeism/Student_Demo.txt", delim = "\t") %>%
     mutate(race = case_when(
             ETHNICITY == "H" ~ "Hispanic",
             RACE_B == "Y" ~ "Black",
@@ -52,14 +52,14 @@ race <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_
     filter(!duplicated(student_key)) %>%
     select(-c(race, priority, temp))
 
-attendance_henry <- readxl::read_excel("K:/ORP_accountability/data/2017_chronic_absenteeism/Absenteeism - Henry Co  SY 2016-17.xlsx") %>%
+attendance_henry <- readxl::read_excel("N:/ORP_accountability/data/2017_chronic_absenteeism/Absenteeism - Henry Co  SY 2016-17.xlsx") %>%
     mutate_at(c("BEGIN_DATE", "END_DATE", "WITHDRAWAL_REASON", "DATE_OF_BIRTH", "SCHOOL_BU_ID", "DISTRICT_BU_ID",
         "CNT_UNEXCUSED", "CNT_UNEXCUSED_TRANS"), as.character) %>%
     mutate(GRADE = if_else(GRADE %in% as.character(1:9), paste0("0", GRADE), GRADE))
 
 names(attendance_henry) <- tolower(names(attendance_henry))
 
-attendance <- haven::read_dta("K:/ORP_accountability/data/2017_chronic_absenteeism/Attendance data as of 08152017.dta") %>%
+attendance <- haven::read_dta("N:/ORP_accountability/data/2017_chronic_absenteeism/Attendance data as of 08152017.dta") %>%
     filter(district_no != 400) %>%
     bind_rows(attendance_henry) %>%
     filter(grade %in% c("K", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12")) %>%
@@ -262,14 +262,14 @@ school_output <- school_CA %>%
         pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
     arrange(system, school, subgroup, grade_band)
 
-write_csv(school_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/school_chronic_absenteeism.csv", na = "")
+write_csv(school_output, "N:/ORP_accountability/data/2017_chronic_absenteeism/school_chronic_absenteeism.csv", na = "")
 
 school_targets <- school_output %>%
     mutate(year = 2018,
         AMO_reduction_target = amo_reduction(n_students, pct_chronically_absent),
         AMO_reduction_target_double = amo_reduction(n_students, pct_chronically_absent, double = TRUE))
 
-write_csv(school_targets, "K:/ORP_accountability/projects/2018_amo/school_chronic_absenteeism.csv", na = "")
+write_csv(school_targets, "N:/ORP_accountability/projects/2018_amo/school_chronic_absenteeism.csv", na = "")
 
 system_output <- system_CA %>%
     transmute(year, system, system_name,
@@ -292,7 +292,7 @@ system_output <- system_CA %>%
         pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
     arrange(system, subgroup, grade_band)
 
-write_csv(system_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/system_chronic_absenteeism.csv", na = "")
+write_csv(system_output, "N:/ORP_accountability/data/2017_chronic_absenteeism/system_chronic_absenteeism.csv", na = "")
 
 system_targets <- system_output %>%
     filter(grade_band == "All Grades",
@@ -302,7 +302,7 @@ system_targets <- system_output %>%
         AMO_reduction_target = amo_reduction(n_students, pct_chronically_absent),
         AMO_reduction_target_double = amo_reduction(n_students, pct_chronically_absent, double = TRUE))
 
-write_csv(system_targets, "K:/ORP_accountability/projects/2018_amo/system_chronic_absenteeism.csv", na = "")
+write_csv(system_targets, "N:/ORP_accountability/projects/2018_amo/system_chronic_absenteeism.csv", na = "")
 
 state_output <- state_CA %>%
     transmute(year, system = 0, system_name = "State of Tennessee",
@@ -325,7 +325,7 @@ state_output <- state_CA %>%
         pct_chronically_absent, pct_10_to_20_pct, pct_greater_than_20_pct) %>%
     arrange(subgroup, grade_band)
 
-write_csv(state_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/state_chronic_absenteeism.csv", na = "")
+write_csv(state_output, "N:/ORP_accountability/data/2017_chronic_absenteeism/state_chronic_absenteeism.csv", na = "")
 
 student_output <- attendance %>%
     transmute(system, system_name, school, school_name, student_id = student_key,
@@ -335,4 +335,4 @@ student_output <- attendance %>%
     mutate_at(c("Black", "Hispanic", "Native", "HPI", "Asian", "White", "ED", "SWD", "EL"),
         funs(if_else(is.na(.), 0, .)))
 
-write_csv(student_output, "K:/ORP_accountability/data/2017_chronic_absenteeism/student_chronic_absenteeism.csv", na = "")
+write_csv(student_output, "N:/ORP_accountability/data/2017_chronic_absenteeism/student_chronic_absenteeism.csv", na = "")

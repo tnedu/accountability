@@ -9,7 +9,7 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 
 # 2017 ACT Substitution
-ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_substitution_2017.csv") %>%
+ACT_substitution <- read_csv("N:/ORP_accountability/data/2017_ACT/school_act_substitution_2017.csv") %>%
     filter(school != -9999) %>%
     transmute(year, system, school,
         subject = case_when(
@@ -20,7 +20,7 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/school_act_sub
         subgroup = "All",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
+student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
     filter(greater_than_60_pct == "Y",
 # Homebound and Residential Facility students are dropped from school level
         homebound == 0 | is.na(homebound),
@@ -98,7 +98,7 @@ school_numeric <- collapse %>%
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 # Append ACT, grad
-ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
+ACT <- read_dta("N:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
     transmute(year = 2017, system, school, subject = "ACT Composite", grade = "All Grades", subgroup,
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
         enrolled, tested, participation_rate_1yr = participation_rate, valid_tests, 
@@ -106,14 +106,14 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
         pct_on_mastered = pct_21_orhigher, pct_below = pct_below19) %>%
     filter(subgroup %in% numeric_subgroups)
 
-grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_rate2017_JP.dta") %>%
+grad <- read_dta("N:/ORP_accountability/data/2016_graduation_rate/School_grad_rate2017_JP.dta") %>%
     transmute(year, system, school, subject, grade = "All Grades", 
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
         grad_count, grad_cohort, grad_rate, dropout_count = drop_count, dropout_rate) %>%
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate from Base
-base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct17.csv",
+base <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct17.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
@@ -164,7 +164,7 @@ participation <- participation_1yr %>%
     select(year, system, school, subject, grade, subgroup, enrolled, participation_rate_1yr, participation_rate_2yr)
 
 # 2016 ACT and Grad
-ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") %>%
+ACT_prior <- read_dta("N:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") %>%
     filter(school != -9999) %>%
     transmute(year = 2016, system, school, subject = "ACT Composite", grade = "All Grades",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
@@ -172,7 +172,7 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_school2016.dta") 
         enrolled, tested, valid_tests, pct_below = pct_below19, pct_on_mastered = pct_21_orhigher_reporting) %>%
     filter(subgroup %in% numeric_subgroups)
 
-grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/school_grad_rate2016.dta") %>%
+grad_prior <- read_dta("N:/ORP_accountability/data/2015_graduation_rate/school_grad_rate2016.dta") %>%
     transmute(year = 2016, system, school, subject, grade = "All Grades",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
         grad_cohort, grad_count, grad_rate, dropout_count = drop_count, dropout_rate = drop_rate) %>%
@@ -209,7 +209,7 @@ ACT_participation_2yr <- bind_rows(ACT, ACT_prior) %>%
 ACT <- left_join(ACT, ACT_participation_2yr, by = c("year", "system", "school", "subject", "grade", "subgroup"))
 
 # 2016 numeric
-numeric_2016 <- read_csv("K:/ORP_accountability/data/2016_accountability/school_numeric_with_unaka_correction_2016.csv") %>%
+numeric_2016 <- read_csv("N:/ORP_accountability/data/2016_accountability/school_numeric_with_unaka_correction_2016.csv") %>%
     transmute(year, system, school, subject, grade,
         subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup),
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
@@ -217,7 +217,7 @@ numeric_2016 <- read_csv("K:/ORP_accountability/data/2016_accountability/school_
     bind_rows(ACT_prior, grad_prior)
 
 # 2016 AMO targets
-AMOs <- read_excel("K:/ORP_accountability/data/2016_AMOs/2016_school_eoc_amos.xlsx") %>%
+AMOs <- read_excel("N:/ORP_accountability/data/2016_AMOs/2016_school_eoc_amos.xlsx") %>%
     filter(subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
         subgroup != "English Learners") %>%
     transmute(year = 2017, system, school, subject, grade,
@@ -251,4 +251,4 @@ output <- numeric_2017 %>%
         grad_count, grad_cohort, grad_rate, dropout_count, dropout_rate)
 
 # Output file
-write_csv(output, path = "K:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_oct19.csv", na = "")
+write_csv(output, path = "N:/ORP_accountability/data/2017_final_accountability_files/school_numeric_2017_oct19.csv", na = "")

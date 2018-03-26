@@ -9,12 +9,12 @@ english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
 # Focus schools not exiting in 2015
-focus_schools <- read_csv("K:/ORP_accountability/projects/2015_school_coding/Output/focus_schools_not_exiting_ap.csv") %>%
+focus_schools <- read_csv("N:/ORP_accountability/projects/2015_school_coding/Output/focus_schools_not_exiting_ap.csv") %>%
     select(system, school, BHN_gap_identified, ED_gap_identified, SWD_gap_identified, ELL_gap_identified,
         subgroup_path_SWD, subgroup_path_ELL)
 
 # Pools/Immune ----------------------------------------------------------------------------------------------------
-pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
+pools_immune <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool, designation_ineligible,
         grad_only_BHN, grad_only_ED, grad_only_SWD, grad_only_EL,
         grad_only_2016_BHN, grad_only_2016_ED, grad_only_2016_SWD, grad_only_2016_EL)
@@ -45,7 +45,7 @@ grad_only_subgroups <- pools_immune %>%
     full_join(grad_only_subgroups_2016, by = c("system", "school", "subgroup"))
     
 # Success Rates for Subgroup Exit and Below for Gap Exit ----------------------------------------------------------
-one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
+one_year_success <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
     inner_join(pools_immune, by = c("system", "school")) %>%
@@ -88,7 +88,7 @@ one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountabili
     select(year, system, school, pool, designation_ineligible, subgroup, valid_tests, pct_below, pct_on_mastered)
 
 # 2015 Below for K-8 Gap exit
-below_2015 <- read_csv("K:/ORP_accountability/data/2015_sas_accountability/ASD included grades/school_base_2015_19jul2015.csv") %>%
+below_2015 <- read_csv("N:/ORP_accountability/data/2015_sas_accountability/ASD included grades/school_base_2015_19jul2015.csv") %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade),
         system = as.numeric(system)) %>%
     filter(year == 2015,
@@ -269,12 +269,12 @@ output <- focus_exit_improving %>%
         gap_identified_count, gap_exit_count, gap_exit, gap_improving, gap_improving_count,
         pathway_identified_count, focus_exit_count, focus_exit)
 
-write_csv(output, path = "K:/ORP_accountability/projects/2017_school_accountability/focus_exit_improving.csv", na = "")
+write_csv(output, path = "N:/ORP_accountability/projects/2017_school_accountability/focus_exit_improving.csv", na = "")
 
 # Focus not exiting for reward
 focus_not_exiting <- filter(output, focus_exit == 0 | is.na(focus_exit))
 
-write_csv(focus_not_exiting, path = "K:/ORP_accountability/projects/2017_school_accountability/focus_schools_not_exiting.csv", na = "")
+write_csv(focus_not_exiting, path = "N:/ORP_accountability/projects/2017_school_accountability/focus_schools_not_exiting.csv", na = "")
 
 
 # School Summary File Metrics -------------------------------------------------------------------------------------
@@ -333,4 +333,4 @@ focus_metrics <- pct_below_2015 %>%
     full_join(k8_below_ranking, by = c("system", "school", "subgroup")) %>%
     full_join(hs_below_reduction, by = c("system", "school", "subgroup"))
 
-write_csv(focus_metrics, path = "K:/ORP_accountability/projects/2017_school_accountability/focus_metrics.csv", na = "")
+write_csv(focus_metrics, path = "N:/ORP_accountability/projects/2017_school_accountability/focus_metrics.csv", na = "")

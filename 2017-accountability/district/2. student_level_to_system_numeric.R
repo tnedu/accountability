@@ -9,7 +9,7 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 
 # 2017 ACT Substitution -------------------------------------------------------------------------------------------
-ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_substitution_2017.csv") %>%
+ACT_substitution <- read_csv("N:/ORP_accountability/data/2017_ACT/system_act_substitution_2017.csv") %>%
     transmute(year, system,
         subgroup = "All",
         subject = case_when(
@@ -19,7 +19,7 @@ ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/system_act_sub
         grade = "9th through 12th",
         valid_tests, n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
+student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
     filter(greater_than_60_pct == "Y",
 # Residential Facility students are dropped from system level
         residential_facility != 1 | is.na(residential_facility)) %>%
@@ -95,7 +95,7 @@ system_numeric <- collapse %>%
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 # 2017 ACT and Grad -----------------------------------------------------------------------------------------------
-ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
+ACT <- read_dta("N:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
     transmute(year = 2017, system, subject = "ACT Composite", grade = "All Grades", subgroup,
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
         enrolled, tested, participation_rate_1yr = participation_rate, valid_tests, 
@@ -103,13 +103,13 @@ ACT <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_district2017.dta") %>%
         pct_on_mastered = pct_21_orhigher, pct_below = pct_below19) %>%
     filter(subgroup %in% numeric_subgroups)
 
-grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/District_grad_rate2017_JP.dta") %>%
+grad <- read_dta("N:/ORP_accountability/data/2016_graduation_rate/District_grad_rate2017_JP.dta") %>%
     transmute(year, system, subject, grade = "All Grades", subgroup, grad_count, grad_cohort, grad_rate, dropout_count = drop_count, dropout_rate) %>%
     mutate(subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
     filter(system != 90, subgroup %in% numeric_subgroups)
 
 # Participation Rate (From Base) ----------------------------------------------------------------------------------
-base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct17.csv",
+base <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct17.csv",
         col_types = c("ddccccddddddddddddddddddddddddd")) %>%
     filter(grade != "All Grades",
         subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
@@ -160,7 +160,7 @@ participation <- participation_1yr %>%
     select(year, system, subject, grade, subgroup, enrolled, participation_rate_1yr, participation_rate_2yr)
 
 # 2016 ACT and Grad -----------------------------------------------------------------------------------------------
-ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2016.dta") %>%
+ACT_prior <- read_dta("N:/ORP_accountability/data/2015_ACT/ACT_district2016.dta") %>%
     transmute(year = 2016, system, subject = "ACT Composite", grade = "All Grades",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
         participation_rate_1yr = round5(100 * tested/enrolled),
@@ -168,7 +168,7 @@ ACT_prior <- read_dta("K:/ORP_accountability/data/2015_ACT/ACT_district2016.dta"
         pct_below = pct_below19, pct_on_mastered = pct_21_orhigher_reporting) %>%
     filter(subgroup %in% numeric_subgroups)
 
-grad_prior <- read_dta("K:/ORP_accountability/data/2015_graduation_rate/district_grad_rate2016.dta") %>%
+grad_prior <- read_dta("N:/ORP_accountability/data/2015_graduation_rate/district_grad_rate2016.dta") %>%
     transmute(year = 2016, system, subject, grade = "All Grades",
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup),
         grad_cohort, grad_count, grad_rate, dropout_count = drop_count, dropout_rate = drop_rate) %>%
@@ -205,7 +205,7 @@ ACT_participation_2yr <- bind_rows(ACT, ACT_prior) %>%
 ACT <- left_join(ACT, ACT_participation_2yr, by = c("year", "system", "subject", "grade", "subgroup"))
 
 # 2016 numeric
-numeric_2016 <- read_csv("K:/ORP_accountability/data/2016_accountability/system_numeric_with_unaka_correction_2016.csv") %>%
+numeric_2016 <- read_csv("N:/ORP_accountability/data/2016_accountability/system_numeric_with_unaka_correction_2016.csv") %>%
     filter(subject != "HS Science") %>%
     transmute(year, system, subject, grade, subgroup,
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
@@ -213,7 +213,7 @@ numeric_2016 <- read_csv("K:/ORP_accountability/data/2016_accountability/system_
     bind_rows(ACT_prior, grad_prior)
 
 # 2016 AMO targets
-AMOs <- read_excel("K:/ORP_accountability/data/2016_AMOs/2016_system_eoc_amos.xlsx") %>%
+AMOs <- read_excel("N:/ORP_accountability/data/2016_AMOs/2016_system_eoc_amos.xlsx") %>%
     filter(subgroup %in% c(numeric_subgroups, "English Learners with T1/T2"),
         subgroup != "English Learners") %>%
     mutate(subgroup = if_else(subgroup == "English Learners with T1/T2", "English Learners", subgroup)) %>%
@@ -221,14 +221,14 @@ AMOs <- read_excel("K:/ORP_accountability/data/2016_AMOs/2016_system_eoc_amos.xl
     bind_rows(ACT_grad_amo)
 
 # 2015 Percentile Ranks for 3-8
-pctile_2015 <- read_csv("K:/ORP_accountability/projects/2016_pre_coding/Output/system_numeric_with_super_subgroup_2016.csv") %>%
+pctile_2015 <- read_csv("N:/ORP_accountability/projects/2016_pre_coding/Output/system_numeric_with_super_subgroup_2016.csv") %>%
     filter(year == 2015, grade %in% c("3rd through 5th", "6th through 8th")) %>%
     transmute(year = 2017, system, subject, grade,
         subgroup = if_else(subgroup == "English Language Learners", "English Learners", subgroup),
         BB_percentile_2015 = BB_percentile, PA_percentile_2015 = PA_percentile)
 
 # 2016 TVAAS ------------------------------------------------------------------------------------------------------
-TVAAS_2016_subgroups <- read_excel("K:/ORP_accountability/data/2016_tvaas/2016-District-Level URM Results (Subgroups).xlsx") %>%
+TVAAS_2016_subgroups <- read_excel("N:/ORP_accountability/data/2016_tvaas/2016-District-Level URM Results (Subgroups).xlsx") %>%
     transmute(year = Year, system = as.numeric(`System Number`),
         subject = if_else(Test == "ACT" & Subject == "Composite", "ACT Composite", Subject),
         grade = if_else(subject == "ACT Composite", "All Grades", NA_character_),
@@ -237,7 +237,7 @@ TVAAS_2016_subgroups <- read_excel("K:/ORP_accountability/data/2016_tvaas/2016-D
         TVAAS_index = Index, TVAAS_level = Level) %>%
     filter(subject %in% c("ACT Composite", "HS Math", "HS English"))
 
-TVAAS_2016 <- read_excel("K:/ORP_accountability/data/2016_tvaas/2016-District-Level URM Results (All Students).xlsx") %>%
+TVAAS_2016 <- read_excel("N:/ORP_accountability/data/2016_tvaas/2016-District-Level URM Results (All Students).xlsx") %>%
     transmute(year = Year, system = as.numeric(`System Number`),
         subject = if_else(Test == "ACT" & Subject == "Composite", "ACT Composite", Subject),
         grade = if_else(subject == "ACT Composite", "All Grades", NA_character_),
@@ -248,7 +248,7 @@ TVAAS_2016 <- read_excel("K:/ORP_accountability/data/2016_tvaas/2016-District-Le
     bind_rows(TVAAS_2016_subgroups)
 
 # 2017 TVAAS ------------------------------------------------------------------------------------------------------
-TVAAS_2017_all_1 <- read_excel("K:/ORP_accountability/data/2017_tvaas/2017-All-Subjects-District-Level-Accountability-Results-All-Students.xlsx") %>%
+TVAAS_2017_all_1 <- read_excel("N:/ORP_accountability/data/2017_tvaas/2017-All-Subjects-District-Level-Accountability-Results-All-Students.xlsx") %>%
     transmute(year = 2017,
         system = as.numeric(`System Number`), subgroup = "All Students",
         subject = if_else(Subject == "English Language Arts", "ELA", Subject),
@@ -261,7 +261,7 @@ TVAAS_2017_all_1 <- read_excel("K:/ORP_accountability/data/2017_tvaas/2017-All-S
         Level_1 = Level
     )
 
-TVAAS_2017_all_2 <- read_excel("K:/ORP_accountability/data/2017_tvaas/2017-District-Level-Accountability-Results-All-Students-with-E1E2M2-Suppressions.xlsx") %>%
+TVAAS_2017_all_2 <- read_excel("N:/ORP_accountability/data/2017_tvaas/2017-District-Level-Accountability-Results-All-Students-with-E1E2M2-Suppressions.xlsx") %>%
     transmute(system = as.numeric(`System Number`), subgroup = "All Students",
         subject = if_else(Subject == "English Language Arts", "ELA", Subject),
         grade = case_when(
@@ -279,7 +279,7 @@ TVAAS_2017_all <- TVAAS_2017_all_1 %>%
         TVAAS_level = if_else(Index_1 >= Index_2, Level_1, Level_2)) %>%
     select(year, system, subject, grade, subgroup, TVAAS_index, TVAAS_level)
 
-TVAAS_2017_subgroups_1 <- read_excel("K:/ORP_accountability/data/2017_tvaas/2017-All-Subjects-District-Level-Accountability-Results-Subgroups.xlsx") %>%
+TVAAS_2017_subgroups_1 <- read_excel("N:/ORP_accountability/data/2017_tvaas/2017-All-Subjects-District-Level-Accountability-Results-Subgroups.xlsx") %>%
     transmute(system = as.numeric(`System Number`), subgroup = Subgroup,
         subject = if_else(Subject == "English Language Arts", "ELA", Subject),
         grade = case_when(
@@ -291,7 +291,7 @@ TVAAS_2017_subgroups_1 <- read_excel("K:/ORP_accountability/data/2017_tvaas/2017
         Level_1 = Level
     )
 
-TVAAS_2017_subgroups_2 <- read_excel("K:/ORP_accountability/data/2017_tvaas/2017-District-Level-Accountability-Results-Subgroups-with-E1E2M2-Suppressions.xlsx") %>%
+TVAAS_2017_subgroups_2 <- read_excel("N:/ORP_accountability/data/2017_tvaas/2017-District-Level-Accountability-Results-Subgroups-with-E1E2M2-Suppressions.xlsx") %>%
     transmute(system = as.numeric(`System Number`), subgroup = Subgroup,
         subject = if_else(Subject == "English Language Arts", "ELA", Subject),
         grade = case_when(
@@ -392,7 +392,7 @@ percentile_ranks <- numeric_2017 %>%
     bind_rows(percentile_ranks_38)
 
 # Merge on names
-system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
+system_names <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
 # Clean and output numeric file
 output <- percentile_ranks %>%
@@ -408,7 +408,7 @@ output <- percentile_ranks %>%
         below_percentile, OM_percentile, BB_percentile_2015, PA_percentile_2015)
 
 # Merge on 10/11 Percentile ranks and take the better of 10/11 and 10/17 files
-pctile_ranks_10_11 <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/October 11/system_numeric_2017_oct11.csv",
+pctile_ranks_10_11 <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/October 11/system_numeric_2017_oct11.csv",
     col_types = c("iicccciiiidiiidddddddddddcciididdddd")) %>%
     select(year, system, subject, grade, subgroup,
         below_percentile_10_11 = below_percentile, OM_percentile_10_11 = OM_percentile)
@@ -420,4 +420,4 @@ percentile_rank_update <- output %>%
     select(-below_percentile_10_11, -OM_percentile_10_11)
 
 # Output file
-write_csv(percentile_rank_update, path = "K:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_oct19.csv", na = "")
+write_csv(percentile_rank_update, path = "N:/ORP_accountability/data/2017_final_accountability_files/system_numeric_2017_oct19.csv", na = "")

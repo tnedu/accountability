@@ -12,44 +12,44 @@ comparison_subgroups <- c("All Students", "Non-Economically Disadvantaged",
     "Non-Students with Disabilities", "Non-English Learners/T1 or T2")
 
 # Priority and Focus Schools --------------------------------------------------------------------------------------
-focus_schools <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/focus_schools_not_exiting.csv")
-priority_schools <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/priority_schools_not_exiting.csv")
+focus_schools <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/focus_schools_not_exiting.csv")
+priority_schools <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/priority_schools_not_exiting.csv")
 
 priority_focus <- bind_rows(focus_schools, priority_schools) %>%
     transmute(system, school, priority_focus = 1)
 
 # Pools/Immune ----------------------------------------------------------------------------------------------------
-pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
+pools_immune <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool, designation_ineligible)
 
 high_schools <- sum(pools_immune$pool == "HS", na.rm = TRUE)
 k8_schools <- sum(pools_immune$pool == "K8", na.rm = TRUE)
 
-grad_only_BHN <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
+grad_only_BHN <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     transmute(system, school, subgroup = "Black/Hispanic/Native American",
         grad_only_target = grad_only_BHN, grad_only_comparison = grad_only_All)
 
-grad_only_ED <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
+grad_only_ED <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     transmute(system, school, subgroup = "Economically Disadvantaged",
         grad_only_target = grad_only_ED, grad_only_comparison = grad_only_Non_ED)
 
-grad_only_SWD <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
+grad_only_SWD <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     transmute(system, school, subgroup = "Students with Disabilities",
         grad_only_target = grad_only_SWD, grad_only_comparison = grad_only_Non_SWD)
 
-grad_only_EL <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
+grad_only_EL <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     transmute(system, school, subgroup = "English Learners with T1/T2",
         grad_only_target = grad_only_EL, grad_only_comparison = grad_only_Non_EL)
 
 grad_only <- bind_rows(grad_only_BHN, grad_only_ED, grad_only_SWD, grad_only_EL)
 
 # TVAAS for Reward Progress ---------------------------------------------------------------------------------------
-tvaas <- read_excel("K:/ORP_accountability/data/2017_tvaas/Schoolwide Composite Index.xlsx") %>%
+tvaas <- read_excel("N:/ORP_accountability/data/2017_tvaas/Schoolwide Composite Index.xlsx") %>%
     transmute(system = as.integer(`District Number`), school = as.integer(`School Number`),
         tvaas_index = `TCAP/EOC: School-Wide: Composite`)
 
 # Success Rates for Reward Performance ----------------------------------------------------------------------------
-one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
+one_year_success <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
     inner_join(pools_immune, by = c("system", "school")) %>%
@@ -175,7 +175,7 @@ output <- reward %>%
         reward_progress = if_else(reward_progress, 1L, 0L))
 
 # Identify additional reward schools with suppression TVAAS files
-tvaas_new <- read_excel("K:/ORP_accountability/data/2017_tvaas/SAS-NIET School-Wide Indexes-E1E2M2-Suppressions.xlsx") %>%
+tvaas_new <- read_excel("N:/ORP_accountability/data/2017_tvaas/SAS-NIET School-Wide Indexes-E1E2M2-Suppressions.xlsx") %>%
     transmute(system = as.integer(`District Number`), school = as.integer(`School Number`),
         tvaas_new = `TCAP/EOC: School-Wide: Composite`)
 
@@ -195,7 +195,7 @@ new_output <- output %>%
         pct_on_mastered, reward_performance,
         tvaas_index, tvaas_new, cutoff, reward_progress, reward_progress_new)
 
-write_csv(new_output, "K:/ORP_accountability/projects/2017_school_accountability/reward_Oct19.csv")
+write_csv(new_output, "N:/ORP_accountability/projects/2017_school_accountability/reward_Oct19.csv")
 
 
 # School Summary File Metrics -------------------------------------------------------------------------------------
@@ -215,4 +215,4 @@ reward_exemption_output <- one_year_success %>%
         pct_on_mastered_target, pct_on_mastered_comparison, gap,
         pctile_rank_gap = round5(100 * rank_gap/denom, 1))
 
-write_csv(reward_exemption_output, path = "K:/ORP_accountability/projects/2017_school_accountability/reward_metrics.csv", na = "")
+write_csv(reward_exemption_output, path = "N:/ORP_accountability/projects/2017_school_accountability/reward_metrics.csv", na = "")

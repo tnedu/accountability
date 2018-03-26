@@ -2,7 +2,7 @@ library(acct)
 library(haven)
 library(tidyverse)
 
-school_grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_grad_rate2017_JP.dta") %>%
+school_grad <- read_dta("N:/ORP_accountability/data/2016_graduation_rate/School_grad_rate2017_JP.dta") %>%
     transmute(year = 2018, system, system_name, school, school_name,
         subgroup = case_when(
             subgroup == "English Language Learners with T1/T2" ~ "English Learners",
@@ -15,7 +15,7 @@ school_grad <- read_dta("K:/ORP_accountability/data/2016_graduation_rate/School_
         grad_target_double = amo_target(grad_cohort, grad_rate, double = TRUE)
     )
 
-school_ACT_grad <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
+school_ACT_grad <- read_dta("N:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
     mutate(subgroup = case_when(
             subgroup == "English Language Learners with T1/T2" ~ "English Learners",
             subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
@@ -33,4 +33,4 @@ school_ACT_grad <- read_dta("K:/ORP_accountability/data/2016_ACT/ACT_school2017.
         ACT_grad_target_double = amo_target(grad_cohort, ACT_21_or_higher, double = TRUE)
     )
 
-write_csv(school_ACT_grad, path = "K:/ORP_accountability/projects/2018_amo/school_ready_grad.csv", na = "")
+write_csv(school_ACT_grad, path = "N:/ORP_accountability/projects/2018_amo/school_ready_grad.csv", na = "")

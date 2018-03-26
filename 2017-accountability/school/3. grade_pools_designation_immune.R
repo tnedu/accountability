@@ -5,7 +5,7 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-school_base <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
+school_base <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(!system %in% c(960, 963, 964, 970, 972)) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
@@ -42,19 +42,19 @@ school_pools <- school_base %>%
     select(system, school, pool) %>%
     distinct()
 
-special_ed <- read_excel("K:/ORP_accountability/data/2017_tdoe_provided_files/List of Schools Acct 2016-17.xlsx",
+special_ed <- read_excel("N:/ORP_accountability/data/2017_tdoe_provided_files/List of Schools Acct 2016-17.xlsx",
         sheet = "SPED Schools") %>%
     transmute(system = DISTRICT_NUMBER, school = SCHOOL_NUMBER, special_ed = 1)
 
-cte_alt_adult <- read_excel("K:/ORP_accountability/data/2017_tdoe_provided_files/List of Schools Acct 2016-17.xlsx",
+cte_alt_adult <- read_excel("N:/ORP_accountability/data/2017_tdoe_provided_files/List of Schools Acct 2016-17.xlsx",
         sheet = "CTE Adult and Alternative") %>%
     transmute(system = DISTRICT_NUMBER, school = SCHOOL_NUMBER, cte_alt_adult = 1)
 
-closed_prior <- read_excel("K:/ORP_accountability/data/2017_tdoe_provided_files/List of Schools Acct 2016-17.xlsx",
+closed_prior <- read_excel("N:/ORP_accountability/data/2017_tdoe_provided_files/List of Schools Acct 2016-17.xlsx",
         sheet = "Closed Schools prior 2016-17") %>%
     transmute(system = DISTRICT_NUMBER, school = SCHOOL_NUMBER, closed = 1)
 
-closed <- read_excel("K:/ORP_accountability/data/2017_tdoe_provided_files/List of Schools Acct 2016-17.xlsx",
+closed <- read_excel("N:/ORP_accountability/data/2017_tdoe_provided_files/List of Schools Acct 2016-17.xlsx",
         sheet = "Closed Schools") %>%
     transmute(system = DISTRICT_NUMBER, school = SCHOOL_NUMBER, closed = 1) %>%
     bind_rows(closed_prior)
@@ -96,7 +96,7 @@ grad_only <- school_base %>%
         grad_only_Non_SWD = `Non-Students with Disabilities`,
         grad_only_Non_EL = `Non-English Learners/T1 or T2`)
 
-grad_only_2016 <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
+grad_only_2016 <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(!system %in% c(960, 963, 964, 970, 972)) %>%
     mutate(grade = if_else(subject == "Graduation Rate", "12", grade)) %>%
@@ -148,4 +148,4 @@ grade_pools_designation_immune <- school_base %>%
         "special_ed", "cte_alt_adult", "closed"), funs(if_else(is.na(.), 0, .))) %>%
     mutate(designation_ineligible = as.numeric(grad_only_All == 1 | special_ed == 1 | cte_alt_adult == 1 | closed == 1))
 
-write_csv(grade_pools_designation_immune, path = "K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv", na = "")
+write_csv(grade_pools_designation_immune, path = "N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv", na = "")

@@ -7,13 +7,13 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-pools_immune <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
+pools_immune <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool, designation_ineligible)
 
 high_schools <- ceiling(0.1 * sum(pools_immune$pool == "HS", na.rm = TRUE))
 k8_schools <- ceiling(0.1 * sum(pools_immune$pool == "K8", na.rm = TRUE))
 
-one_year_success <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct01.csv",
+one_year_success <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct01.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     inner_join(pools_immune, by = c("system", "school")) %>%
     mutate(grade = if_else(subject == "ACT Composite", "12", grade)) %>%
@@ -47,4 +47,4 @@ priority_cusp <- one_year_success %>%
     mutate(priority_cusp = if_else(designation_ineligible == 0 & pool == "HS" & rank_OM <= high_schools, 1, 0),
         priority_cusp = if_else(designation_ineligible == 0 & pool == "K8" & rank_OM <= k8_schools, 1, priority_cusp))
 
-write_csv(priority_cusp, path = "K:/ORP_accountability/projects/2017_school_accountability/priority_cusp.csv", na = "")
+write_csv(priority_cusp, path = "N:/ORP_accountability/projects/2017_school_accountability/priority_cusp.csv", na = "")

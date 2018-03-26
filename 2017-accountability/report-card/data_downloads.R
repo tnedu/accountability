@@ -8,7 +8,7 @@ numeric_subjects <- c("Math", "ELA", "Science", "HS Math", "HS English", "HS Sci
 numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
     "Students with Disabilities", "English Learners", "Super Subgroup")
 
-system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
+system_names <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
 # Data download files are suppressed for n < 10 (*) or any individual proficiency band < 1% or > 99% (**)
 suppress <- function(file, threshold = 1) {
@@ -30,7 +30,7 @@ suppress <- function(file, threshold = 1) {
 }
 
 # State Base
-state_base_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_oct17.csv",
+state_base_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/state_base_2017_oct17.csv",
         col_types = c("iiccccddddddddddddddddddddddddd")) %>%
     filter(year == 2017, subject %in% base_subjects, grade != "Missing Grade") %>%
     select(year, system, system_name, subject, grade, subgroup,
@@ -39,10 +39,10 @@ state_base_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_account
     arrange(grade, subject, subgroup) %>%
     suppress()
 
-write_csv(state_base_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/state_base_suppressed.csv", na = "")
+write_csv(state_base_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/state_base_suppressed.csv", na = "")
 
 # State Numeric
-state_numeric_suppressed <- haven::read_dta("K:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017_JW_final_10242017.dta") %>%
+state_numeric_suppressed <- haven::read_dta("N:/ORP_accountability/data/2017_final_accountability_files/state_numeric_2017_JW_final_10242017.dta") %>%
     mutate(subject = if_else(subject == "HS ELA", "HS English", subject),
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
     filter(year == 2017, subject %in% numeric_subjects, subgroup %in% numeric_subgroups) %>%
@@ -53,11 +53,11 @@ state_numeric_suppressed <- haven::read_dta("K:/ORP_accountability/data/2017_fin
     arrange(grade, subject, subgroup) %>%
     suppress()
 
-write_csv(state_numeric_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/state_numeric_suppressed.csv", na = "")
+write_csv(state_numeric_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/state_numeric_suppressed.csv", na = "")
 
 
 # System Base
-system_base_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct17.csv",
+system_base_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct17.csv",
         col_types = c("iiccccddddddddddddddddddddddddd")) %>%
     filter(year == 2017, subject %in% base_subjects, grade != "Missing Grade") %>%
     select(year, system, system_name, subject, grade, subgroup,
@@ -66,10 +66,10 @@ system_base_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accoun
     arrange(system, grade, subject, subgroup) %>%
     suppress()
 
-write_csv(system_base_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/system_base_suppressed.csv", na = "")
+write_csv(system_base_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/system_base_suppressed.csv", na = "")
 
 # System Numeric
-system_numeric_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/Non-official files/system_numeric_2017_JW_10232017.csv") %>%
+system_numeric_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/Non-official files/system_numeric_2017_JW_10232017.csv") %>%
     mutate(subject = if_else(subject == "HS ELA", "HS English", subject),
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
     filter(year == 2017, subject %in% numeric_subjects, subgroup %in% numeric_subgroups) %>%
@@ -82,11 +82,11 @@ system_numeric_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_acc
     arrange(system, grade, subject, subgroup) %>%
     suppress()
 
-write_csv(system_numeric_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/system_numeric_suppressed.csv", na = "")
+write_csv(system_numeric_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/system_numeric_suppressed.csv", na = "")
 
 ## School files are suppressed for < 5% or > 95%
 # School Base
-school_base_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct17.csv",
+school_base_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_oct17.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(year == 2017, subject %in% base_subjects, grade != "Missing Grade") %>%
     select(year, system, school, subject, grade, subgroup,
@@ -95,9 +95,9 @@ school_base_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accoun
     arrange(system, school, grade, subject, subgroup) %>%
     suppress(threshold = 5)
 
-write_csv(school_base_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_base_suppressed.csv", na = "")
+write_csv(school_base_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_base_suppressed.csv", na = "")
 
-school_base_60_pct_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
+school_base_60_pct_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
         col_types = c("iiicccddddddddddddddddddddddddd")) %>%
     filter(year == 2017, subject %in% base_subjects, grade != "Missing Grade") %>%
     select(year, system, school, subject, grade, subgroup,
@@ -106,10 +106,10 @@ school_base_60_pct_suppressed <- read_csv("K:/ORP_accountability/data/2017_final
     arrange(system, school, grade, subject, subgroup) %>%
     suppress(threshold = 5)
 
-write_csv(school_base_60_pct_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_base_60_pct_suppressed.csv", na = "")
+write_csv(school_base_60_pct_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_base_60_pct_suppressed.csv", na = "")
 
 # School Numeric
-school_numeric_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/Non-official files/school_numeric_2017_JW_wHSScience_11012017.csv") %>%
+school_numeric_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/Non-official files/school_numeric_2017_JW_wHSScience_11012017.csv") %>%
     mutate(subject = if_else(subject == "HS ELA", "HS English", subject),
         subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners", subgroup)) %>%
     filter(year == 2017, subject %in% numeric_subjects, subgroup %in% numeric_subgroups) %>%
@@ -120,4 +120,4 @@ school_numeric_suppressed <- read_csv("K:/ORP_accountability/data/2017_final_acc
     arrange(system, school, grade, subject, subgroup) %>%
     suppress(threshold = 5)
 
-write_csv(school_numeric_suppressed, path = "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_numeric_suppressed.csv", na = "")
+write_csv(school_numeric_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_numeric_suppressed.csv", na = "")

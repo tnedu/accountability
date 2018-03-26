@@ -14,7 +14,7 @@ suppress <- function(file, threshold = 1) {
             funs(if_else(n_students < 10, "*", as.character(.))))
 }
 
-state_abs <- read_csv("K:/ORP_accountability/data/2017_chronic_absenteeism/state_chronic_absenteeism.csv") %>%
+state_abs <- read_csv("N:/ORP_accountability/data/2017_chronic_absenteeism/state_chronic_absenteeism.csv") %>%
     transmute(year, system, system_name, subgroup,
         grade_band = case_when(
             grade_band == "9-12" ~ "9th through 12th",
@@ -24,9 +24,9 @@ state_abs <- read_csv("K:/ORP_accountability/data/2017_chronic_absenteeism/state
         n_students, n_chronically_absent, pct_chronically_absent) %>%
     suppress()
 
-write_csv(state_abs, "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/state_absenteeism_suppressed.csv", na = "")
+write_csv(state_abs, "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/state_absenteeism_suppressed.csv", na = "")
 
-system_abs <- read_csv("K:/ORP_accountability/data/2017_chronic_absenteeism/system_chronic_absenteeism.csv",
+system_abs <- read_csv("N:/ORP_accountability/data/2017_chronic_absenteeism/system_chronic_absenteeism.csv",
     col_types = c("iicccddddddd")) %>%
     transmute(year, system, system_name, subgroup,
         grade_band = case_when(
@@ -37,9 +37,9 @@ system_abs <- read_csv("K:/ORP_accountability/data/2017_chronic_absenteeism/syst
         n_students, n_chronically_absent, pct_chronically_absent) %>%
     suppress()
 
-write_csv(system_abs, "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/system_absenteeism_suppressed.csv", na = "")
+write_csv(system_abs, "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/system_absenteeism_suppressed.csv", na = "")
 
-school_abs <- read_csv("K:/ORP_accountability/data/2017_chronic_absenteeism/school_chronic_absenteeism.csv",
+school_abs <- read_csv("N:/ORP_accountability/data/2017_chronic_absenteeism/school_chronic_absenteeism.csv",
     col_types = c("iicicccddddddd")) %>%
     transmute(year, system, system_name, school, school_name, subgroup,
         grade_band = case_when(
@@ -50,4 +50,4 @@ school_abs <- read_csv("K:/ORP_accountability/data/2017_chronic_absenteeism/scho
         n_students, n_chronically_absent, pct_chronically_absent) %>%
     suppress()
 
-write_csv(school_abs, "K:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_absenteeism_suppressed.csv", na = "")
+write_csv(school_abs, "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_absenteeism_suppressed.csv", na = "")

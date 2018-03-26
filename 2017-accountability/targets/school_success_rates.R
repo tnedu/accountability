@@ -9,10 +9,10 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-pools <- read_csv("K:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
+pools <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool)
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
+student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
 # Combine two Bartlett schools that merged
     mutate(school = if_else(system == 794 & school == 170, 25, school)) %>%
     filter(greater_than_60_pct == "Y",
@@ -44,7 +44,7 @@ int_math_systems <- student_level %>%
     magrittr::extract2("system")
 
 # ACT Sub for HS Success Rate AMOs
-ACT_substitution <- read_csv("K:/ORP_accountability/data/2017_ACT/Pre-Appeals Data/school_act_substitution_2017.csv") %>%
+ACT_substitution <- read_csv("N:/ORP_accountability/data/2017_ACT/Pre-Appeals Data/school_act_substitution_2017.csv") %>%
     transmute(system, school,
         subject = case_when(
             subject == "ACT Reading" ~ "English III",
@@ -115,7 +115,7 @@ subject_targets <- subjects_suppressed %>%
         AMO_target = amo_target(valid_tests_prior, pct_on_mastered_prior),
         AMO_target_4 = amo_target(valid_tests_prior, pct_on_mastered_prior, double = TRUE))
 
-write_csv(subject_targets, "K:/ORP_accountability/projects/2018_amo/school_subject.csv")
+write_csv(subject_targets, "N:/ORP_accountability/projects/2018_amo/school_subject.csv")
 
 # One year success rates
 success_rate_targets <- subjects_suppressed %>%
@@ -128,4 +128,4 @@ success_rate_targets <- subjects_suppressed %>%
         AMO_target = amo_target(valid_tests_prior, pct_on_mastered_prior),
         AMO_target_4 = amo_target(valid_tests_prior, pct_on_mastered_prior, double = TRUE))
 
-write_csv(success_rate_targets, path = "K:/ORP_accountability/projects/2018_amo/school_success_rate.csv", na = "")
+write_csv(success_rate_targets, path = "N:/ORP_accountability/projects/2018_amo/school_success_rate.csv", na = "")

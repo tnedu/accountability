@@ -2,7 +2,7 @@ library(haven)
 library(readxl)
 library(tidyverse)
 
-alt_science <- read_dta("K:/ORP_accountability/data/2017_cdf/311_alt_091517.dta") %>%
+alt_science <- read_dta("N:/ORP_accountability/data/2017_cdf/311_alt_091517.dta") %>%
     filter(content_area_code != "SOC") %>%
     mutate(greater_than_60_pct = "Y",
         enrolled = 1,
@@ -28,7 +28,7 @@ alt_science <- read_dta("K:/ORP_accountability/data/2017_cdf/311_alt_091517.dta"
         )
     )
 
-ach_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/38_cdf_091417.dta") %>%
+ach_cdf <- read_dta("N:/ORP_accountability/data/2017_cdf/38_cdf_091417.dta") %>%
     mutate(test = "Achievement",
         semester = "Spring",
         el_excluded = as.numeric(el_excluded == 1 | EL_accommodationsU_part1 == "U" | EL_accommodationsU_part2 == "U"),
@@ -40,7 +40,7 @@ ach_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/38_cdf_091417.dta") %>%
 # Van Buren Modification on Appeal
     mutate(greater_than_60_pct = if_else(system == 880 & grade >= 6, "Y", greater_than_60_pct))
 
-fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_081517.dta") %>%
+fall_cdf <- read_dta("N:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_081517.dta") %>%
 # Student level file variables
     mutate(test = "EOC",
         semester = "Fall",
@@ -52,7 +52,7 @@ fall_cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/fall_eoc_cdf_081517.dt
     # McKenzie SSD Modification on Appeal
         greater_than_60_pct = if_else(system == 94, "Y", greater_than_60_pct))
 
-cdf <- read_dta("K:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_101117.dta") %>%
+cdf <- read_dta("N:/ORP_accountability/data/2017_cdf/Spring_EOC_CDF_101117.dta") %>%
 # Van Buren Modification on Appeal
     mutate(greater_than_60_pct = if_else(system == 880, "Y", greater_than_60_pct)) %>%
 # Student level file variables
@@ -100,7 +100,7 @@ int_math_systems <- cdf %>%
     magrittr::extract2("system")
 
 # MSAA
-msaa_math <- read_csv("K:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/2016-17/20170630_MSAA_StateStudentResults_SY2016-17_Whalen_v1.csv") %>%
+msaa_math <- read_csv("N:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/2016-17/20170630_MSAA_StateStudentResults_SY2016-17_Whalen_v1.csv") %>%
     transmute(system = as.numeric(DistrictID), school = as.numeric(SchoolID),
         unique_student_id = State_Student_ID,
         economically_disadvantaged = if_else(EconomicDisadvantageStatus == "Yes", 1, 0),
@@ -117,7 +117,7 @@ msaa_math <- read_csv("K:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/201
         grade = as.numeric(Grade), original_subject = "Math",
         performance_level = MatPerfLevel, reporting_status = MatReportingStatus)
 
-msaa_ela <- read_csv("K:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/2016-17/20170630_MSAA_StateStudentResults_SY2016-17_Whalen_v1.csv") %>%
+msaa_ela <- read_csv("N:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/2016-17/20170630_MSAA_StateStudentResults_SY2016-17_Whalen_v1.csv") %>%
     transmute(system = as.numeric(DistrictID), school = as.numeric(SchoolID),
         unique_student_id = State_Student_ID,
         economically_disadvantaged = if_else(EconomicDisadvantageStatus == "Yes", 1, 0),
@@ -143,7 +143,7 @@ msaa <- bind_rows(msaa_math, msaa_ela) %>%
         tested = if_else(reporting_status == "PRF", 0, 1))
 
 # Records from Alternative, CTE, Adult HS are dropped from student level
-alt_cte_adult <- read_excel("K:/ORP_accountability/data/2017_tdoe_provided_files/List of Schools Acct 2016-17.xlsx") %>%
+alt_cte_adult <- read_excel("N:/ORP_accountability/data/2017_tdoe_provided_files/List of Schools Acct 2016-17.xlsx") %>%
     transmute(system = DISTRICT_NUMBER, school = SCHOOL_NUMBER, cte_alt_adult = 1)
 
 # Student level file
@@ -266,4 +266,4 @@ output <- dedup %>%
     arrange(system, school, state_student_id)
 
 # Output file
-write_csv(output, "K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_oct19.csv", na = "")
+write_csv(output, "N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_oct19.csv", na = "")

@@ -11,7 +11,7 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
-student_level <- read_dta("K:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
+student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
 # Residential Facility students are dropped from system level
     filter(residential_facility == 0 | is.na(residential_facility)) %>%
 # Proficiency and subgroup indicators for collapse
@@ -123,7 +123,7 @@ numeric <- collapse %>%
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 # Merge on names
-system_names <- read_csv("K:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
+system_names <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
 suppress <- function(file, threshold = 1) {
     file %>%
@@ -163,7 +163,7 @@ numeric %>%
         maas_adjusted_gap_target = NA, maas_adjusted_prior_pct_prof_adv = NA, maas_adj_year_to_year_diff = NA) %>%
     # suppress() %>%
     arrange(Level, system, school, subject, grade, subgroup) %>%
-    write_csv("K:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_Numeric_Part_Prof.csv", na = "")
+    write_csv("N:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_Numeric_Part_Prof.csv", na = "")
 
 numeric %>%
     filter(school == 0 & system != 0) %>%
@@ -171,4 +171,4 @@ numeric %>%
     select(year, system, subject, grade, subgroup, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered,
         pct_on_track, pct_mastered, pct_on_mastered, pct_approaching, pct_below) %>%
-    write_csv("K:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_district_complete.csv", na = "")
+    write_csv("N:/ORP_accountability/data/2017_final_accountability_files/Report Card/ReportCard_district_complete.csv", na = "")
