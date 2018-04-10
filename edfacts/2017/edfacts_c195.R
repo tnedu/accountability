@@ -3,7 +3,7 @@ library(tidyverse)
 
 econ_dis <- read_delim("K:/ORP_accountability/data/2017_chronic_absenteeism/Student_classification_JUIH only.txt",
         delim = "\t") %>%
-    transmute(student_key = STUDENT_KEY, ED = 1, 
+    transmute(student_key = STUDENT_KEY, ED = 1,
         Homeless = as.numeric(STUDENT_CLASSIFICATION_TYPE == "H")) %>%
     filter(!duplicated(student_key))
 
@@ -119,7 +119,7 @@ school_CA <- attendance %>%
     mutate(subgroup = "All") %>%
     bind_rows(school_CA, .)
 
-school_master <- readxl::read_excel("H:/EDEN Data/EDEN 16-17/2016-17 EDFacts School Master File_4-5-17.xlsx") %>%
+school_master <- readxl::read_excel("H:/EDEN Data/EDEN 16-17/LEA and School Master Files/2016-17 EDFacts School Master File_3-16-18.xlsx") %>%
     transmute(system = as.numeric(STATE_LEAID), school = as.numeric(STATE_SCHID))
 
 disability_504_missing <- bind_rows(
@@ -128,6 +128,7 @@ disability_504_missing <- bind_rows(
     )
 
 school_output <- school_CA %>%
+    mutate(n_chronically_absent = if_else(system %in% c(11, 162, 340, 480, 560, 661) & subgroup == "Homeless", 0, n_chronically_absent)) %>%
     filter(gender != "U" | is.na(gender)) %>%
     inner_join(school_master, by = c("system", "school")) %>%
 #    bind_rows(disability_504_missing) %>%
@@ -157,3 +158,5 @@ school_output <- school_CA %>%
         student_count = n_chronically_absent)
 
 write_csv(school_output, "H:/EDEN Data/EDEN 16-17/Done/C195/TNSCHCHRONABSE2017-01.csv", na = "", col_names = FALSE)
+
+# SCH CHRON ABSENT,26050,TNSCHCHRONABSE2017-01.csv,C195,2016-2017,,
