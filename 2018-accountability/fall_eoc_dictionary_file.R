@@ -46,14 +46,17 @@ layout <- tribble(
     720, 723, "scale_score",
     724, 738, "performance_level",
     739, 741, "scale_score_lb_ci",
-    742, 744, "scale_score_ub_ci"
+    742, 744, "scale_score_ub_ci",
+    759, 883, "item_response_array"
 )
 
 # Read in cdf according to layout
-cdf <- read_fwf(file = "K:/Assessment_Data Returns/TCAP_End-of-Course/2017-18/Fall/2017-2018 TN Fall EOC CDF - 20180117.txt",
+cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_End-of-Course/2017-18/Fall/2017-2018 TN Fall EOC CDF - 20180117.txt",
     col_positions = fwf_positions(
         start = layout$start,
         end = layout$end,
         col_names = layout$colnames
     )
 )
+
+write_csv(cdf, path = "N:/ORP_accountability/data/2018_cdf/2018_fall_cdf.csv")
