@@ -1,7 +1,7 @@
 library(tidyverse)
 
 base_subjects <- c("Math", "ELA", "Science", "Algebra I", "Algebra II", "Biology I", "Chemistry",
-    "Integrated Math I", "Integrated Math II", "Integrated Math III",
+    "Integrated Math I", "Integrated Math II", "Integrated Math III", "Geometry",
     "English I", "English II", "English III", "US History")
 
 numeric_subjects <- c("Math", "ELA", "Science", "HS Math", "HS English", "HS Science")
@@ -20,7 +20,7 @@ suppress <- function(file, threshold = 1) {
             pct_mastered < threshold, pct_mastered > (100 - threshold))) %>%
         ungroup() %>%
         mutate_at(c("n_below", "n_approaching", "n_on_track", "n_mastered",
-                "pct_below", "pct_approaching", "pct_on_track", "pct_mastered", "pct_on_mastered"),
+                "pct_below", "pct_approaching", "pct_on_track", "pct_mastered"),
             funs(if_else(temp, "**", as.character(.)))
         ) %>%
         select(-temp) %>%
@@ -37,7 +37,9 @@ state_base_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_account
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered) %>%
     arrange(grade, subject, subgroup) %>%
-    suppress()
+    suppress() %>%
+    mutate(pct_on_mastered = if_else((as.numeric(pct_on_mastered) < 1 | as.numeric(pct_on_mastered) > 99) & !is.na(as.numeric(pct_on_mastered)), 
+        "**", as.character(pct_on_mastered)))
 
 write_csv(state_base_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/state_base_suppressed.csv", na = "")
 
@@ -51,10 +53,11 @@ state_numeric_suppressed <- haven::read_dta("N:/ORP_accountability/data/2017_fin
         pct_below = pct_below_bsc, pct_approaching = pct_approach_bsc, pct_on_track = pct_ontrack_prof, pct_mastered = pct_mastered_adv,
         pct_on_mastered = pct_ontrack_prof_adv) %>%
     arrange(grade, subject, subgroup) %>%
-    suppress()
+    suppress() %>%
+    mutate(pct_on_mastered = if_else((as.numeric(pct_on_mastered) < 1 | as.numeric(pct_on_mastered) > 99) & !is.na(as.numeric(pct_on_mastered)), 
+        "**", as.character(pct_on_mastered)))
 
 write_csv(state_numeric_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/state_numeric_suppressed.csv", na = "")
-
 
 # System Base
 system_base_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/system_base_2017_oct17.csv",
@@ -64,7 +67,9 @@ system_base_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_accoun
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered) %>%
     arrange(system, grade, subject, subgroup) %>%
-    suppress()
+    suppress() %>%
+    mutate(pct_on_mastered = if_else((as.numeric(pct_on_mastered) < 1 | as.numeric(pct_on_mastered) > 99) & !is.na(as.numeric(pct_on_mastered)), 
+        "**", as.character(pct_on_mastered)))
 
 write_csv(system_base_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/system_base_suppressed.csv", na = "")
 
@@ -80,7 +85,9 @@ system_numeric_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_acc
         pct_below = pct_below_bsc, pct_approaching = pct_approach_bsc, pct_on_track = pct_ontrack_prof, pct_mastered = pct_mastered_adv,
         pct_on_mastered = pct_ontrack_prof_adv) %>%
     arrange(system, grade, subject, subgroup) %>%
-    suppress()
+    suppress() %>%
+    mutate(pct_on_mastered = if_else((as.numeric(pct_on_mastered) < 1 | as.numeric(pct_on_mastered) > 99) & !is.na(as.numeric(pct_on_mastered)), 
+        "**", as.character(pct_on_mastered)))
 
 write_csv(system_numeric_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/system_numeric_suppressed.csv", na = "")
 
@@ -93,7 +100,9 @@ school_base_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_accoun
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered) %>%
     arrange(system, school, grade, subject, subgroup) %>%
-    suppress(threshold = 5)
+    suppress(threshold = 5) %>%
+    mutate(pct_on_mastered = if_else((as.numeric(pct_on_mastered) < 5 | as.numeric(pct_on_mastered) > 95) & !is.na(as.numeric(pct_on_mastered)), 
+        "**", as.character(pct_on_mastered)))
 
 write_csv(school_base_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_base_suppressed.csv", na = "")
 
@@ -104,7 +113,9 @@ school_base_60_pct_suppressed <- read_csv("N:/ORP_accountability/data/2017_final
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered) %>%
     arrange(system, school, grade, subject, subgroup) %>%
-    suppress(threshold = 5)
+    suppress(threshold = 5) %>%
+    mutate(pct_on_mastered = if_else((as.numeric(pct_on_mastered) < 5 | as.numeric(pct_on_mastered) > 95) & !is.na(as.numeric(pct_on_mastered)), 
+        "**", as.character(pct_on_mastered)))
 
 write_csv(school_base_60_pct_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_base_60_pct_suppressed.csv", na = "")
 
@@ -118,6 +129,8 @@ school_numeric_suppressed <- read_csv("N:/ORP_accountability/data/2017_final_acc
         pct_below = pct_below_bsc, pct_approaching = pct_approach_bsc, pct_on_track = pct_ontrack_prof, pct_mastered = pct_mastered_adv,
         pct_on_mastered = pct_ontrack_prof_adv) %>%
     arrange(system, school, grade, subject, subgroup) %>%
-    suppress(threshold = 5)
+    suppress(threshold = 5) %>%
+    mutate(pct_on_mastered = if_else((as.numeric(pct_on_mastered) < 5 | as.numeric(pct_on_mastered) > 95) & !is.na(as.numeric(pct_on_mastered)), 
+        "**", as.character(pct_on_mastered)))
 
 write_csv(school_numeric_suppressed, path = "N:/ORP_accountability/data/2017_final_accountability_files/Report Card/school_numeric_suppressed.csv", na = "")
