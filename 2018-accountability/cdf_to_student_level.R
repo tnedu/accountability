@@ -4,8 +4,19 @@ fall_cdf <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_fall_cdf.csv") %>
     mutate(semester = "Fall",
         raw_score = as.integer(raw_score))
 
+el <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/el_recently_arrived.csv") %>%
+    transmute(unique_student_id = student_key,
+        el = if_else(isel == 1, "Y", "N"),
+        el_arrived_year_1 = if_else(ELRECENTLYARRIVEDYEARONE == 1, "Y", "N"),
+        el_arrived_year_2 = if_else(ELRECENTLYARRIVEDYEARTWO == 1, "Y", "N")
+    ) %>%
+    distinct()
+
 spring_cdf <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_spring_cdf.csv") %>%
-    mutate(semester = "Spring")
+    mutate(semester = "Spring") %>%
+    select(-el, -el_arrived_year_1, -el_arrived_year_2) %>%
+    left_join(el, by = "unique_student_id") %>%
+    mutate_at(c("el", "el_arrived_year_1", "el_arrived_year_2"), ~ if_else(is.na(.), "N", .))
 
 cdf <- bind_rows(fall_cdf, spring_cdf) %>%
     mutate(test = "EOC",
