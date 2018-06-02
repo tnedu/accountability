@@ -103,10 +103,10 @@ student_level <- cdf %>%
         performance_level = if_else(did_not_attempt == 1, NA_character_, performance_level),
     # Convert subjects per accountability rules
         subject = case_when(
-            grade %in% 3:8 & original_subject %in% math_eoc ~ "Math",
-            grade %in% 3:8 & original_subject %in% english_eoc ~ "ELA",
-            grade %in% 3:8 & original_subject %in% science_eoc ~ "Science",
-            grade %in% 3:8 & original_subject == "US History" ~ "Social Studies",
+            grade %in% 2:8 & original_subject %in% math_eoc ~ "Math",
+            grade %in% 2:8 & original_subject %in% english_eoc ~ "ELA",
+            grade %in% 2:8 & original_subject %in% science_eoc ~ "Science",
+            grade %in% 2:8 & original_subject == "US History" ~ "Social Studies",
             TRUE ~ subject
         )
     )
@@ -132,10 +132,10 @@ dedup <- student_level %>%
     ungroup() %>%
 # For students with multiple records within the same test, take highest proficiency level
     mutate(prof_priority = case_when(
-            performance_level %in% c("Below", "Below Basic") ~ 4,
-            performance_level %in% c("Approaching", "Basic") ~ 3,
-            performance_level %in% c("On track", "Proficient") ~ 2,
-            performance_level %in% c("Mastered", "Advaced") ~ 1
+            performance_level %in% c("Below", "Below Basic") ~ 1,
+            performance_level %in% c("Approaching", "Basic") ~ 2,
+            performance_level %in% c("On track", "Proficient") ~ 3,
+            performance_level %in% c("Mastered", "Advanced") ~ 4
         )
     ) %>%
     group_by(state_student_id, subject, test) %>%
@@ -167,6 +167,7 @@ output <- dedup %>%
         functionally_delayed, special_ed, economically_disadvantaged, el, el_t1234, el_excluded,
         enrolled_50_pct_district, enrolled_50_pct_school, homebound, absent, breach_adult, breach_student,
         irregular_admin, incorrect_grade_subject, did_not_attempt, residential_facility) %>%
+    mutate(performance_level = if_else(performance_level == "On track", "On Track", performance_level)) %>%
     arrange(system, school, state_student_id)
 
 write_csv(output, "N:/ORP_accountability/projects/2018_student_level_file/2018_eoc_student_level_file.csv", na = "")
