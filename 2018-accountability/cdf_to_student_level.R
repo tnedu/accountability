@@ -111,7 +111,12 @@ student_level <- cdf %>%
         )
     )
 
+# Records from Alternative, CTE, Adult HS are dropped from student level
+alt_cte_adult <- read_csv("N:/ORP_accountability/data/2018_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
+    transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER), cte_alt_adult = 1)
+
 dedup <- student_level %>%
+    anti_join(alt_cte_adult, by = c("system", "school")) %>%
 # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
     mutate(
         test_priority = case_when(
