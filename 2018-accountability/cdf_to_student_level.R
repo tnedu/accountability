@@ -100,7 +100,14 @@ student_level <- cdf %>%
         tested = if_else(el_excluded == 1 & is.na(original_performance_level) & subject %in% c("Math", "Science", math_eoc, science_eoc), 0, tested),
         tested = if_else(el_excluded == 1 & !is.na(original_performance_level) & subject %in% c("Math", "Science", math_eoc, science_eoc), 1, tested),
     # Proficiency modified to missing if nullify or did not attempt
+    # Proficiency modified to missing if refused to test or failed attemptedness
+        tested = if_else(did_not_attempt == 1, 0, tested),
         performance_level = if_else(did_not_attempt == 1, NA_character_, performance_level),
+    # Any record with an RI status other than 0 or 3 is neither enrolled nor tested
+        enrolled = if_else(breach_adult == 1 | breach_student == 1 | incorrect_grade_subject == 1 | did_not_attempt == 1, 0, enrolled),
+        tested = if_else(breach_adult == 1 | breach_student == 1 | incorrect_grade_subject == 1 | did_not_attempt == 1, 0, tested),
+    # Any record with an RI status of 0 or 3 is enrolled nor tested, but do not have performance levels
+        performance_level = if_else(irregular_admin == 1, NA_character_, performance_level),
     # Convert subjects per accountability rules
         subject = case_when(
             grade %in% 2:8 & original_subject %in% math_eoc ~ "Math",
