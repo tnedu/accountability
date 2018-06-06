@@ -23,6 +23,7 @@ cdf <- bind_rows(fall_cdf, spring_cdf) %>%
         absent = reason_not_tested == 1,
         medically_exempt = reason_not_tested == 4,
         residential_facility = reason_not_tested == 5,
+        did_not_submit = reason_not_tested == 7,
         breach_adult = ri_status == 1,
         breach_student = ri_status == 2,
         irregular_admin = ri_status == 3,
@@ -79,7 +80,7 @@ student_level <- cdf %>%
         scale_score, enrolled, tested, valid_test, state_student_id = unique_student_id, last_name, first_name, grade, 
         race, bhn_group, functionally_delayed, special_ed, economically_disadvantaged, el, el_t1234, el_excluded,
         enrolled_50_pct_district, enrolled_50_pct_school, homebound, absent, breach_adult, breach_student, irregular_admin,
-        incorrect_grade_subject, did_not_attempt, residential_facility, semester, ri_status, medically_exempt) %>%
+        incorrect_grade_subject, did_not_attempt, residential_facility, did_not_submit, semester, ri_status, medically_exempt) %>%
     mutate_at(c("system", "school", "state_student_id", "grade", "bhn_group", "functionally_delayed", "special_ed",
             "economically_disadvantaged", "el", "el_t1234", "el_excluded", "homebound", "absent",
             "breach_adult", "breach_student", "irregular_admin", "incorrect_grade_subject", "did_not_attempt", "residential_facility"),
@@ -90,16 +91,15 @@ student_level <- cdf %>%
         !(school == 981 | system > 1000),
     # Drop medically exempt
         medically_exempt == FALSE) %>%
-# Apply testing flag hierarchy (5.2.1)
+# Apply testing flag hierarchy
     mutate(
-    # Absent students have a missing proficiency and tested value
+    # Absent (reason_not_tested 1) students have a missing proficiency and tested value
         tested = if_else(absent == 1, 0, tested),
         performance_level = if_else(absent == 1, NA_character_, performance_level),
     # EL Excluded students with missing proficiency are not considered tested
         performance_level = if_else(el_excluded == 1, NA_character_, performance_level),
-        tested = if_else(el_excluded == 1 & is.na(original_performance_level) & subject %in% c("Math", "Science", math_eoc, science_eoc), 0, tested),
-        tested = if_else(el_excluded == 1 & !is.na(original_performance_level) & subject %in% c("Math", "Science", math_eoc, science_eoc), 1, tested),
-    # Proficiency modified to missing if nullify or did not attempt
+        tested = if_else(el_excluded == 1 & is.na(original_performance_level), 0, tested),
+        tested = if_else(el_excluded == 1 & !is.na(original_performance_level), 1, tested),
     # Proficiency modified to missing if refused to test or failed attemptedness
         tested = if_else(did_not_attempt == 1, 0, tested),
         performance_level = if_else(did_not_attempt == 1, NA_character_, performance_level),
