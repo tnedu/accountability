@@ -3,6 +3,7 @@ library(tidyverse)
 
 student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_eoc_student_level_file.csv",
         col_types = "iciccccccciiiidcciciiiiiiicciiiiiiii") %>%
+    filter(el_excluded == 0, grade %in% c(0, 3:12), residential_facility == 0) %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1234 = el_t1234) %>%
     mutate(year = 2018,
@@ -10,7 +11,7 @@ student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_fil
         test = if_else(test %in% c("MSAA", "ALT_SCI"), "MSAA/Alt-Science", test),
         n_below = if_else(performance_level %in% c("Below", "Below Basic"), 1L, NA_integer_),
         n_approaching = if_else(performance_level %in% c("Approaching", "Basic"), 1L, NA_integer_),
-        n_on_track = if_else(performance_level %in% c("On track", "Proficient"), 1L, NA_integer_),
+        n_on_track = if_else(performance_level %in% c("On Track", "Proficient"), 1L, NA_integer_),
         n_mastered = if_else(performance_level %in% c("Mastered", "Advanced"), 1L, NA_integer_),
         All = 1L,
         Asian = race == "Asian",
@@ -77,7 +78,7 @@ district_assessment <- collapse %>%
             subgroup == "Native" ~ "American Indian or Alaska Native",
             subgroup == "Non_BHN" ~ "Non-Black/Hispanic/Native American",
             subgroup == "Non_ED" ~ "Non-Economically Disadvantaged",
-            subgroup == "Non_EL" ~ "Non-English Learners",
+            subgroup == "Non_EL" ~ "Non-English Learners/Transitional 1-4",
             subgroup == "Non_SWD" ~ "Non-Students with Disabilities",
             subgroup == "Super" ~ "Super Subgroup",
             subgroup == "SWD" ~ "Students with Disabilities",
