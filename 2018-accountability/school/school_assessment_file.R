@@ -87,36 +87,21 @@ school_assessment <- collapse %>%
     ) %>%
     select(year, system, school, test, subject, grade, subgroup,
         enrolled, tested, valid_tests, n_below, n_approaching, n_on_track, n_mastered, 
-        pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered) %>%
-    arrange(system, school, subject, grade, subgroup)
-
-ACT <- haven::read_dta("N:/ORP_accountability/data/2017_ACT/ACT_school2018_appeals2.dta") %>%
-    transmute(year = 2018, system = as.integer(system), school = as.integer(school),
-        subject = "ACT Composite", grade = "All Grades",
-        subgroup = case_when(
-            subgroup == "English Language Learners with T1/T2" ~ "English Learners with Transitional 1-2",
-            subgroup == "HPI" ~ "Native Hawaiian or Other Pacific Islander",
-            subgroup == "Native American" ~ "American Indian or Alaska Native",
-            subgroup == "Non-English Language Learners" ~ "Non-English Learners",
-            TRUE ~ subgroup
-        ),
-        enrolled, tested, valid_tests = valid_tests_wSAT, n_below = n_below19, n_on_track = n_21_orhigher,
-        ACT_18_and_below = pct_below19, ACT_21_and_above = pct_21_orhigher
-    )
-
-grad <- read_csv("N:/ORP_accountability/data/2017_graduation_rate/grad_rate_public_release_EK.csv") %>%
-    filter(system != 0 & school != 0) %>%
-    select(system, school, subject, subgroup, grad_cohort, grad_count, grad_rate)
+        pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
 historical_2017 <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/2017_school_assessment_file.csv",
-        col_types = "iiiccccddddddddddddddiidid") %>%
-    mutate_at(c("grad_cohort", "grad_count", "dropout_count"), as.integer) %>%
-    mutate_at(c("grad_rate", "dropout_rate"), as.numeric)
+    col_types = "iiiccccdddiiiiddddd")
 
 historical_2016 <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/2016_school_assessment_file.csv",
-    col_types = "iiiccccddddddddddddddiidid")
+    col_types = "iiiccccdddiiiiddddd")
 
-output <- bind_rows(school_assessment, ACT, grad, historical_2017, historical_2016) %>%
-    arrange(system, school, subject, grade, subgroup)
+school_names <- student_level %>%
+    select(system, system_name, school, school_name) %>%
+    distinct()
 
-write_csv(output, "N:/ORP_accountability/data/2018_final_accountability_files/school_assessment_file.csv", na = "")
+school_assessment <- bind_rows(school_assessment, historical_2017, historical_2016) %>%
+    left_join(school_names, by = c("system", "school")) %>%
+    select(year, system, system_name, school, school_name, everything()) %>%
+    arrange(system, school, subject, grade, subgroup, desc(year))
+
+write_csv(school_assessment, "N:/ORP_accountability/data/2018_final_accountability_files/school_assessment_file.csv", na = "")

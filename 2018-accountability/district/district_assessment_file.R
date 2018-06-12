@@ -53,7 +53,7 @@ for (s in c("All", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", 
     
 }
 
-district_assessment <- collapse %>%
+assessment_2018 <- collapse %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
     mutate(grade = if_else(grade == 0, "Missing Grade", as.character(grade)),
         pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
@@ -89,32 +89,19 @@ district_assessment <- collapse %>%
         enrolled, tested, valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
-ACT <- haven::read_dta("N:/ORP_accountability/data/2017_ACT/ACT_district2018_appeals2.dta") %>%
-    transmute(year = 2018, system = as.integer(system), subject = "ACT Composite", grade = "All Grades",
-        subgroup = case_when(
-            subgroup == "English Language Learners with T1/T2" ~ "English Learners with Transitional 1-2",
-            subgroup == "HPI" ~ "Native Hawaiian or Other Pacific Islander",
-            subgroup == "Native American" ~ "American Indian or Alaska Native",
-            subgroup == "Non-English Language Learners" ~ "Non-English Learners",
-            TRUE ~ subgroup
-        ),
-        enrolled, tested, valid_tests = valid_tests_wSAT, n_below = n_below19, n_on_track = n_21_orhigher,
-        ACT_18_and_below = pct_below19, ACT_21_and_above = pct_21_orhigher
-    )
+assessment_2017 <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/2017_district_assessment_file.csv",
+    col_types = "iiccccdddiiiiddddd")
 
-grad <- read_csv("N:/ORP_accountability/data/2017_graduation_rate/grad_rate_public_release_EK.csv") %>%
-    filter(system != 0 & school == 0) %>%
-    select(system, subject, subgroup, grad_cohort, grad_count, grad_rate)
+assessment_2016 <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/2016_district_assessment_file.csv",
+    col_types = "iiccccdddiiiiddddd")
 
-historical_2017 <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/2017_district_assessment_file.csv",
-        col_types = "iiccccddddddddddddddiidid") %>%
-    mutate_at(c("grad_cohort", "grad_count", "dropout_count"), as.integer) %>%
-    mutate_at(c("grad_rate", "dropout_rate"), as.numeric)
+district_names <- student_level %>%
+    select(system, system_name) %>%
+    distinct()
 
-historical_2016 <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/2016_district_assessment_file.csv",
-    col_types = "iiccccddddddddddddddiidid")
+district_assessment <- bind_rows(assessment_2018, assessment_2017, assessment_2016) %>%
+    left_join(district_names, by = "system") %>%
+    select(year, system, system_name, everything()) %>%
+    arrange(system, subject, grade, subgroup, desc(year))
 
-output <- bind_rows(district_assessment, ACT, grad, historical_2017, historical_2016) %>%
-    arrange(system, subject, grade, subgroup)
-
-write_csv(output, "N:/ORP_accountability/data/2018_final_accountability_files/district_assessment_file.csv", na = "")
+write_csv(district_assessment, "N:/ORP_accountability/data/2018_final_accountability_files/district_assessment_file.csv", na = "")

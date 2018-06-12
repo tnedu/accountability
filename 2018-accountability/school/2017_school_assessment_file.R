@@ -58,7 +58,7 @@ for (s in c("All", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", 
     
 }
 
-district_assessment <- collapse %>%
+assessment_2017 <- collapse %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
     mutate(pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
         pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
@@ -76,53 +76,25 @@ district_assessment <- collapse %>%
             subgroup == "BHN" ~ "Black/Hispanic/Native American",
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "EL" ~ "English Learners",
-            subgroup == "T1_T2" ~ "English Learner Transitional 1-2",
-            subgroup == "EL_T1_T2" ~ "English Learners with Transitional 1-2",
+            subgroup == "T1234" ~ "English Learner Transitional 1-4",
+            subgroup == "EL_T1234" ~ "English Learners with Transitional 1-4",
             subgroup == "Hawaiian" ~ "Native Hawaiian or Other Pacific Islander",
             subgroup == "Native" ~ "American Indian or Alaska Native",
             subgroup == "Non_BHN" ~ "Non-Black/Hispanic/Native American",
             subgroup == "Non_ED" ~ "Non-Economically Disadvantaged",
-            subgroup == "Non_EL" ~ "Non-English Learners",
+            subgroup == "Non_EL" ~ "Non-English Learners/Transitional 1-4",
             subgroup == "Non_SWD" ~ "Non-Students with Disabilities",
             subgroup == "Super" ~ "Super Subgroup",
             subgroup == "SWD" ~ "Students with Disabilities",
             TRUE ~ subgroup
         )
     ) %>%
-    select(year, system, school, test, subject, grade, subgroup, enrolled, tested, valid_tests,
+    transmute(year, system, school, test, subject, grade = if_else(grade == "0", "Missing Grade", grade),
+        subgroup, enrolled, tested, valid_tests,
         n_below, n_approaching, n_on_track, n_mastered,
-        pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
-
-# Append ACT, substitution, grad
-ACT <- read_dta("N:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
-    transmute(year = 2017, system, school, subject = "ACT Composite", grade = "All Grades",
-        subgroup = case_when(
-            subgroup == "English Language Learners with T1/T2" ~ "English Learners with Transitional 1-2",
-            subgroup == "Non-English Language Learners" ~ "Non-English Learners",
-            TRUE ~ subgroup
-        ),
-        enrolled, tested, valid_tests, n_below = n_below19, n_on_track = n_21_orhigher,
-        ACT_21_and_above = pct_21_orhigher, ACT_18_and_below = pct_below19)
-
-ACT_substitution <- read_csv("N:/ORP_accountability/data/2017_ACT/school_act_substitution_2017.csv") %>%
-    mutate(grade = as.character(grade)) %>%
-    rename(n_approaching = n_not_met_benchmark, n_on_track = n_met_benchmark,
-        pct_approaching = pct_not_met_benchmark, pct_on_track = pct_met_benchmark)
-
-grad <- read_dta("N:/ORP_accountability/data/2016_graduation_rate/School_grad_rate2017_JP.dta") %>%
-    transmute(year, system, school, subject, grade = "All Grades",
-        subgroup = case_when(
-            subgroup == "English Language Learners with T1/T2" ~ "English Learners with Transitional 1-2",
-            subgroup == "Non-English Language Learners with T1/T2" ~ "Non-English Learners",
-            subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
-            TRUE ~ subgroup
-        ),
-        grad_count, grad_cohort, grad_rate, dropout_count = drop_count, dropout_rate)
+        pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered
+    ) %>%
+    arrange(subject, grade, subgroup)
 
 # Output file
-assessment_2017 <- bind_rows(district_assessment, ACT, ACT_substitution, grad) %>%
-    arrange(desc(year), system, school, subject, grade, subgroup) %>%
-    mutate(grade = if_else(grade == "0", "Missing Grade", grade)) %>%
-    select(year, system, school, everything())
-
 write_csv(assessment_2017, "N:/ORP_accountability/data/2018_final_accountability_files/2017_school_assessment_file.csv", na = "")
