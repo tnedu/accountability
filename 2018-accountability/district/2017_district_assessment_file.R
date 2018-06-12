@@ -6,7 +6,15 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
+el_t3_t4 <- readxl::read_excel("N:/ORP_accountability/projects/Jessica/Report Card files/ELB_T3_T4.xls") %>%
+    transmute(id = STUDENT_KEY, EL_T3_T4 = 1) %>%
+    distinct()
+
 student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
+    mutate(grade = if_else(is.na(grade), 0, grade)) %>%
+    filter(grade %in% c(0, 3:12)) %>%
+    left_join(el_t3_t4, by = "id") %>%
+    mutate(EL_T3_T4 = if_else(is.na(EL_T3_T4), 0, EL_T3_T4)) %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
     mutate(year = 2017,
@@ -25,21 +33,23 @@ student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_fil
         Hawaiian = race == "Native Hawaiian or Pacific Islander",
         Native = race == "American Indian or Alaskan Native",
         White = race == "White",
-        T1_T2 = EL_T1_T2,
-        EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
+        T1234 = EL_T1_T2 == 1 | EL_T3_T4 == 1,
+        EL_T1234 = EL == 1 | T1234 == 1,
         Non_BHN = BHN == 0,
         Non_ED = ED == 0,
         Non_SWD = SWD == 0,
-        Non_EL = EL_T1_T2 == 0,
-        Super = (BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1)) %>%
+        Non_EL = EL_T1234 == 0,
+        Super = (BHN == 1 | ED == 1 | SWD == 1 | EL_T1234 == 1)) %>%
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD",
-        "EL", "T1_T2", "EL_T1_T2", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Super"), as.integer)
+        "EL", "T1234", "EL_T1234", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Super"), as.integer) %>%
+# EL Excluded are counted as tested and enrolled but do not receive a proficiency level
+    mutate(original_perfomance_level = if_else(ell_excluded == 1, "", original_performance_level))
 
 collapse <- tibble()
 
 # Collapse proficiency by subject and subgroup
 for (s in c("All", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD",
-    "EL", "T1_T2", "EL_T1_T2", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Super")) {
+    "EL", "T1234", "EL_T1234", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Super")) {
     
     collapse <- student_level %>%
         filter_(paste(s, "== 1L")) %>%
@@ -58,7 +68,7 @@ for (s in c("All", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", 
     
 }
 
-district_assessment <- collapse %>%
+assessment_2017 <- collapse %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
     mutate(pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
         pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
@@ -76,13 +86,13 @@ district_assessment <- collapse %>%
             subgroup == "BHN" ~ "Black/Hispanic/Native American",
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "EL" ~ "English Learners",
-            subgroup == "T1_T2" ~ "English Learner Transitional 1-2",
-            subgroup == "EL_T1_T2" ~ "English Learners with Transitional 1-2",
+            subgroup == "T1234" ~ "English Learner Transitional 1-4",
+            subgroup == "EL_T1234" ~ "English Learners with Transitional 1-4",
             subgroup == "Hawaiian" ~ "Native Hawaiian or Other Pacific Islander",
             subgroup == "Native" ~ "American Indian or Alaska Native",
             subgroup == "Non_BHN" ~ "Non-Black/Hispanic/Native American",
             subgroup == "Non_ED" ~ "Non-Economically Disadvantaged",
-            subgroup == "Non_EL" ~ "Non-English Learners",
+            subgroup == "Non_EL" ~ "Non-English Learners/Transitional 1-4",
             subgroup == "Non_SWD" ~ "Non-Students with Disabilities",
             subgroup == "Super" ~ "Super Subgroup",
             subgroup == "SWD" ~ "Students with Disabilities",

@@ -37,7 +37,9 @@ student_level <- read_dta("N:/ORP_accountability/projects/2016_student_level_fil
         tested = sum(tested, tested_part_1_only, tested_part_2_only, tested_both, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD",
-        "EL", "T1_T2", "EL_T1_T2", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Super"), as.integer)
+        "EL", "T1_T2", "EL_T1_T2", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Super"), as.integer) %>%
+# EL Excluded are counted as tested and enrolled but do not receive a proficiency level
+    mutate(original_proficiency_level = if_else(el_excluded == 1, "", original_proficiency_level))
 
 collapse <- tibble()
 

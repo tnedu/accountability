@@ -7,6 +7,7 @@ english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
 student_level <- read_dta("N:/ORP_accountability/projects/2016_student_level_file/state_student_level_2016.dta") %>%
+    filter(grade %in% c(0, 3:12)) %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1_T2 = el_t1_t2) %>%
     mutate(year = 2016,
@@ -37,7 +38,9 @@ student_level <- read_dta("N:/ORP_accountability/projects/2016_student_level_fil
         tested = sum(tested, tested_part_1_only, tested_part_2_only, tested_both, na.rm = TRUE)) %>%
     ungroup() %>%
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD",
-        "EL", "T1_T2", "EL_T1_T2", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Super"), as.integer)
+        "EL", "T1_T2", "EL_T1_T2", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Super"), as.integer) %>%
+# EL Excluded are counted as tested and enrolled but do not receive a proficiency level
+    mutate(original_proficiency_level = if_else(el_excluded == 1, "", original_proficiency_level))
 
 collapse <- tibble()
 
@@ -86,7 +89,7 @@ assessment_2016 <- collapse %>%
             subgroup == "Native" ~ "American Indian or Alaska Native",
             subgroup == "Non_BHN" ~ "Non-Black/Hispanic/Native American",
             subgroup == "Non_ED" ~ "Non-Economically Disadvantaged",
-            subgroup == "Non_EL" ~ "Non-English Learners",
+            subgroup == "Non_EL" ~ "Non-English Learners/Transitional 1-2",
             subgroup == "Non_SWD" ~ "Non-Students with Disabilities",
             subgroup == "Super" ~ "Super Subgroup",
             subgroup == "SWD" ~ "Students with Disabilities",
