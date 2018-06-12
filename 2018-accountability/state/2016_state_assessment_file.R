@@ -6,8 +6,17 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
+drop_ids <- c(
+    3288069, 3288078,  3288082, 3292339, 3288107, 3170748, 3288120, 3258979, 3288132, 
+    3288148, 3288162, 3288188, 3288191, 3288202, 3288215, 4328806, 3170837, 3288228,
+    3288239, 3292127, 4444607, 3288279, 3170752, 3288307, 3288314, 3288336, 3288337,
+    3291564, 3288355, 3288368, 4130583, 3258975, 3288397, 3805610, 3288443, 3288505,
+    3288535, 3749220, 3288556, 3291903, 3917581, 3247449, 3288594, 3120833, 3288612, 3288616
+)
+
 student_level <- read_dta("N:/ORP_accountability/projects/2016_student_level_file/state_student_level_2016.dta") %>%
     filter(grade %in% c(0, 3:12)) %>%
+    filter(!(original_subject == "Integrated Math I" & unique_student_id %in% drop_ids)) %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1_T2 = el_t1_t2) %>%
     mutate(year = 2016,
