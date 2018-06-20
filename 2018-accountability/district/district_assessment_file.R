@@ -2,7 +2,7 @@ library(acct)
 library(tidyverse)
 
 student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_eoc_student_level_file.csv",
-        col_types = "iciccccccciiiidcciciiiiiiicciiiiiiii") %>%
+        col_types = "iciccccccciiiidcciciiiiiiiicciiii") %>%
     filter(grade %in% c(0, 3:12), residential_facility == 0) %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1234 = el_t1234) %>%
@@ -30,21 +30,21 @@ student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_fil
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD",
         "EL", "T1234", "EL_T1234", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Super"), as.integer) %>%
 # EL Excluded are counted as tested and enrolled but do not receive a proficiency level
-    mutate(original_perfomance_level = if_else(el_excluded == 1, "", original_performance_level))
+    mutate(original_perfomance_level = if_else(el_recently_arrived == 1, "", original_performance_level))
 
 collapse <- tibble()
 
 # Collapse proficiency by subject and subgroup
 for (s in c("All", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD",
     "EL", "T1234", "EL_T1234", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Super")) {
-    
+
     collapse <- student_level %>%
         filter_(paste(s, "== 1L")) %>%
         group_by(year, system, test, original_subject) %>%
         summarise_at(c("enrolled", "tested", "valid_test", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
         mutate(subgroup = s, grade = "All Grades") %>%
         bind_rows(collapse, .)
-    
+
     collapse <- student_level %>%
         mutate(grade = as.character(grade)) %>%
         filter_(paste(s, "== 1L")) %>%
@@ -52,7 +52,7 @@ for (s in c("All", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", 
         summarise_at(c("enrolled", "tested", "valid_test", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
         mutate(subgroup = s) %>%
         bind_rows(collapse, .)
-    
+
 }
 
 assessment_2018 <- collapse %>%

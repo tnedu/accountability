@@ -183,10 +183,9 @@ output <- dedup %>%
     filter(!is.na(state_student_id)) %>%
     select(system, system_name, school, school_name, test, original_subject, subject, semester,
         original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
-        state_student_id, last_name, first_name, grade, race, bhn_group,
-        functionally_delayed, special_ed, economically_disadvantaged, el, el_t1234, el_excluded,
-        enrolled_50_pct_district, enrolled_50_pct_school, homebound, absent, breach_adult, breach_student,
-        irregular_admin, incorrect_grade_subject, did_not_attempt, residential_facility) %>%
+        state_student_id, last_name, first_name, grade, race, bhn_group, teacher_of_record_tln,
+        functionally_delayed, special_ed, economically_disadvantaged, el, el_t1234, el_recently_arrived,
+        enrolled_50_pct_district, enrolled_50_pct_school, homebound, absent, refused_to_test, residential_facility) %>%
     mutate(performance_level = if_else(performance_level == "On track", "On Track", performance_level)) %>%
     arrange(system, school, state_student_id)
 

@@ -2,7 +2,7 @@ library(acct)
 library(tidyverse)
 
 student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_eoc_student_level_file.csv",
-        col_types = "iciccccccciiiidcciciiiiiiicciiiiiiii") %>%
+        col_types = "iciccccccciiiidcciciiiiiiiicciiii") %>%
     filter(grade %in% c(0, 3:12), residential_facility == 0) %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1234 = el_t1234) %>%
@@ -30,7 +30,7 @@ student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_fil
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD",
         "EL", "T1234", "EL_T1234", "Non_BHN", "Non_ED", "Non_SWD", "Non_EL", "Super"), as.integer) %>%
 # EL Excluded are counted as tested and enrolled but do not receive a proficiency level
-    mutate(original_perfomance_level = if_else(el_excluded == 1, "", original_performance_level))
+    mutate(original_perfomance_level = if_else(el_recently_arrived == 1, "", original_performance_level))
 
 collapse <- tibble()
 
