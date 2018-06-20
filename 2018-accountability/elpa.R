@@ -16,7 +16,7 @@ demographic <- read_delim("N:/Assessment_Data Returns/ACCESS for ELs and ALT/201
         native = race == 1,
         hawaiian_pi = race == 5,
         asian = race == 2,
-        white = race == 0
+        white = race == 6
     ) %>%
     group_by(student_key) %>%
     summarise_at(c("ed", "swd", "ell", "t1t4", "hispanic", "black", "native", "hawaiian_pi", "asian", "white"), max, na.rm = TRUE) %>%
