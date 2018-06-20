@@ -38,7 +38,7 @@ layout <- tribble(
     331, 331, "homebound",
     332, 332, "enrolled_50_pct_district",
     333, 333, "enrolled_50_pct_school",
-    334, 342, "teacher_of_record_tln",
+    343, 362, "teacher_of_record_tln",
     541, 542, "reason_not_tested",
     543, 544, "ri_status",
     
