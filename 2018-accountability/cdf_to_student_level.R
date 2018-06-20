@@ -28,7 +28,8 @@ cdf <- bind_rows(fall_cdf, spring_cdf) %>%
         breach_student = ri_status == 2,
         irregular_admin = ri_status == 3,
         incorrect_grade_subject = ri_status == 4,
-        did_not_attempt = ri_status %in% c(5, 6),
+        refused_to_test = ri_status == 5,
+        failed_attemptedness = ri_status == 6,
         original_subject = case_when(
             content_area_code == "ENG" ~ "ELA",
             content_area_code == "MAT" ~ "Math",
@@ -68,7 +69,7 @@ student_level <- cdf %>%
         bhn_group = race %in% c("Black or African American", "Hispanic/Latino", "American Indian/Alaska Native"),
         economically_disadvantaged = economically_disadvantaged == "Y",
         el = el == "Y",
-        el_excluded = (el_arrived_year_1 == "Y" | el_arrived_year_2 == "Y"),
+        el_recently_arrived = (el_arrived_year_1 == "Y" | el_arrived_year_2 == "Y"),
         el_t1234 = el_t1234 %in% 1:4,
         special_ed = special_ed == "Y",
         functionally_delayed = functionally_delayed == "Y",
@@ -76,14 +77,19 @@ student_level <- cdf %>%
         original_performance_level = performance_level,
         subject = original_subject
     ) %>%
-    select(system, system_name, school, school_name, test, original_subject, subject, original_performance_level, performance_level,
-        scale_score, enrolled, tested, valid_test, state_student_id = unique_student_id, last_name, first_name, grade, 
-        race, bhn_group, functionally_delayed, special_ed, economically_disadvantaged, el, el_t1234, el_excluded,
-        enrolled_50_pct_district, enrolled_50_pct_school, homebound, absent, breach_adult, breach_student, irregular_admin,
-        incorrect_grade_subject, did_not_attempt, residential_facility, did_not_submit, semester, ri_status, medically_exempt) %>%
+    select(system, system_name, school, school_name, test, original_subject, subject, 
+        original_performance_level, performance_level, scale_score,
+        enrolled, tested, valid_test, state_student_id = unique_student_id,
+        last_name, first_name, grade, race, bhn_group, functionally_delayed, special_ed,
+        economically_disadvantaged, el, el_t1234, el_recently_arrived,
+        enrolled_50_pct_district, enrolled_50_pct_school, homebound, absent,
+        breach_adult, breach_student, irregular_admin, incorrect_grade_subject,
+        refused_to_test, failed_attemptedness, residential_facility, did_not_submit,
+        semester, ri_status, medically_exempt, teacher_of_record_tln) %>%
     mutate_at(c("system", "school", "state_student_id", "grade", "bhn_group", "functionally_delayed", "special_ed",
-            "economically_disadvantaged", "el", "el_t1234", "el_excluded", "homebound", "absent",
-            "breach_adult", "breach_student", "irregular_admin", "incorrect_grade_subject", "did_not_attempt", "residential_facility"),
+            "economically_disadvantaged", "el", "el_t1234", "el_recently_arrived", "homebound", "absent",
+            "breach_adult", "breach_student", "irregular_admin", "incorrect_grade_subject", 
+            "refused_to_test", "failed_attemptedness", "residential_facility"),
         as.numeric) %>%
 # Drop excluded records
     filter(!is.na(system),
@@ -92,22 +98,29 @@ student_level <- cdf %>%
     # Drop medically exempt
         medically_exempt == FALSE) %>%
 # Apply testing flag hierarchy
-    mutate(
-    # Absent (reason_not_tested 1) students have a missing proficiency and tested value
-        tested = if_else(absent == 1, 0, tested),
-        performance_level = if_else(absent == 1, NA_character_, performance_level),
-    # EL Excluded students with missing proficiency are not considered tested
-        performance_level = if_else(el_excluded == 1, NA_character_, performance_level),
-        tested = if_else(el_excluded == 1 & is.na(original_performance_level), 0, tested),
-        tested = if_else(el_excluded == 1 & !is.na(original_performance_level), 1, tested),
+    # Absent (reason_not_tested 1) students have a missing proficiency and are not tested
+    # EL Recently Arrived students with missing proficiency are not considered tested
+    # EL Recently Arrived students performance level are converted to missing
     # Proficiency modified to missing if refused to test or failed attemptedness
-        tested = if_else(did_not_attempt == 1, 0, tested),
-        performance_level = if_else(did_not_attempt == 1, NA_character_, performance_level),
+    # Any record with an RI status of 0 or 3 (Irregular Administration) is enrolled and tested, but do not have performance levels
     # Any record with an RI status other than 0 or 3 is neither enrolled nor tested
-        enrolled = if_else(breach_adult == 1 | breach_student == 1 | incorrect_grade_subject == 1 | did_not_attempt == 1, 0, enrolled),
-        tested = if_else(breach_adult == 1 | breach_student == 1 | incorrect_grade_subject == 1 | did_not_attempt == 1, 0, tested),
-    # Any record with an RI status of 0 or 3 is enrolled nor tested, but do not have performance levels
-        performance_level = if_else(irregular_admin == 1, NA_character_, performance_level),
+    mutate(
+        enrolled = case_when(
+            absent == 1 ~ 1,
+            breach_adult == 1 | breach_student == 1 | incorrect_grade_subject == 1 | refused_to_test == 1 | failed_attemptedness == 1 ~ 0,
+            TRUE ~ enrolled
+        ),
+        tested = case_when(
+            absent == 1 ~ 0,
+            irregular_admin == 1 ~ 1,
+            el_recently_arrived == 1 & is.na(original_performance_level) ~ 0,
+            breach_adult == 1 | breach_student == 1 | incorrect_grade_subject == 1 | refused_to_test == 1 | failed_attemptedness == 1 ~ 0,
+            TRUE ~ tested
+        ),
+        performance_level = case_when(
+            absent == 1 | el_recently_arrived == 1 | refused_to_test == 1 | failed_attemptedness == 1 | irregular_admin == 1 ~ NA_character_,
+            TRUE ~ performance_level
+        ),
     # Convert subjects per accountability rules
         subject = case_when(
             grade %in% 2:8 & original_subject %in% math_eoc ~ "Math",
