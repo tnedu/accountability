@@ -19,7 +19,7 @@ demographic <- read_delim("N:/Assessment_Data Returns/ACCESS for ELs and ALT/201
         white = race == 6
     ) %>%
     group_by(student_key) %>%
-    summarise_at(c("ed", "swd", "ell", "t1t4", "hispanic", "black", "native", "hawaiian_pi", "asian", "white"), max, na.rm = TRUE) %>%
+    summarise_at(c("ed", "swd", "ell", "hispanic", "black", "native", "hawaiian_pi", "asian", "white"), max, na.rm = TRUE) %>%
     transmute(student_id = student_key, bhn = pmax(black, hispanic, native), ed, swd, el = ell,
         hispanic, black, native, hawaiian_pi, asian, white)
 
@@ -60,31 +60,46 @@ wida <- haven::read_dta("N:/Assessment_Data Returns/ACCESS for ELs and ALT/2017-
         exit_denom = as.integer(!is.na(prof_composite) & !is.na(prof_literacy)),
         exit = as.integer(prof_composite >= 4.2 & prof_literacy >= 4),
         growth_standard_denom = as.integer(!is.na(prof_composite) & !is.na(prof_composite_17)),
-        met_growth_standard_1yr = case_when(
-            is.na(prof_composite_17) ~ NA_integer_,
-            prof_composite_17 <= 1.4 ~ as.integer(prof_composite - prof_composite_17 >= 1.3),
-            prof_composite_17 <= 1.9 ~ as.integer(prof_composite - prof_composite_17 >= 0.7),
-            prof_composite_17 <= 2.4 ~ as.integer(prof_composite - prof_composite_17 >= 0.8),
-            prof_composite_17 <= 2.9 ~ as.integer(prof_composite - prof_composite_17 >= 0.7),
-            prof_composite_17 <= 3.4 ~ as.integer(prof_composite - prof_composite_17 >= 0.4),
-            prof_composite_17 <= 3.9 ~ as.integer(prof_composite - prof_composite_17 >= 0.5),
-            prof_composite_17 <= 4.4 ~ as.integer(prof_composite - prof_composite_17 >= 0.4),
+        growth_standard_1yr = case_when(
+            is.na(prof_composite_17) ~ NA_real_,
+            prof_composite_17 <= 1.4 ~ 1.3,
+            prof_composite_17 <= 1.9 ~ 0.7,
+            prof_composite_17 <= 2.4 ~ 0.8,
+            prof_composite_17 <= 2.9 ~ 0.7,
+            prof_composite_17 <= 3.4 ~ 0.4,
+            prof_composite_17 <= 3.9 ~ 0.5,
+            prof_composite_17 <= 4.4 ~ 0.4
+        ),
+        growth_standard_2yr = case_when(
+            is.na(prof_composite_16) ~ NA_real_,
+            prof_composite_16 <= 1.4 ~ round5(1.3 + prof_composite_16, 1),
+            prof_composite_16 <= 1.9 ~ round5(0.7 + prof_composite_16, 1),
+            prof_composite_16 <= 2.4 ~ round5(0.8 + prof_composite_16, 1),
+            prof_composite_16 <= 2.9 ~ round5(0.7 + prof_composite_16, 1),
+            prof_composite_16 <= 3.4 ~ round5(0.4 + prof_composite_16, 1),
+            prof_composite_16 <= 3.9 ~ round5(0.5 + prof_composite_16, 1),
+            prof_composite_16 <= 4.4 ~ round5(0.4 + prof_composite_16, 1)
+        ),
+        growth_standard_2yr = case_when(
+            is.na(growth_standard_2yr) ~ NA_real_,
+            growth_standard_2yr <= 1.4 ~ round5(1.3 + growth_standard_2yr, 1),
+            growth_standard_2yr <= 1.9 ~ round5(0.7 + growth_standard_2yr, 1),
+            growth_standard_2yr <= 2.4 ~ round5(0.8 + growth_standard_2yr, 1),
+            growth_standard_2yr <= 2.9 ~ round5(0.7 + growth_standard_2yr, 1),
+            growth_standard_2yr <= 3.4 ~ round5(0.4 + growth_standard_2yr, 1),
+            growth_standard_2yr <= 3.9 ~ round5(0.5 + growth_standard_2yr, 1),
+            growth_standard_2yr <= 4.4 ~ round5(0.4 + growth_standard_2yr, 1)
+        ),
+        met_growth_standard = case_when(
+            growth_standard_denom == 0 ~ NA_integer_,
+            round5(prof_composite - prof_composite_17, 1) >= growth_standard_1yr | prof_composite >= growth_standard_2yr ~ 1L,
             TRUE ~ 0L
         ),
-        met_growth_standard_2yr = case_when(
-            is.na(prof_composite_16) ~ NA_integer_,
-            prof_composite_16 <= 1.4 ~ as.integer(prof_composite - prof_composite_16 >= 2),
-            prof_composite_16 <= 1.9 ~ as.integer(prof_composite - prof_composite_16 >= 1.5),
-            prof_composite_16 <= 2.4 ~ as.integer(prof_composite - prof_composite_16 >= 1.5),
-            prof_composite_16 <= 2.9 ~ as.integer(prof_composite - prof_composite_16 >= 1.1),
-            prof_composite_16 <= 3.4 ~ as.integer(prof_composite - prof_composite_16 >= 0.9),
-            prof_composite_16 <= 3.9 ~ as.integer(prof_composite - prof_composite_16 >= 0.9),
-            prof_composite_16 <= 4.4 ~ as.integer(prof_composite - prof_composite_16 >= 0.8),
-            TRUE ~ 0L
-        ),
-        met_growth_standard = if_else(growth_standard_denom == 1, pmax(met_growth_standard_1yr, met_growth_standard_2yr, exit, na.rm = TRUE), NA_integer_)
+        met_growth_standard = if_else(growth_standard_denom == 1L & exit == 1L, 1L, met_growth_standard)
     ) %>%
-    left_join(demographic, by = "student_id")
+    left_join(demographic, by = "student_id") %>%
+    mutate(el = 1) %>%
+    mutate_at(c("ed", "swd", "el", "hispanic", "black", "native", "hawaiian_pi", "asian", "white"), ~ if_else(is.na(.), 0L, as.integer(.)))
 
 wida %>%
     select(-max_comp, -max_lit) %>%
@@ -92,20 +107,20 @@ wida %>%
 
 growth_standard_school <- map_dfr(
     .x = list(
-        all = mutate(wida, subgroup = "All Students"),
-        native = filter(wida, native == 1) %>% mutate(subgroup = "American Indian or Alaska Native"),
-        asian = filter(wida, asian == 1) %>% mutate(subgroup = "Asian"),
-        black = filter(wida, black == 1) %>% mutate(subgroup = "Black or African American"),
-        bhn = filter(wida, bhn == 1) %>% mutate(subgroup = "Black/Hispanic/Native American"),
-        ed = filter(wida, ed == 1) %>% mutate(subgroup = "Economically Disadvantaged"),
-        el = filter(wida, el == 1) %>% mutate(subgroup = "English Learners"),
-        hispanic = filter(wida, hispanic == 1) %>% mutate(subgroup = "Hispanic"),
-        hawaiian_pi = filter(wida, hawaiian_pi == 1) %>% mutate(subgroup = "Native Hawaiian or Other Pacific Islander"),
-        non_ed = filter(wida, ed == 0 | is.na(ed)) %>% mutate(subgroup = "Non-Economically Disadvantaged"),
-        non_swd = filter(wida, swd == 0 | is.na(swd)) %>% mutate(subgroup = "Non-Students with Disabilities"),
-        swd = filter(wida, swd == 1) %>% mutate(subgroup = "Students with Disabilities"),
-        super = filter(wida, bhn == 1 | ed == 1 | el == 1 | swd == 1) %>% mutate(subgroup = "Super Subgroup"),
-        white = filter(wida, white == 1) %>% mutate(subgroup = "White")
+        mutate(wida, subgroup = "All Students"),
+        filter(wida, native == 1) %>% mutate(subgroup = "American Indian or Alaska Native"),
+        filter(wida, asian == 1) %>% mutate(subgroup = "Asian"),
+        filter(wida, black == 1) %>% mutate(subgroup = "Black or African American"),
+        filter(wida, bhn == 1) %>% mutate(subgroup = "Black/Hispanic/Native American"),
+        filter(wida, ed == 1) %>% mutate(subgroup = "Economically Disadvantaged"),
+        filter(wida, el == 1) %>% mutate(subgroup = "English Learners"),
+        filter(wida, hispanic == 1) %>% mutate(subgroup = "Hispanic"),
+        filter(wida, hawaiian_pi == 1) %>% mutate(subgroup = "Native Hawaiian or Other Pacific Islander"),
+        filter(wida, ed == 0) %>% mutate(subgroup = "Non-Economically Disadvantaged"),
+        filter(wida, swd == 0) %>% mutate(subgroup = "Non-Students with Disabilities"),
+        filter(wida, swd == 1) %>% mutate(subgroup = "Students with Disabilities"),
+        filter(wida, bhn == 1 | ed == 1 | el == 1 | swd == 1) %>% mutate(subgroup = "Super Subgroup"),
+        filter(wida, white == 1) %>% mutate(subgroup = "White")
     ),
     .f = function(x) {
         group_by(x, system, school, subgroup) %>%
@@ -134,20 +149,20 @@ write_csv(growth_standard_school, "N:/ORP_accountability/data/2018_ELPA/wida_gro
 
 growth_standard_district <- map_dfr(
     .x = list(
-        all = mutate(wida, subgroup = "All Students"),
-        native = filter(wida, native == 1) %>% mutate(subgroup = "American Indian or Alaska Native"),
-        asian = filter(wida, asian == 1) %>% mutate(subgroup = "Asian"),
-        black = filter(wida, black == 1) %>% mutate(subgroup = "Black or African American"),
-        bhn = filter(wida, bhn == 1) %>% mutate(subgroup = "Black/Hispanic/Native American"),
-        ed = filter(wida, ed == 1) %>% mutate(subgroup = "Economically Disadvantaged"),
-        el = filter(wida, el == 1) %>% mutate(subgroup = "English Learners"),
-        hispanic = filter(wida, hispanic == 1) %>% mutate(subgroup = "Hispanic"),
-        hawaiian_pi = filter(wida, hawaiian_pi == 1) %>% mutate(subgroup = "Native Hawaiian or Other Pacific Islander"),
-        non_ed = filter(wida, ed == 0 | is.na(ed)) %>% mutate(subgroup = "Non-Economically Disadvantaged"),
-        non_swd = filter(wida, swd == 0 | is.na(swd)) %>% mutate(subgroup = "Non-Students with Disabilities"),
-        swd = filter(wida, swd == 1) %>% mutate(subgroup = "Students with Disabilities"),
-        super = filter(wida, bhn == 1 | ed == 1 | el == 1 | swd == 1) %>% mutate(subgroup = "Super Subgroup"),
-        white = filter(wida, white == 1) %>% mutate(subgroup = "White")
+        mutate(wida, subgroup = "All Students"),
+        filter(wida, native == 1) %>% mutate(subgroup = "American Indian or Alaska Native"),
+        filter(wida, asian == 1) %>% mutate(subgroup = "Asian"),
+        filter(wida, black == 1) %>% mutate(subgroup = "Black or African American"),
+        filter(wida, bhn == 1) %>% mutate(subgroup = "Black/Hispanic/Native American"),
+        filter(wida, ed == 1) %>% mutate(subgroup = "Economically Disadvantaged"),
+        filter(wida, el == 1) %>% mutate(subgroup = "English Learners"),
+        filter(wida, hispanic == 1) %>% mutate(subgroup = "Hispanic"),
+        filter(wida, hawaiian_pi == 1) %>% mutate(subgroup = "Native Hawaiian or Other Pacific Islander"),
+        filter(wida, ed == 0) %>% mutate(subgroup = "Non-Economically Disadvantaged"),
+        filter(wida, swd == 0) %>% mutate(subgroup = "Non-Students with Disabilities"),
+        filter(wida, swd == 1) %>% mutate(subgroup = "Students with Disabilities"),
+        filter(wida, bhn == 1 | ed == 1 | el == 1 | swd == 1) %>% mutate(subgroup = "Super Subgroup"),
+        filter(wida, white == 1) %>% mutate(subgroup = "White")
     ),
     .f = function(x) {
         group_by(x, system, subgroup) %>%
