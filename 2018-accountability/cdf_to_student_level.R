@@ -195,6 +195,7 @@ dedup <- student_level %>%
 
 output <- dedup %>%
     filter(!is.na(state_student_id)) %>%
+    filter(!(original_subject == "Social Studies" | (original_subject == "Science" & grade %in% c("3", "4")))) %>%
     select(system, system_name, school, school_name, test, original_subject, subject, semester,
         original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
         state_student_id, last_name, first_name, grade, race, bhn_group, teacher_of_record_tln,
