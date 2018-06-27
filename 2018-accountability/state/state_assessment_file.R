@@ -1,7 +1,7 @@
 library(acct)
 library(tidyverse)
 
-student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_eoc_student_level_file.csv",
+student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_student_level_file.csv",
         col_types = "iciccccccciiiidcciciiiiiiiicciiii") %>%
     filter(grade %in% c(0, 3:12), residential_facility == 0) %>%
 # Proficiency and subgroup indicators for collapse

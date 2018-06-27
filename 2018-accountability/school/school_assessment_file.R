@@ -1,7 +1,7 @@
 library(acct)
 library(tidyverse)
 
-student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_eoc_student_level_file.csv",
+student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_student_level_file.csv",
         col_types = "iciccccccciiiidcciciiiiiiiicciiii") %>%
     filter(grade %in% c(0, 3:12), residential_facility == 0, homebound == 0) %>%
 # Proficiency and subgroup indicators for collapse
@@ -97,8 +97,12 @@ historical_2017 <- read_csv("N:/ORP_accountability/data/2018_final_accountabilit
 historical_2016 <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/2016_school_assessment_file.csv",
     col_types = "iiiccccdddiiiiddddd")
 
-school_names <- student_level %>%
-    select(system, system_name, school, school_name) %>%
+school_names <- readxl::read_excel("N:/ORP_accountability/data/2018_final_accountability_files/2017-18_E EDFacts School Master FIle_5-3-18.xls", sheet = 2) %>%
+    janitor::clean_names() %>%
+    transmute(
+        system = as.integer(dg_4_lea_id_state), system_name = extra_item_lea_name,
+        school = as.integer(dg_5_school_id_state), school_name = dg_7_school_name
+    ) %>%
     distinct()
 
 school_assessment <- bind_rows(school_assessment, historical_2017, historical_2016) %>%
