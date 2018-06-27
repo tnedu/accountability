@@ -1,8 +1,11 @@
 library(tidyverse)
 
 fall_cdf <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_fall_cdf.csv") %>%
-    mutate(semester = "Fall",
-        raw_score = as.integer(raw_score))
+    mutate(
+        test = "EOC",
+        semester = "Fall",
+        raw_score = as.integer(raw_score)
+    )
 
 el <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/el_recently_arrived.csv") %>%
     transmute(unique_student_id = student_key,
@@ -13,13 +16,23 @@ el <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/el_recent
     distinct()
 
 spring_cdf <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_spring_cdf.csv") %>%
-    mutate(semester = "Spring") %>%
+    mutate(
+        test = "EOC",
+        semester = "Spring"
+    ) %>%
     select(-el, -el_arrived_year_1, -el_arrived_year_2) %>%
     left_join(el, by = "unique_student_id") %>%
     mutate_at(c("el", "el_arrived_year_1", "el_arrived_year_2"), ~ if_else(is.na(.), "N", .))
 
-cdf <- bind_rows(fall_cdf, spring_cdf) %>%
-    mutate(test = "EOC",
+cdf_38 <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_3_8_cdf.csv") %>%
+    mutate(
+        test = "TNReady",
+        semester = "Spring",
+        teacher_of_record_tln = as.integer(teacher_of_record_tln)
+    )
+
+cdf <- bind_rows(fall_cdf, spring_cdf, cdf_38) %>%
+    mutate(
         absent = reason_not_tested == 1,
         medically_exempt = reason_not_tested == 4,
         residential_facility = reason_not_tested == 5,
@@ -34,6 +47,7 @@ cdf <- bind_rows(fall_cdf, spring_cdf) %>%
             content_area_code == "ENG" ~ "ELA",
             content_area_code == "MAT" ~ "Math",
             content_area_code == "SCI" ~ "Science",
+            content_area_code == "SOC" ~ "Social Studies",
             content_area_code == "A1" ~ "Algebra I",
             content_area_code == "A2" ~ "Algebra II",
             content_area_code == "B1" ~ "Biology I",
@@ -142,7 +156,7 @@ dedup <- student_level %>%
         test_priority = case_when(
             test %in% c("MSAA", "Alt-Science") ~ 3,
             test == "EOC" ~ 2,
-            test == "Achievement" ~ 1
+            test == "TNReady" ~ 1
         )
     ) %>%
     group_by(state_student_id, subject) %>%
@@ -189,4 +203,4 @@ output <- dedup %>%
     mutate(performance_level = if_else(performance_level == "On track", "On Track", performance_level)) %>%
     arrange(system, school, state_student_id)
 
-write_csv(output, "N:/ORP_accountability/projects/2018_student_level_file/2018_eoc_student_level_file.csv", na = "")
+write_csv(output, "N:/ORP_accountability/projects/2018_student_level_file/2018_student_level_file.csv", na = "")
