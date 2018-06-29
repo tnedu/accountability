@@ -51,7 +51,7 @@ layout <- tribble(
 )
 
 # Read in cdf according to layout
-cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_End-of-Course/2017-18/Fall/2017-2018 TN Fall EOC CDF - 20180117.txt",
+cdf <- read_fwf(file = "N:/Assessment_Data Returns/Grade 2_Regular and ALT/2017-18/2017-2018 TN 2018 Grade 2 CDF Final Scores - 20180627/2017-2018 TN 2018 Grade 2 CDF Final Scores - 20180627.txt",
     col_positions = fwf_positions(
         start = layout$start,
         end = layout$end,
@@ -59,4 +59,4 @@ cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_End-of-Course/2017-18/Fa
     )
 )
 
-write_csv(cdf, path = "N:/ORP_accountability/data/2018_cdf/2018_fall_cdf.csv")
+write_csv(cdf, path = "N:/ORP_accountability/data/2018_cdf/2018_grade_2_cdf.csv")
