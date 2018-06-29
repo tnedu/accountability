@@ -103,7 +103,8 @@ assessment_2017 <- collapse %>%
         n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered
     ) %>%
-    arrange(subject, grade, subgroup)
+    arrange(subject, grade, subgroup) %>%
+    filter(!(subject == "Science" & grade %in% 3:4))
 
 # Output file
 write_csv(assessment_2017, "N:/ORP_accountability/data/2018_final_accountability_files/2017_school_assessment_file.csv", na = "")

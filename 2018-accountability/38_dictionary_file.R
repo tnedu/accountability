@@ -51,7 +51,7 @@ layout <- tribble(
 )
 
 # Read in cdf according to layout
-cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_Grades 3-8/2017-18/CDF/2017-2018 TN 2018 Spring 3-8 CDF Final Scores - 20180626 .txt",
+cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_Grades 3-8/2017-18/CDF/2017-2018 TN 2018 Spring 3-8 CDF Final Scores - 20180628 .txt",
     col_positions = fwf_positions(
         start = layout$start,
         end = layout$end,
