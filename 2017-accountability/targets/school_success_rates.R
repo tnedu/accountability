@@ -2,9 +2,6 @@ library(acct)
 library(haven)
 library(tidyverse)
 
-numeric_subgroups <- c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
-    "English Learners", "Students with Disabilities", "Super Subgroup")
-
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
@@ -32,6 +29,12 @@ student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_fil
         n_on_track = if_else(performance_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
         n_mastered = if_else(performance_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_),
         All = 1L,
+        Asian = race == "Asian",
+        Black = race == "Black or African American",
+        Hispanic = race == "Hispanic",
+        Hawaiian = race == "Native Hawaiian or Pacific Islander",
+        Native = race == "American Indian or Alaskan Native",
+        White = race == "White",
         EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
         Super = as.numeric(BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1))
 
@@ -56,7 +59,7 @@ ACT_substitution <- read_csv("N:/ORP_accountability/data/2017_ACT/Pre-Appeals Da
 collapse <- tibble()
 
 # Collapse proficiency by subject and subgroup
-for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Super")) {
+for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Super", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White")) {
     
     collapse <- student_level %>%
         filter_(paste(s, "== 1L")) %>%
@@ -82,11 +85,15 @@ subjects_suppressed <- collapse %>%
         ),
         subgroup = case_when(
             subgroup == "All" ~ "All Students",
+            subgroup == "Black" ~ "Black or African American",
             subgroup == "BHN" ~ "Black/Hispanic/Native American",
             subgroup == "ED" ~ "Economically Disadvantaged",
             subgroup == "EL_T1_T2" ~ "English Learners",
+            subgroup == "Hawaiian" ~ "Native Hawaiian or Other Pacific Islander",
+            subgroup == "Native" ~ "American Indian or Alaska Native",
             subgroup == "SWD" ~ "Students with Disabilities",
-            subgroup == "Super" ~ "Super Subgroup"
+            subgroup == "Super" ~ "Super Subgroup",
+            TRUE ~ subgroup
         )
     ) %>%
 # Aggregate by replaced subjects
