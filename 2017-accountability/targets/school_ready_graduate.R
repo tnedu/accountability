@@ -15,10 +15,11 @@ school_grad <- read_dta("N:/ORP_accountability/data/2016_graduation_rate/School_
         grad_target_double = amo_target(grad_cohort, grad_rate, double = TRUE)
     )
 
-school_ACT_grad <- read_dta("N:/ORP_accountability/data/2016_ACT/ACT_school2017.dta") %>%
+school_ACT_grad <- read_dta("N:/ORP_accountability/data/2016_ACT/ACT_school2017_individualsubgroups.dta") %>%
     mutate(subgroup = case_when(
             subgroup == "English Language Learners with T1/T2" ~ "English Learners",
-            subgroup == "Hawaiian or Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
+            subgroup == "HPI" ~ "Native Hawaiian or Other Pacific Islander",
+            subgroup == "Native American" ~ "American Indian or Alaska Native",
             subgroup == "Non-English Language Learners" ~ "Non-English Learners",
             TRUE ~ subgroup
         )
