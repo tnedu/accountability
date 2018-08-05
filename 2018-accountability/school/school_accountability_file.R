@@ -29,6 +29,23 @@ student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_fil
         Super = (BHN == 1L | ED == 1L | SWD == 1L | EL_T1234 == 1L)) %>%
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD", "EL_T1234", "Super"), as.integer)
 
+int_math_systems <- student_level %>%
+    filter(original_subject %in% c("Algebra I", "Integrated Math I")) %>%
+    count(system, original_subject) %>%
+    group_by(system) %>%
+    mutate(temp = max(n)) %>%
+    filter(n == temp, original_subject == "Integrated Math I") %>%
+    magrittr::extract2("system")
+
+ACT_substitution <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/act_substitution_school.csv") %>%
+    transmute(system, school,
+        subject = case_when(
+            subject == "ACT Reading" ~ "English III",
+            subject == "ACT Math" & system %in% int_math_systems ~ "Integrated Math III",
+            subject == "ACT Math" & !system %in% int_math_systems ~ "Algebra II"
+        ),
+        grade = 11, subgroup = "All", valid_tests, n_on_track = n_met_benchmark)
+
 collapse <- tibble()
 
 # Collapse proficiency by subject and subgroup
@@ -49,6 +66,7 @@ science_eoc <- c("Biology I", "Chemistry")
 
 success_rates <- collapse %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
+    bind_rows(ACT_substitution) %>%
     mutate(
         subgroup = case_when(
             subgroup == "All" ~ "All Students",
@@ -80,7 +98,26 @@ success_rates <- collapse %>%
     mutate(success_rate = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_)) %>%
     left_join(amo_success, by = c("system", "school", "subgroup")) %>%
     transmute(system, school, indicator = "Success Rate", subgroup,
-        n_count = valid_tests, metric = success_rate, metric_prior = success_rate_prior, AMO_target, AMO_target_4)
+        n_count = valid_tests, metric = success_rate, metric_prior = success_rate_prior,
+        ci_bound = ci_upper_bound(n_count, metric),
+        AMO_target, AMO_target_4,
+        grade_abs = case_when(
+            metric >= 50 ~ "A",
+            metric >= 45 ~ "B",
+            metric >= 35 ~ "C",
+            metric >= 25 ~ "D",
+            metric < 25 ~ "F"
+        ),
+        grade_target = case_when(
+            metric >= AMO_target_4 ~ "A",
+            metric > AMO_target ~ "B",
+            ci_bound >= AMO_target ~ "C",
+            ci_bound > metric_prior ~ "D",
+            ci_bound <= metric_prior ~ "F"
+        ),
+    # Not setting na.rm = TRUE because schools need both absolute and AMO to get a grade
+        grade = pmin(grade_abs, grade_target)
+    )
 
 amo_grad <- read_csv("N:/ORP_accountability/projects/2018_amo/school_ready_grad.csv") %>%
     transmute(system, school, subgroup, 
@@ -93,9 +130,28 @@ grad <- read_csv("N:/ORP_accountability/data/2017_graduation_rate/grad_rate_base
             subgroup == "English Learners" ~ "English Learners with Transitional 1-4",
             TRUE ~ subgroup
         ),
-        n_count = grad_cohort, metric = grad_rate) %>%
+        n_count = grad_cohort, metric = grad_rate, ci_bound = ci_upper_bound(n_count, metric)) %>%
     filter(system != 0 & school != 0, system != 90, subgroup %in% unique(success_rates$subgroup)) %>%
-    left_join(amo_grad, by = c("system", "school", "subgroup"))
+    left_join(amo_grad, by = c("system", "school", "subgroup")) %>%
+    mutate(
+        grade_abs = case_when(
+            n_count < 30 ~ NA_character_,
+            metric >= 95 ~ "A",
+            metric >= 90 ~ "B",
+            metric >= 80 ~ "C",
+            metric >= 67 ~ "D",
+            metric < 67 ~ "F"
+        ),
+        grade_target = case_when(
+            n_count < 30 ~ NA_character_,
+            metric >= AMO_target_4 ~ "A",
+            metric > AMO_target ~ "B",
+            ci_bound >= AMO_target ~ "C",
+            ci_bound > metric_prior ~ "D",
+            ci_bound <= metric_prior ~ "F"
+        ),
+        grade = pmin(grade_abs, grade_target)
+    )
 
 amo_ready_grad <- read_csv("N:/ORP_accountability/projects/2018_amo/school_ready_grad.csv") %>%
     transmute(system = as.numeric(system), school = as.numeric(school), subgroup, 
@@ -105,8 +161,25 @@ amo_ready_grad <- read_csv("N:/ORP_accountability/projects/2018_amo/school_ready
 ready_grad <- haven::read_dta("N:/ORP_accountability/data/2018_final_accountability_files/ready_grad_school2018_JW.dta") %>%
     mutate(subgroup = if_else(subgroup == "English Learners", "English Learners with Transitional 1-4", subgroup)) %>%
     filter(subgroup %in% unique(success_rates$subgroup)) %>%
-    transmute(system, school, indicator = "Ready Graduates", subgroup, n_count = grad_cohort, metric = pct_ready_grad) %>%
-    left_join(amo_ready_grad, by = c("system", "school", "subgroup"))
+    transmute(system, school, indicator = "Ready Graduates", subgroup, n_count = grad_cohort, metric = pct_ready_grad, ci_bound = ci_upper_bound(n_count, metric)) %>%
+    left_join(amo_ready_grad, by = c("system", "school", "subgroup")) %>%
+    mutate(
+        grade_abs = case_when(
+            metric >= 40 ~ "A",
+            metric >= 30 ~ "B",
+            metric >= 25 ~ "C",
+            metric >= 16 ~ "D",
+            metric < 16 ~ "F"
+        ),
+        grade_target = case_when(
+            metric >= AMO_target_4 ~ "A",
+            metric >= AMO_target ~ "B",
+            metric > metric_prior ~ "C",
+            metric == metric_prior ~ "D",
+            metric < metric_prior ~ "F"
+        ),
+        grade = pmin(grade_abs, grade_target)
+    )
 
 amo_absenteeism <- read_csv("N:/ORP_accountability/projects/2018_amo/school_chronic_absenteeism.csv",
         col_types = "iicicccddddddddd") %>%
@@ -116,11 +189,49 @@ amo_absenteeism <- read_csv("N:/ORP_accountability/projects/2018_amo/school_chro
 
 absenteeism <- read_csv("N:/ORP_accountability/data/2018_chronic_absenteeism/school_chronic_absenteeism.csv",
     col_types = "iicicccdid") %>%
-    transmute(system, school, indicator = "Chronic Absenteeism", subgroup, n_count = n_students, metric = pct_chronically_absent) %>%
-    left_join(amo_absenteeism, by = c("system", "school", "subgroup"))
+    left_join(pools, by = c("system", "school")) %>%
+    transmute(system, school, pool, indicator = "Chronic Absenteeism", subgroup, n_count = n_students, metric = pct_chronically_absent,
+        ci_bound = ci_lower_bound(n_count, metric)) %>%
+    left_join(amo_absenteeism, by = c("system", "school", "subgroup")) %>%
+    mutate(
+        grade_abs = case_when(
+            n_count < 30 ~ NA_character_,
+            pool == "K8" & metric <= 6 ~ "A",
+            pool == "K8" & metric <= 9 ~ "B",
+            pool == "K8" & metric <= 13 ~ "C",
+            pool == "K8" & metric <= 20 ~ "D",
+            pool == "K8" & metric > 20 ~ "F",
+            pool == "HS" & metric <= 10 ~ "A",
+            pool == "HS" & metric <= 14 ~ "B",
+            pool == "HS" & metric <= 20 ~ "C",
+            pool == "HS" & metric <= 30 ~ "D",
+            pool == "HS" & metric > 30 ~ "F"
+        ),
+        grade_target = case_when(
+            n_count < 30 ~ NA_character_,
+            metric <= AMO_target_4 ~ "A",
+            metric < AMO_target ~ "B",
+            ci_bound <= AMO_target ~ "C",
+            ci_bound < metric ~ "D",
+            ci_bound >= metric ~ "F"
+        ),
+    # Not setting na.rm = TRUE because schools need both absolute and AMO to get a grade
+        grade = pmin(grade_abs, grade_target)
+    ) %>%
+    select(-pool)
 
 elpa <- read_csv("N:/ORP_accountability/data/2018_ELPA/wida_growth_standard_school.csv") %>%
-    transmute(system, school, indicator = "ELPA Growth Standard", subgroup, n_count = growth_standard_denom, metric = pct_met_growth_standard)
+    transmute(system, school, indicator = "ELPA Growth Standard", subgroup,
+        n_count = growth_standard_denom, metric = pct_met_growth_standard,
+        grade_abs = case_when(
+            n_count < 10 ~ NA_character_,
+            metric >= 60 ~ "A",
+            metric >= 50 ~ "B",
+            metric >= 40 ~ "C",
+            metric >= 25 ~ "D",
+            metric < 25 ~ "F"
+        )
+    )
 
 school_names <- student_level %>%
     select(system, system_name, school, school_name) %>%
@@ -130,7 +241,8 @@ school_accountability <- bind_rows(success_rates, grad, ready_grad, absenteeism,
     left_join(school_names, by = c("system", "school")) %>%
     left_join(pools, by = c("system", "school")) %>%
     filter(!is.na(pool)) %>%
-    select(system, system_name, school, school_name, pool, designation_ineligible, everything()) %>%
+    select(system, system_name, school, school_name, pool, designation_ineligible, indicator, subgroup,
+        n_count, metric, ci_bound, everything()) %>%
     arrange(system, school, indicator, subgroup)
 
 write_csv(school_accountability, path = "N:/ORP_accountability/data/2018_final_accountability_files/2018_school_accountability_file.csv",
