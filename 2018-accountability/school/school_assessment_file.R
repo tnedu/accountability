@@ -108,6 +108,12 @@ school_names <- readxl::read_excel("N:/ORP_accountability/data/2018_final_accoun
 school_assessment <- bind_rows(school_assessment, historical_2017, historical_2016) %>%
     left_join(school_names, by = c("system", "school")) %>%
     select(year, system, system_name, school, school_name, everything()) %>%
-    arrange(system, school, subject, grade, subgroup, desc(year))
+    arrange(system, school, subject, grade, subgroup, desc(year)) %>%
+# Drop schools with only prior year data
+    group_by(system, school) %>%
+    mutate(temp = max(year)) %>%
+    ungroup() %>%
+    filter(temp == 2018) %>%
+    select(-temp)
 
 write_csv(school_assessment, "N:/ORP_accountability/data/2018_final_accountability_files/school_assessment_file.csv", na = "")
