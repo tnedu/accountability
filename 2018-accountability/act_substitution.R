@@ -2,32 +2,25 @@ library(acct)
 library(readxl)
 library(tidyverse)
 
-crosswalk <- read_excel("N:/Assessment_Data Returns/ACT/2017-18/2018 Spring/Tennessee Crosswalk - spring 2018 - 07-18-18.xlsx") %>%
-    janitor::clean_names() %>%
-    filter(str_length(local_site_code) == 10)
+hs_crosswalk <- read_csv("N:/ORP_accountability/projects/Jessica/Data Returns/Helpful Documents/ACT_xwalkAug2018rev.csv")
 
-hs_crosswalk <- bind_cols(
-    crosswalk["act_organization_code"],
-    as_data_frame(str_split_fixed(crosswalk$local_site_code, " ", n = 2))
-) %>%
-    transmute(act_organization_code = as.numeric(act_organization_code), system = as.integer(V1), school = as.integer(V2)) %>%
-    filter()
-
-act_highest_read <- read_excel("N:/Assessment_Data Returns/ACT/2017-18/2018 Spring/20180521_ACT_JuniorDayPreLimFile_SY2017-18_Whalen_v1.xlsx") %>%
+act_highest_read <- haven::read_dta("N:/Assessment_Data Returns/ACT/2017-18/2018 Spring/Final Spring Files/20180717_ACT_JuniorDayResults_SY2017-18_Whalen_v1.dta") %>%
     filter(!is.na(state_stud_id), test_location != "M", grade == 11) %>%
-    inner_join(hs_crosswalk, by = c("acthscode" = "act_organization_code")) %>%
+    inner_join(hs_crosswalk, by = "acthscode") %>%
     filter(system != 99855) %>%
     group_by(state_stud_id) %>%
     mutate(highest = max(act_read)) %>%
+    ungroup() %>%
     filter(act_read == highest) %>%
     transmute(system, school, first_name, last_name, grade, subject = "ACT Reading", state_student_id = state_stud_id, act_subscore = act_read)
 
-act_highest_math <- read_excel("N:/Assessment_Data Returns/ACT/2017-18/2018 Spring/20180521_ACT_JuniorDayPreLimFile_SY2017-18_Whalen_v1.xlsx") %>%
+act_highest_math <- haven::read_dta("N:/Assessment_Data Returns/ACT/2017-18/2018 Spring/Final Spring Files/20180717_ACT_JuniorDayResults_SY2017-18_Whalen_v1.dta") %>%
     filter(!is.na(state_stud_id), test_location != "M", grade == 11) %>%
-    inner_join(hs_crosswalk, by = c("acthscode" = "act_organization_code")) %>%
+    inner_join(hs_crosswalk, by = "acthscode") %>%
     filter(system != 99855) %>%
     group_by(state_stud_id) %>%
     mutate(highest = max(act_math)) %>%
+    ungroup() %>%
     filter(act_math == highest) %>%
     transmute(system, school, first_name, last_name, grade, subject = "ACT Math", state_student_id = state_stud_id, act_subscore = act_math)
 
