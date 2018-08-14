@@ -96,7 +96,7 @@ success_rates <- collapse %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
 # Suppress subjects with n < 30
-    mutate_at(c("valid_tests", "n_on_track", "n_mastered"), funs(if_else(valid_tests < 30, 0L, .))) %>%
+    mutate_at(c("valid_tests", "n_on_track", "n_mastered"), ~ if_else(valid_tests < 30, 0L, .)) %>%
     group_by(system, school, subgroup) %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
@@ -108,21 +108,21 @@ success_rates <- collapse %>%
         ci_bound = ci_upper_bound(n_count, metric),
         AMO_target, AMO_target_4,
         grade_abs = case_when(
-            metric >= 50 ~ "A",
-            metric >= 45 ~ "B",
-            metric >= 35 ~ "C",
-            metric >= 25 ~ "D",
-            metric < 25 ~ "F"
+            metric >= 50 ~ 4,
+            metric >= 45 ~ 3,
+            metric >= 35 ~ 2,
+            metric >= 25 ~ 1,
+            metric < 25 ~ 0
         ),
         grade_target = case_when(
-            metric >= AMO_target_4 ~ "A",
-            metric > AMO_target ~ "B",
-            ci_bound >= AMO_target ~ "C",
-            ci_bound > metric_prior ~ "D",
-            ci_bound <= metric_prior ~ "F"
+            metric >= AMO_target_4 ~ 4,
+            metric > AMO_target ~ 3,
+            ci_bound >= AMO_target ~ 2,
+            ci_bound > metric_prior ~ 1,
+            ci_bound <= metric_prior ~ 0
         ),
     # Not setting na.rm = TRUE because schools need both absolute and AMO to get a grade
-        grade = pmin(grade_abs, grade_target)
+        grade = pmax(grade_abs, grade_target)
     )
 
 amo_grad <- read_csv("N:/ORP_accountability/projects/2018_amo/school_ready_grad.csv") %>%
@@ -144,20 +144,21 @@ grad <- read_csv("N:/ORP_accountability/data/2017_graduation_rate/grad_rate_base
     left_join(amo_grad, by = c("system", "school", "subgroup")) %>%
     mutate(
         grade_abs = case_when(
-            metric >= 95 ~ "A",
-            metric >= 90 ~ "B",
-            metric >= 80 ~ "C",
-            metric >= 67 ~ "D",
-            metric < 67 ~ "F"
+            metric >= 95 ~ 4,
+            metric >= 90 ~ 3,
+            metric >= 80 ~ 2,
+            metric >= 67 ~ 1,
+            metric < 67 ~ 0
         ),
         grade_target = case_when(
-            metric >= AMO_target_4 ~ "A",
-            metric > AMO_target ~ "B",
-            ci_bound >= AMO_target ~ "C",
-            ci_bound > metric_prior ~ "D",
-            ci_bound <= metric_prior ~ "F"
+            metric >= AMO_target_4 ~ 4,
+            metric > AMO_target ~ 3,
+            ci_bound >= AMO_target ~ 2,
+            ci_bound > metric_prior ~ 1,
+            ci_bound <= metric_prior ~ 0
         ),
-        grade = pmin(grade_abs, grade_target)
+    # Not setting na.rm = TRUE because schools need both absolute and AMO to get a grade
+        grade = pmax(grade_abs, grade_target)
     )
 
 amo_ready_grad <- read_csv("N:/ORP_accountability/projects/2018_amo/school_ready_grad.csv") %>%
@@ -176,20 +177,21 @@ ready_grad <- haven::read_dta("N:/ORP_accountability/data/2018_final_accountabil
     left_join(amo_ready_grad, by = c("system", "school", "subgroup")) %>%
     mutate(
         grade_abs = case_when(
-            metric >= 40 ~ "A",
-            metric >= 30 ~ "B",
-            metric >= 25 ~ "C",
-            metric >= 16 ~ "D",
-            metric < 16 ~ "F"
+            metric >= 40 ~ 4,
+            metric >= 30 ~ 3,
+            metric >= 25 ~ 2,
+            metric >= 16 ~ 1,
+            metric < 16 ~ 0
         ),
         grade_target = case_when(
-            metric >= AMO_target_4 ~ "A",
-            metric >= AMO_target ~ "B",
-            metric > metric_prior ~ "C",
-            metric == metric_prior ~ "D",
-            metric < metric_prior ~ "F"
+            metric >= AMO_target_4 ~ 4,
+            metric >= AMO_target ~ 3,
+            metric > metric_prior ~ 2,
+            metric == metric_prior ~ 1,
+            metric < metric_prior ~ 0
         ),
-        grade = pmin(grade_abs, grade_target)
+    # Not setting na.rm = TRUE because schools need both absolute and AMO to get a grade
+        grade = pmax(grade_abs, grade_target)
     )
 
 amo_absenteeism <- read_csv("N:/ORP_accountability/projects/2018_amo/school_chronic_absenteeism.csv",
@@ -205,30 +207,30 @@ absenteeism <- read_csv("N:/ORP_accountability/data/2018_chronic_absenteeism/sch
         n_count = if_else(n_students < 30, 0, n_students),
         metric = if_else(n_count < 30, NA_real_, pct_chronically_absent),
         ci_bound = if_else(n_students >= 30, ci_lower_bound(n_count, metric), NA_real_)
-    )%>%
+    ) %>%
     left_join(amo_absenteeism, by = c("system", "school", "subgroup")) %>%
     mutate(
         grade_abs = case_when(
-            pool == "K8" & metric <= 6 ~ "A",
-            pool == "K8" & metric <= 9 ~ "B",
-            pool == "K8" & metric <= 13 ~ "C",
-            pool == "K8" & metric <= 20 ~ "D",
-            pool == "K8" & metric > 20 ~ "F",
-            pool == "HS" & metric <= 10 ~ "A",
-            pool == "HS" & metric <= 14 ~ "B",
-            pool == "HS" & metric <= 20 ~ "C",
-            pool == "HS" & metric <= 30 ~ "D",
-            pool == "HS" & metric > 30 ~ "F"
+            pool == "K8" & metric <= 6 ~ 4,
+            pool == "K8" & metric <= 9 ~ 3,
+            pool == "K8" & metric <= 13 ~ 2,
+            pool == "K8" & metric <= 20 ~ 1,
+            pool == "K8" & metric > 20 ~ 0,
+            pool == "HS" & metric <= 10 ~ 4,
+            pool == "HS" & metric <= 14 ~ 3,
+            pool == "HS" & metric <= 20 ~ 2,
+            pool == "HS" & metric <= 30 ~ 1,
+            pool == "HS" & metric > 30 ~ 0
         ),
         grade_target = case_when(
-            metric <= AMO_target_4 ~ "A",
-            metric < AMO_target ~ "B",
-            ci_bound <= AMO_target ~ "C",
-            ci_bound < metric ~ "D",
-            ci_bound >= metric ~ "F"
+            metric <= AMO_target_4 ~ 4,
+            metric < AMO_target ~ 3,
+            ci_bound <= AMO_target ~ 2,
+            ci_bound < metric_prior ~ 1,
+            ci_bound >= metric_prior ~ 0
         ),
     # Not setting na.rm = TRUE because schools need both absolute and AMO to get a grade
-        grade = pmin(grade_abs, grade_target)
+        grade = pmax(grade_abs, grade_target)
     ) %>%
     select(-pool)
 
@@ -238,13 +240,13 @@ elpa <- read_csv("N:/ORP_accountability/data/2018_ELPA/wida_growth_standard_scho
         "Native Hawaiian or Other Pacific Islander", "Students with Disabilities", "Super Subgroup", "White")) %>%
     transmute(system, school, indicator = "ELPA Growth Standard", subgroup,
         n_count = if_else(growth_standard_denom < 10, 0L, growth_standard_denom),
-        metric = if_else(n_count < 10, 0, pct_met_growth_standard),
+        metric = if_else(n_count < 10, NA_real_, pct_met_growth_standard),
         grade_abs = case_when(
-            metric >= 60 ~ "A",
-            metric >= 50 ~ "B",
-            metric >= 40 ~ "C",
-            metric >= 25 ~ "D",
-            metric < 25 ~ "F"
+            metric >= 60 ~ 4,
+            metric >= 50 ~ 3,
+            metric >= 40 ~ 2,
+            metric >= 25 ~ 1,
+            metric < 25 ~ 0
         )
     )
 
