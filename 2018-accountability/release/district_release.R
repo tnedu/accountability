@@ -1,17 +1,16 @@
 library(acct)
 library(tidyverse)
 
-school_assessment <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/school_assessment_file_jul09.csv",
-    col_types = "iicicccccdddiiiiddddd")
+district_assessment <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/district_assessment_file_jul09.csv",
+    col_types = "iicccccdddiiiiddddd")
 
-grade_bands <- school_assessment %>%
+grade_bands <- district_assessment %>%
     filter(
         year != 2016,
         test != "MSAA/Alt-Science",
-        !(grade %in% c("6", "7", "8") & subject == "US History"),
         grade != "All Grades",
-        !(grade == "Missing Grade" & subject %in% c("Math", "ELA", "Science")),
-        !subgroup %in% c("English Learner Transitional 1-2", "English Learner Transitional 1-4")
+        !subgroup %in% c("English Learner Transitional 1-2", "English Learner Transitional 1-4"),
+        subject != "US History"
     ) %>%
     mutate(
         test = if_else(grade %in% c("6", "7", "8"), "TNReady", test),
@@ -27,11 +26,11 @@ grade_bands <- school_assessment %>%
         subject = if_else(grade %in% c("3", "4", "5"), paste("3-5", subject), subject),
         subject = if_else(grade %in% c("6", "7", "8"), paste("6-8", subject), subject)
     ) %>%
-    group_by(year, system, system_name, school, school_name, test, subject, subgroup) %>%
+    group_by(year, system, system_name, test, subject, subgroup) %>%
     summarise_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup()
 
-suppress <- function(file, threshold = 5) {
+suppress <- function(file, threshold = 1) {
 
     file %>%
         rowwise() %>%
@@ -45,7 +44,7 @@ suppress <- function(file, threshold = 5) {
             funs(if_else(temp, "**", as.character(.)))
         ) %>%
         select(-temp) %>%
-        mutate(pct_on_mastered = if_else(pct_on_mastered < 5 | pct_on_mastered > 95, "**", as.character(pct_on_mastered))) %>%
+        mutate(pct_on_mastered = if_else(pct_on_mastered < 1 | pct_on_mastered > 99, "**", as.character(pct_on_mastered))) %>%
         mutate_at(c("n_below", "n_approaching", "n_on_track", "n_mastered",
                 "pct_below", "pct_approaching", "pct_on_track", "pct_mastered", "pct_on_mastered"),
             funs(if_else(valid_tests < 10, "*", as.character(.))))
@@ -55,7 +54,7 @@ suppress <- function(file, threshold = 5) {
 combined_grades <- grade_bands %>%
     filter(grepl("3-5|6-8", subject)) %>%
     mutate(subject = str_replace(subject, "3-5|6-8", "3-8")) %>%
-    group_by(year, system, system_name, school, school_name, test, subject, subgroup) %>%
+    group_by(year, system, system_name, test, subject, subgroup) %>%
     summarise_at(c("valid_tests", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
     bind_rows(grade_bands) %>%
@@ -71,18 +70,18 @@ combined_grades <- grade_bands %>%
         pct_on_track = if_else(pct_approaching != 0 & n_approaching == 0, 100 - pct_mastered, pct_on_track),
         pct_approaching = if_else(pct_approaching != 0 & n_approaching == 0, 0, pct_approaching)
     ) %>%
-    transmute(year, system, system_name, school, school_name, test, subject, subgroup,
+    transmute(year, system, system_name, test, subject, subgroup,
         valid_tests, n_below, n_approaching, n_on_track, n_mastered,
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered
     ) %>%
-    arrange(system, school, subject, subgroup, desc(year))
+    arrange(subject, subgroup)
 
-write_csv(combined_grades, "N:/ORP_accountability/data/2018_final_accountability_files/school_release_file.csv", na = "")
+write_csv(combined_grades, "N:/ORP_accountability/data/2018_final_accountability_files/district_release_file.csv", na = "")
 
 combined_grades %>%
     suppress() %>%
-    write_csv("N:/ORP_accountability/data/2018_final_accountability_files/school_release_file_suppressed.csv", na = "")
+    write_csv("N:/ORP_accountability/data/2018_final_accountability_files/district_release_file_suppressed.csv", na = "")
 
-school_assessment %>%
+district_assessment %>%
     suppress() %>%
-    write_csv("N:/ORP_accountability/data/2018_final_accountability_files/school_assessment_file_suppressed.csv", na = "")
+    write_csv("N:/ORP_accountability/data/2018_final_accountability_files/district_assessment_file_suppressed.csv", na = "")
