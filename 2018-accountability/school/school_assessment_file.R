@@ -52,7 +52,7 @@ for (s in c("All", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", 
         summarise_at(c("enrolled", "tested", "valid_test", "n_below", "n_approaching", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
         mutate(subgroup = s) %>%
         bind_rows(collapse, .)
-    
+
 }
 
 school_assessment <- collapse %>%
@@ -97,13 +97,20 @@ historical_2017 <- read_csv("N:/ORP_accountability/data/2018_final_accountabilit
 historical_2016 <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/2016_school_assessment_file.csv",
     col_types = "iiiccccdddiiiiddddd")
 
-school_names <- readxl::read_excel("N:/ORP_accountability/data/2018_final_accountability_files/2017-18_E EDFacts School Master FIle_5-3-18.xls", sheet = 2) %>%
-    janitor::clean_names() %>%
+school_names <- readxl::read_excel("N:/ORP_accountability/data/2018_final_accountability_files/2017-18_E EDFacts School Master FIle_5-3-18.xls", sheet = 2) %>% 
     transmute(
-        system = as.integer(dg_4_lea_id_state), system_name = extra_item_lea_name,
-        school = as.integer(dg_5_school_id_state), school_name = dg_7_school_name
+        system = as.integer(`DG 4 LEA ID (State)`), school = as.integer(`DG 5 School ID (State)`),
+        system_name = `EXTRA ITEM - LEA Name`, school_name = `DG 7 School Name`
     ) %>%
-    distinct()
+    bind_rows(
+        tribble(
+            ~system, ~system_name, ~school, ~school_name,
+            970, "Department of Children's Services", 25, "Gateway to Independence",
+            970, "Department of Children's Services", 45, "Wilder Youth Development Center",
+            970, "Department of Children's Services", 65, "Mountain View Youth Development Center",
+            970, "Department of Children's Services", 140, "DCS Affiliated Schools"
+        )
+    )
 
 school_assessment <- bind_rows(school_assessment, historical_2017, historical_2016) %>%
     left_join(school_names, by = c("system", "school")) %>%

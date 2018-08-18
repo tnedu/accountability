@@ -100,7 +100,13 @@ assessment_2016 <- read_csv("N:/ORP_accountability/data/2018_final_accountabilit
 district_names <- readxl::read_excel("N:/ORP_accountability/data/2018_final_accountability_files/2017-18_E EDFacts School Master FIle_5-3-18.xls", sheet = 2) %>%
     janitor::clean_names() %>%
     transmute(system = as.integer(dg_4_lea_id_state), system_name = extra_item_lea_name) %>%
-    distinct()
+    distinct() %>%
+    bind_rows(
+        tribble(
+            ~system, ~system_name,
+            970, "Department of Children's Services"
+        )
+    )
 
 district_assessment <- bind_rows(assessment_2018, assessment_2017, assessment_2016) %>%
     left_join(district_names, by = "system") %>%
