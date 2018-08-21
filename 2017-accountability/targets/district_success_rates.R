@@ -12,6 +12,10 @@ science_eoc <- c("Biology I", "Chemistry")
 # Names crosswalk
 system_names <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/system_name_crosswalk.csv")
 
+t3_t4 <- readxl::read_excel("N:/ORP_accountability/projects/Jessica/Report Card files/ELB_T3_T4.xls") %>%
+    transmute(id = STUDENT_KEY, T3_T4 = 1L) %>%
+    distinct()
+
 student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
     filter(greater_than_60_pct == "Y",
         original_subject != "US History",
@@ -22,6 +26,7 @@ student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_fil
         residential_facility != 1 | is.na(residential_facility)) %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
+    left_join(t3_t4, by = "id") %>%
     mutate(valid_test = as.integer(valid_test),
         original_subject = if_else(test == "MSAA", subject, original_subject),
         n_below = if_else(performance_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
@@ -29,8 +34,8 @@ student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_fil
         n_on_track = if_else(performance_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
         n_mastered = if_else(performance_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_),
         All = 1L,
-        EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
-        Super = as.numeric(BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1))
+        EL_T1234 = pmax(EL, EL_T1_T2, T3_T4, na.rm = TRUE),
+        Super = as.integer(BHN == 1 | ED == 1 | SWD == 1 | EL_T1234 == 1))
 
 int_math_systems <- student_level %>%
     filter(original_subject %in% c("Algebra I", "Integrated Math I")) %>%
@@ -53,7 +58,7 @@ ACT_substitution <- read_csv("N:/ORP_accountability/data/2017_ACT/Pre-Appeals Da
 collapse <- tibble()
 
 # Collapse proficiency by subject and subgroup
-for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Super")) {
+for (s in c("All", "BHN", "ED", "SWD", "EL_T1234", "Super")) {
     
     collapse <- student_level %>%
         filter_(paste(s, "== 1L")) %>%
@@ -82,7 +87,7 @@ subjects_suppressed <- collapse %>%
             subgroup == "All" ~ "All Students",
             subgroup == "BHN" ~ "Black/Hispanic/Native American",
             subgroup == "ED" ~ "Economically Disadvantaged",
-            subgroup == "EL_T1_T2" ~ "English Learners",
+            subgroup == "EL_T1234" ~ "English Learners with Transitional 1-4",
             subgroup == "SWD" ~ "Students with Disabilities",
             subgroup == "Super" ~ "Super Subgroup"
         )

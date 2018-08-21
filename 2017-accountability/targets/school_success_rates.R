@@ -9,6 +9,10 @@ science_eoc <- c("Biology I", "Chemistry")
 pools <- read_csv("N:/ORP_accountability/projects/2017_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool)
 
+t3_t4 <- readxl::read_excel("N:/ORP_accountability/projects/Jessica/Report Card files/ELB_T3_T4.xls") %>%
+    transmute(id = STUDENT_KEY, T3_T4 = 1L) %>%
+    distinct()
+
 student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_JP_final_10192017.dta") %>%
 # Combine two Bartlett schools that merged
     mutate(school = if_else(system == 794 & school == 170, 25, school)) %>%
@@ -22,6 +26,7 @@ student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_fil
         residential_facility != 1 | is.na(residential_facility)) %>%
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = ell, EL_T1_T2 = ell_t1t2) %>%
+    left_join(t3_t4, by = "id") %>%
     mutate(valid_test = as.integer(valid_test),
         original_subject = if_else(test == "MSAA", subject, original_subject),
         n_below = if_else(performance_level %in% c("1. Below", "1. Below Basic"), 1L, NA_integer_),
@@ -35,8 +40,8 @@ student_level <- read_dta("N:/ORP_accountability/projects/2017_student_level_fil
         Hawaiian = race == "Native Hawaiian or Pacific Islander",
         Native = race == "American Indian or Alaskan Native",
         White = race == "White",
-        EL_T1_T2 = if_else(EL == 1, 1, EL_T1_T2),
-        Super = as.numeric(BHN == 1 | ED == 1 | SWD == 1 | EL_T1_T2 == 1))
+        EL_T1234 = pmax(EL, EL_T1_T2, T3_T4, na.rm = TRUE),
+        Super = as.numeric(BHN == 1 | ED == 1 | SWD == 1 | EL_T1234 == 1))
 
 int_math_systems <- student_level %>%
     filter(original_subject %in% c("Algebra I", "Integrated Math I")) %>%
@@ -59,7 +64,7 @@ ACT_substitution <- read_csv("N:/ORP_accountability/data/2017_ACT/Pre-Appeals Da
 collapse <- tibble()
 
 # Collapse proficiency by subject and subgroup
-for (s in c("All", "BHN", "ED", "SWD", "EL_T1_T2", "Super", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White")) {
+for (s in c("All", "BHN", "ED", "SWD", "EL_T1234", "Super", "Asian", "Black", "Hispanic", "Hawaiian", "Native", "White")) {
     
     collapse <- student_level %>%
         filter_(paste(s, "== 1L")) %>%
@@ -88,7 +93,7 @@ subjects_suppressed <- collapse %>%
             subgroup == "Black" ~ "Black or African American",
             subgroup == "BHN" ~ "Black/Hispanic/Native American",
             subgroup == "ED" ~ "Economically Disadvantaged",
-            subgroup == "EL_T1_T2" ~ "English Learners",
+            subgroup == "EL_T1234" ~ "English Learners with Transitional 1-4",
             subgroup == "Hawaiian" ~ "Native Hawaiian or Other Pacific Islander",
             subgroup == "Native" ~ "American Indian or Alaska Native",
             subgroup == "SWD" ~ "Students with Disabilities",
