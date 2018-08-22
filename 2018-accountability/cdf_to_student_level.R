@@ -1,5 +1,18 @@
 library(tidyverse)
 
+alt_science_ss <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_alt_science_ss_cdf.csv") %>%
+    mutate(
+        test = "Alt-Science/Social Studies",
+        grade = if_else(grade == "HS", "11", grade),
+        semester = "Spring",
+        performance_level = case_when(
+            performance_level == "Level 3" ~ "Mastered",
+            performance_level == "Level 2" ~ "On Track",
+            performance_level == "Level 1" ~ "Approaching"
+        )
+    ) %>%
+    mutate_at(c("unique_student_id", "teacher_of_record_tln", "raw_score", "scale_score"), as.integer)
+
 fall_cdf <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_fall_cdf.csv") %>%
     mutate(
         test = "EOC",
@@ -24,26 +37,29 @@ spring_cdf <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_spring_cdf.csv"
     left_join(el_hs, by = "unique_student_id") %>%
     mutate_at(c("el", "el_arrived_year_1", "el_arrived_year_2"), ~ if_else(is.na(.), "N", .))
 
-el_38 <- readxl::read_excel("N:/ORP_accountability/projects/2018_student_level_file/el_recently_arrived_3_8.xlsx") %>%
-    transmute(unique_student_id = student_key,
-        el = if_else(isel == 1, "Y", "N"),
-        el_arrived_year_1 = if_else(ELRECENTLYARRIVEDYEARONE == 1, "Y", "N"),
-        el_arrived_year_2 = if_else(ELRECENTLYARRIVEDYEARTWO == 1, "Y", "N")
+el_38 <- read_csv("N:/ORP_accountability/data/2018_tdoe_provided_files/EL status and variables 2018.csv") %>%
+    transmute(unique_student_id = `Student Key`,
+        el = if_else(`IS EL` == 1, "Y", "N"),
+        el_arrived_year_1 = if_else(`Recently Arrived Year 1` == 1, "Y", "N"),
+        el_arrived_year_2 = if_else(`Recently Arrived Year 2` == 1, "Y", "N"),
+        el_t1234 = `T1T2  (T1T4)`
     ) %>%
     distinct()
 
 cdf_38 <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_3_8_cdf.csv") %>%
-    select(-el, -el_arrived_year_1, -el_arrived_year_2) %>%
+    select(-el, -el_arrived_year_1, -el_arrived_year_2, -el_t1234) %>%
     left_join(el_38, by = "unique_student_id") %>%
     mutate_at(c("el", "el_arrived_year_1", "el_arrived_year_2"), ~ if_else(is.na(.), "N", .)) %>%
     mutate(
+        el_t1234 = if_else(is.na(el_t1234), 0L, el_t1234),
         test = "TNReady",
         semester = "Spring",
         teacher_of_record_tln = as.integer(teacher_of_record_tln)
     )
 
-cdf <- bind_rows(fall_cdf, spring_cdf, cdf_38) %>%
+cdf <- bind_rows(fall_cdf, spring_cdf, cdf_38, alt_science_ss) %>%
     mutate(
+        performance_level = if_else(performance_level == "On track", "On Track", performance_level),
         absent = reason_not_tested == 1,
         medically_exempt = reason_not_tested == 4,
         residential_facility = reason_not_tested == 5,
@@ -102,7 +118,7 @@ student_level <- cdf %>%
         original_performance_level = performance_level,
         subject = original_subject
     ) %>%
-    select(system, system_name, school, school_name, test, original_subject, subject, 
+    select(system, school, test, original_subject, subject, 
         original_performance_level, performance_level, scale_score,
         enrolled, tested, valid_test, state_student_id = unique_student_id,
         last_name, first_name, grade, race, bhn_group, functionally_delayed, special_ed,
@@ -111,7 +127,8 @@ student_level <- cdf %>%
         breach_adult, breach_student, irregular_admin, incorrect_grade_subject,
         refused_to_test, failed_attemptedness, residential_facility, did_not_submit,
         semester, ri_status, medically_exempt, teacher_of_record_tln) %>%
-    mutate_at(c("system", "school", "state_student_id", "grade", "bhn_group", "functionally_delayed", "special_ed",
+    mutate_at(
+        c("system", "school", "state_student_id", "grade", "bhn_group", "functionally_delayed", "special_ed",
             "economically_disadvantaged", "el", "el_t1234", "el_recently_arrived", "homebound", "absent",
             "breach_adult", "breach_student", "irregular_admin", "incorrect_grade_subject", 
             "refused_to_test", "failed_attemptedness", "residential_facility"),
@@ -165,7 +182,7 @@ dedup <- student_level %>%
 # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
     mutate(
         test_priority = case_when(
-            test %in% c("MSAA", "Alt-Science") ~ 3,
+            test %in% c("MSAA", "Alt-Science/Social Studies") ~ 3,
             test == "EOC" ~ 2,
             test == "TNReady" ~ 1
         )
@@ -179,7 +196,7 @@ dedup <- student_level %>%
     mutate(prof_priority = case_when(
             performance_level %in% c("Below", "Below Basic") ~ 1,
             performance_level %in% c("Approaching", "Basic") ~ 2,
-            performance_level %in% c("On track", "Proficient") ~ 3,
+            performance_level %in% c("On Track", "Proficient") ~ 3,
             performance_level %in% c("Mastered", "Advanced") ~ 4
         )
     ) %>%
@@ -191,7 +208,7 @@ dedup <- student_level %>%
 # For students with multiple test records with the same proficiency across administrations, take the most recent
     mutate(
         semester_priority = case_when(
-            test %in% c("MSAA", "Alt-Science") | test == "Achievement" | (test == "EOC" & semester == "Spring") ~ 3,
+            test %in% c("MSAA", "Alt-Science/Social Studies") | test == "Achievement" | (test == "EOC" & semester == "Spring") ~ 3,
             test == "EOC" & semester == "Fall" ~ 2,
             test == "EOC" & semester == "Summer" ~ 1
         )
@@ -204,15 +221,29 @@ dedup <- student_level %>%
 # Valid test if there is a proficiency level
     mutate(valid_test = as.numeric(!is.na(performance_level)))
 
+school_names <- readxl::read_excel("N:/ORP_accountability/data/2018_final_accountability_files/2017-18_E EDFacts School Master FIle_5-3-18.xls", sheet = 2) %>% 
+    transmute(
+        system = as.integer(`DG 4 LEA ID (State)`), school = as.integer(`DG 5 School ID (State)`),
+        system_name = `EXTRA ITEM - LEA Name`, school_name = `DG 7 School Name`
+    ) %>%
+    bind_rows(
+        tribble(
+            ~system, ~system_name, ~school, ~school_name,
+            970, "Department of Children's Services", 25, "Gateway to Independence",
+            970, "Department of Children's Services", 45, "Wilder Youth Development Center",
+            970, "Department of Children's Services", 65, "Mountain View Youth Development Center",
+            970, "Department of Children's Services", 140, "DCS Affiliated Schools"
+        )
+    )
+
 output <- dedup %>%
-    filter(!is.na(state_student_id)) %>%
-    filter(!(original_subject == "Social Studies" | (original_subject == "Science" & grade %in% c("3", "4")))) %>%
+    filter(!is.na(state_student_id), !(original_subject == "Science" & grade %in% c("3", "4"))) %>%
+    left_join(school_names, by = c("system", "school")) %>%
     select(system, system_name, school, school_name, test, original_subject, subject, semester,
         original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
         state_student_id, last_name, first_name, grade, race, bhn_group, teacher_of_record_tln,
         functionally_delayed, special_ed, economically_disadvantaged, el, el_t1234, el_recently_arrived,
         enrolled_50_pct_district, enrolled_50_pct_school, homebound, absent, refused_to_test, residential_facility) %>%
-    mutate(performance_level = if_else(performance_level == "On track", "On Track", performance_level)) %>%
     arrange(system, school, state_student_id)
 
 write_csv(output, "N:/ORP_accountability/projects/2018_student_level_file/2018_student_level_file.csv", na = "")
