@@ -1,16 +1,13 @@
 library(acct)
 library(tidyverse)
 
-school_assessment <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/school_assessment_file_jul09.csv",
+school_assessment <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/school_assessment_file.csv",
     col_types = "iicicccccdddiiiiddddd")
 
 grade_bands <- school_assessment %>%
     filter(
         year != 2016,
-        test != "MSAA/Alt-Science",
-        !(grade %in% c("6", "7", "8") & subject == "US History"),
         grade != "All Grades",
-        !(grade == "Missing Grade" & subject %in% c("Math", "ELA", "Science")),
         !subgroup %in% c("English Learner Transitional 1-2", "English Learner Transitional 1-4")
     ) %>%
     mutate(

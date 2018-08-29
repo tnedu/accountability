@@ -1,16 +1,14 @@
 library(acct)
 library(tidyverse)
 
-district_assessment <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/district_assessment_file_jul09.csv",
+district_assessment <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/district_assessment_file.csv",
     col_types = "iicccccdddiiiiddddd")
 
 grade_bands <- district_assessment %>%
     filter(
         year != 2016,
-        test != "MSAA/Alt-Science",
         grade != "All Grades",
-        !subgroup %in% c("English Learner Transitional 1-2", "English Learner Transitional 1-4"),
-        subject != "US History"
+        !subgroup %in% c("English Learner Transitional 1-2", "English Learner Transitional 1-4")
     ) %>%
     mutate(
         test = if_else(grade %in% c("6", "7", "8"), "TNReady", test),
