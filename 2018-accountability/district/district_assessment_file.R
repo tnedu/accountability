@@ -8,7 +8,7 @@ student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_fil
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1234 = el_t1234) %>%
     mutate(year = 2018,
         grade = if_else(is.na(grade), 0L, grade),
-        test = if_else(test %in% c("MSAA", "ALT_SCI"), "MSAA/Alt-Science", test),
+        test = if_else(test %in% c("MSAA", "Alt-Science/Social Studies"), "MSAA/Alt-Science/Social Studies", test),
         n_below = if_else(performance_level %in% c("Below", "Below Basic"), 1L, NA_integer_),
         n_approaching = if_else(performance_level %in% c("Approaching", "Basic"), 1L, NA_integer_),
         n_on_track = if_else(performance_level %in% c("On Track", "Proficient"), 1L, NA_integer_),
