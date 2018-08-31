@@ -20,7 +20,7 @@ student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_fil
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1234 = el_t1234) %>%
     mutate(
         grade = if_else(is.na(grade), 0L, grade),
-        test = if_else(test %in% c("MSAA", "ALT_SCI"), "MSAA/Alt-Science", test),
+        test = if_else(test %in% c("MSAA", "Alt-Science/Social Studies"), "MSAA/Alt-Science/Social Studies", test),
         n_on_track = if_else(performance_level %in% c("On Track", "Proficient"), 1L, NA_integer_),
         n_mastered = if_else(performance_level %in% c("Mastered", "Advanced"), 1L, NA_integer_),
         All = 1L,
@@ -31,7 +31,8 @@ student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_fil
         Native = race == "American Indian/Alaska Native",
         White = race == "White",
         EL_T1234 = if_else(EL == 1, 1L, EL_T1234),
-        Super = (BHN == 1L | ED == 1L | SWD == 1L | EL_T1234 == 1L)) %>%
+        Super = (BHN == 1L | ED == 1L | SWD == 1L | EL_T1234 == 1L)
+    ) %>%
     mutate_at(c("Asian", "Black", "Hispanic", "Hawaiian", "Native", "White", "BHN", "ED", "SWD", "EL_T1234", "Super"), as.integer)
 
 int_math_systems <- student_level %>%
@@ -119,6 +120,30 @@ success_rates <- collapse %>%
         ),
     # Not setting na.rm = TRUE because schools need both absolute and AMO to get a grade
         score = pmax(score_abs, score_target)
+    )
+
+tvaas <- readxl::read_excel("N:/ORP_accountability/data/2018_tvaas/2018-School-Level-Accountability-Results-EOC-TCAP.xlsx") %>%
+    janitor::clean_names() %>% 
+    filter(grade == "All grades, no grade 3") %>%
+    transmute(
+        system = as.integer(system_number),
+        school = as.integer(school_number),
+        subgroup = case_when(
+            subgroup == "Black" ~ "Black or African American",
+            subgroup == "English Learners (includes EL and T1-T4)" ~ "English Learners with Transitional 1-4",
+            subgroup == "Native American" ~ "American Indian or Alaska Native",
+            subgroup == "Hawaiian Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
+            TRUE ~ subgroup
+        ),
+        indicator = "Growth",
+        metric = level,
+        score = case_when(
+            metric == 5 ~ 4,
+            metric == 4 ~ 3,
+            metric == 3 ~ 2,
+            metric == 2 ~ 1,
+            metric == 1 ~ 0
+        )
     )
 
 amo_grad <- read_csv("N:/ORP_accountability/projects/2018_amo/school_ready_grad.csv") %>%
@@ -250,7 +275,7 @@ school_names <- student_level %>%
     select(system, system_name, school, school_name) %>%
     distinct()
 
-school_accountability <- bind_rows(success_rates, grad, ready_grad, absenteeism, elpa) %>%
+school_accountability <- bind_rows(success_rates, tvaas, grad, ready_grad, absenteeism, elpa) %>%
     left_join(school_names, by = c("system", "school")) %>%
     left_join(pools, by = c("system", "school")) %>%
     filter(!is.na(pool)) %>%
