@@ -6,6 +6,12 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II", "English III")
 science_eoc <- c("Biology I", "Chemistry")
 
+# Priority Schools (two year) that are not Comprehensive Support (three year) are removed from Priority
+comprehensive_support <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/comprehensive_support.csv",
+        col_types = "iciccididii") %>%
+    filter(comprehensive_support == 1) %>%
+    select(system, school, comprehensive_support)
+
 pools_immune <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool, designation_ineligible) %>%
     filter(!is.na(pool))
@@ -31,7 +37,7 @@ ACT_sub_2016 <- read_csv("N:/ORP_accountability/projects/2016_pre_coding/Output/
             subject == "ACT Math" & !system %in% int_math_systems ~ "Algebra II"
         ),
         grade = 11, valid_tests, n_on_track = n_met_benchmark)
-    
+
 ACT_sub_2017 <- read_csv("N:/ORP_accountability/data/2017_ACT/school_act_substitution_2017.csv") %>%
     transmute(system, school,
         subject = case_when(
@@ -41,47 +47,9 @@ ACT_sub_2017 <- read_csv("N:/ORP_accountability/data/2017_ACT/school_act_substit
         ),
         grade = 11, valid_tests, n_on_track = n_met_benchmark)
 
-ACT_sub_2018 <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/act_substitution_school.csv") %>%
-    transmute(system, school,
-        subject = case_when(
-            subject == "ACT Reading" ~ "English III",
-            subject == "ACT Math" & system %in% int_math_systems ~ "Integrated Math III",
-            subject == "ACT Math" & !system %in% int_math_systems ~ "Algebra II"
-              ),
-        grade = 11, valid_tests, n_on_track = n_met_benchmark)
-
-success_2018 <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_student_level_file.csv",
-        col_types = "iciccccccciiiidcciciiiiiiiicciiii") %>%
-    filter(grade %in% 3:12, residential_facility == 0, homebound == 0, enrolled_50_pct_school == "Y",
-        original_subject %in% c("Math", "ELA", "Science", math_eoc, english_eoc, science_eoc)) %>%
-    mutate(
-        n_on_track = if_else(performance_level %in% c("On Track", "Proficient"), 1L, NA_integer_),
-        n_mastered = if_else(performance_level %in% c("Mastered", "Advanced"), 1L, NA_integer_)
-    ) %>%
-    group_by(system, school, grade, original_subject) %>%
-    summarise_at(c("valid_test", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
-    rename(valid_tests = valid_test, subject = original_subject) %>%
-    mutate(subject = case_when(
-            subject %in% math_eoc & grade %in% 3:8 ~ "Math",
-            subject %in% english_eoc & grade %in% 3:8 ~ "ELA",
-            subject %in% science_eoc & grade %in% 3:8 ~ "Science",
-            TRUE ~ subject
-        )
-    ) %>%
-    bind_rows(ACT_sub_2018) %>%
-# Aggregate across grades and replaced subjects
-    group_by(system, school, subject) %>%
-    summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
-    ungroup() %>%
-# Suppress subjects with n < 30
-    mutate_at(c("valid_tests", "n_on_track", "n_mastered"), funs(if_else(valid_tests < 30, 0L, .))) %>%
-    group_by(system, school) %>%
-# Aggregate across subjects with n >= 30
-    summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE)
-
 success_2016 <- haven::read_dta("N:/ORP_accountability/projects/2016_student_level_file/state_student_level_2016.dta") %>%
     filter(grade %in% 3:12, homebound == 0, greater_than_60_pct == "Y",
-        original_subject %in% c(math_eoc, english_eoc, science_eoc)) %>%
+           original_subject %in% c(math_eoc, english_eoc, science_eoc)) %>%
     mutate(
         n_on_track = if_else(proficiency_level %in% c("3. On Track", "3. Proficient"), 1L, NA_integer_),
         n_mastered = if_else(proficiency_level %in% c("4. Mastered", "4. Advanced"), 1L, NA_integer_)
@@ -90,21 +58,21 @@ success_2016 <- haven::read_dta("N:/ORP_accountability/projects/2016_student_lev
     summarise_at(c("valid_test", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
     mutate(subject = case_when(
-            subject %in% math_eoc & grade %in% 3:8 ~ "Math",
-            subject %in% english_eoc & grade %in% 3:8 ~ "ELA",
-            subject %in% science_eoc & grade %in% 3:8 ~ "Science",
-            TRUE ~ subject
-        )
+        subject %in% math_eoc & grade %in% 3:8 ~ "Math",
+        subject %in% english_eoc & grade %in% 3:8 ~ "ELA",
+        subject %in% science_eoc & grade %in% 3:8 ~ "Science",
+        TRUE ~ subject
+    )
     ) %>%
     bind_rows(ACT_sub_2016) %>%
-# Aggregate across grades and replaced subjects
+    # Aggregate across grades and replaced subjects
     group_by(system, school, subject) %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
-# Suppress subjects with n < 30
+    # Suppress subjects with n < 30
     mutate_at(c("valid_tests", "n_on_track", "n_mastered"), funs(if_else(valid_tests < 30, 0L, as.integer(.)))) %>%
     group_by(system, school) %>%
-# Aggregate across subjects with n >= 30
+    # Aggregate across subjects with n >= 30
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE)
 
 success_2017 <- read_csv("N:/ORP_accountability/data/2017_final_accountability_files/school_base_2017_for_accountability.csv",
@@ -139,11 +107,11 @@ tvaas_2018 <- read_excel("N:/ORP_accountability/data/2018_tvaas/School Composite
     transmute(system = as.numeric(`District Number`), school = as.numeric(`School Number`), tvaas_2018 = `School-Wide: Composite`)
 
 school_names <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_student_level_file.csv",
-        col_types = "iciccccccciiiidcciciiiiiiiicciiii") %>%
+    col_types = "iciccccccciiiidcciciiiiiiiicciiii") %>%
     select(system, system_name, school, school_name) %>%
     distinct()
 
-bottom_five <- bind_rows(success_2016, success_2017, success_2018) %>%
+priority <- bind_rows(success_2016, success_2017) %>%
     inner_join(pools_immune, by = c("system", "school")) %>%
     group_by(system, school, pool, designation_ineligible) %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
@@ -159,10 +127,15 @@ bottom_five <- bind_rows(success_2016, success_2017, success_2018) %>%
     mutate(rank_OM = if_else(valid_tests >= 30, rank(pct_on_mastered, ties.method = "min"), NA_integer_)) %>%
     ungroup() %>%
     mutate(
-        bottom_five = if_else(tvaas_sh == 0 & designation_ineligible == 0 & pool == "HS" & rank_OM <= high_schools, 1, 0),
-        bottom_five = if_else(tvaas_sh == 0 & designation_ineligible == 0 & pool == "K8" & rank_OM <= k8_schools, 1, bottom_five)
+        priority = if_else(tvaas_sh == 0 & designation_ineligible == 0 & pool == "HS" & rank_OM <= high_schools, 1L, 0L),
+        priority = if_else(tvaas_sh == 0 & designation_ineligible == 0 & pool == "K8" & rank_OM <= k8_schools, 1L, priority)
+    ) %>%
+    left_join(comprehensive_support, by = c("system", "school")) %>%
+    mutate(
+        comprehensive_support = if_else(is.na(comprehensive_support), 0L, comprehensive_support),
+        priority = if_else(priority == 1L & comprehensive_support == 0L, 0L, priority)
     ) %>%
     left_join(school_names, by = c("system", "school")) %>%
     select(system, system_name, school, school_name, everything())
 
-write_csv(bottom_five, path = "N:/ORP_accountability/projects/2018_school_accountability/bottom_five.csv", na = "")
+write_csv(priority, path = "N:/ORP_accountability/projects/2018_school_accountability/priority.csv", na = "")
