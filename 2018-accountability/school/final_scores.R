@@ -27,7 +27,7 @@ ready_grad_scores <- school_accountability %>%
     filter(indicator == "Ready Graduates") %>%
     select(system, school, subgroup, score_ready_grad_abs = score_abs, score_ready_grad_target = score_target, score_ready_grad = score)
 
-absenteeism_grades <- school_accountability %>%
+absenteeism_scores <- school_accountability %>%
     filter(indicator == "Chronic Absenteeism") %>%
     select(system, school, subgroup, score_absenteeism_abs = score_abs, score_absenteeism_reduction = score_target, score_absenteeism = score)
 
@@ -40,7 +40,7 @@ AF_grades_metrics <- pools %>%
     left_join(growth_scores, by = c("system", "school", "subgroup")) %>%
     left_join(grad_scores, by = c("system", "school", "subgroup")) %>%
     left_join(ready_grad_scores, by = c("system", "school", "subgroup")) %>%
-    left_join(absenteeism_grades, by = c("system", "school", "subgroup")) %>%
+    left_join(absenteeism_scores, by = c("system", "school", "subgroup")) %>%
     left_join(elpa_scores, by = c("system", "school", "subgroup")) %>%
 # Weights
     mutate(
@@ -112,65 +112,68 @@ subgroup_grades <- AF_grades_metrics %>%
     filter(!(subgroup == "Super Subgroup" & subgroup_count > 1)) %>%
     mutate(subgroup = "Subgroups") %>%
     group_by(system, school, pool) %>%
-    summarise_at(c("grade_achievement", "grade_growth", "grade_grad", "grade_ready_grad", "grade_absenteeism", "grade_elpa"),
+    summarise_at(c("score_achievement", "score_growth", "score_grad", "score_ready_grad", "score_absenteeism", "score_elpa"),
         mean, na.rm = TRUE) %>%
     ungroup() %>%
+    mutate_at(c("score_achievement", "score_growth", "score_grad", "score_ready_grad", "score_absenteeism", "score_elpa"),
+        ~ if_else(is.nan(.), NA_real_, .)) %>%
     rename(
-        grade_achievement_subgroups = score_achievement,
-        grade_growth_subgroups = score_growth,
-        grade_grad_subgroups = score_grad,
-        grade_ready_grad_subgroups = score_ready_grad,
-        grade_absenteeism_subgroups = score_absenteeism,
-        grade_elpa_subgroups = score_elpa
+        score_achievement_subgroups = score_achievement,
+        score_growth_subgroups = score_growth,
+        score_grad_subgroups = score_grad,
+        score_ready_grad_subgroups = score_ready_grad,
+        score_absenteeism_subgroups = score_absenteeism,
+        score_elpa_subgroups = score_elpa
     )
 
 AF_grades_metrics <- subgroup_grades %>%
     rename(
-        grade_achievement = grade_achievement_subgroups,
-        grade_growth = grade_growth_subgroups,
-        grade_grad = grade_grad_subgroups,
-        grade_ready_grad = grade_ready_grad_subgroups,
-        grade_absenteeism = grade_absenteeism_subgroups,
-        grade_elpa = grade_elpa_subgroups
+        score_achievement = score_achievement_subgroups,
+        score_growth = score_growth_subgroups,
+        score_grad = score_grad_subgroups,
+        score_ready_grad = score_ready_grad_subgroups,
+        score_absenteeism = score_absenteeism_subgroups,
+        score_elpa = score_elpa_subgroups
     ) %>%
     mutate(subgroup = "Subgroups") %>%
     bind_rows(AF_grades_metrics, .)
 
 all_students_grades <- AF_grades_metrics %>%
     filter(subgroup == "All Students") %>%
-    transmute(system, school, pool, designation_ineligible, 
-        priority_grad = if_else(pool == "HS", as.integer(!designation_ineligible & grade_grad_abs == 0), NA_integer_),
-        grade_achievement_all = score_achievement,
-        grade_growth_all = score_growth,
-        grade_grad_all = score_grad,
-        grade_ready_grad_all = score_ready_grad,
-        grade_absenteeism_all = score_absenteeism,
-        grade_elpa_all = score_elpa) %>%
+    transmute(
+        system, school, pool, designation_ineligible, 
+        score_achievement_all = score_achievement,
+        score_growth_all = score_growth,
+        score_grad_all = score_grad,
+        score_ready_grad_all = score_ready_grad,
+        score_absenteeism_all = score_absenteeism,
+        score_elpa_all = score_elpa
+    ) %>%
     left_join(subgroup_grades, by = c("system", "school", "pool")) %>%
     mutate(
-        grade_achievement = case_when(
-            !is.na(grade_achievement_subgroups) ~ 0.6 * grade_achievement_all + 0.4 * grade_achievement_subgroups,
-            is.na(grade_achievement_subgroups) ~ grade_achievement_all
+        score_achievement = case_when(
+            !is.na(score_achievement_subgroups) ~ 0.6 * score_achievement_all + 0.4 * score_achievement_subgroups,
+            is.na(score_achievement_subgroups) ~ score_achievement_all
         ),
-        grade_growth = case_when(
-            !is.na(grade_growth_subgroups) ~ 0.6 * grade_growth_all + 0.4 * grade_growth_subgroups,
-            is.na(grade_growth_subgroups) ~ grade_growth_all
+        score_growth = case_when(
+            !is.na(score_growth_subgroups) ~ 0.6 * score_growth_all + 0.4 * score_growth_subgroups,
+            is.na(score_growth_subgroups) ~ score_growth_all
         ),
-        grade_grad = case_when(
-            !is.na(grade_grad_subgroups) ~ 0.6 * grade_grad_all + 0.4 * grade_grad_subgroups,
-            is.na(grade_grad_subgroups) ~ grade_grad_all
+        score_grad = case_when(
+            !is.na(score_grad_subgroups) ~ 0.6 * score_grad_all + 0.4 * score_grad_subgroups,
+            is.na(score_grad_subgroups) ~ score_grad_all
         ),
-        grade_ready_grad = case_when(
-            !is.na(grade_ready_grad_subgroups) ~ 0.6 * grade_ready_grad_all + 0.4 * grade_ready_grad_subgroups,
-            is.na(grade_ready_grad_subgroups) ~ grade_ready_grad_all
+        score_ready_grad = case_when(
+            !is.na(score_ready_grad_subgroups) ~ 0.6 * score_ready_grad_all + 0.4 * score_ready_grad_subgroups,
+            is.na(score_ready_grad_subgroups) ~ score_ready_grad_all
         ),
-        grade_absenteeism = case_when(
-            !is.na(grade_absenteeism_subgroups) ~ 0.6 * grade_absenteeism_all + 0.4 * grade_absenteeism_subgroups,
-            is.na(grade_absenteeism_subgroups) ~ grade_absenteeism_all
+        score_absenteeism = case_when(
+            !is.na(score_absenteeism_subgroups) ~ 0.6 * score_absenteeism_all + 0.4 * score_absenteeism_subgroups,
+            is.na(score_absenteeism_subgroups) ~ score_absenteeism_all
         ),
-        grade_elpa = case_when(
-            !is.na(grade_elpa_subgroups) ~ 0.6 * grade_elpa_all + 0.4 * grade_elpa_subgroups,
-            is.na(grade_elpa_subgroups) ~ grade_elpa_all
+        score_elpa = case_when(
+            !is.na(score_elpa_subgroups) ~ 0.6 * score_elpa_all + 0.4 * score_elpa_subgroups,
+            is.na(score_elpa_subgroups) ~ score_elpa_all
         )
     ) %>%
 # Weights
@@ -190,7 +193,8 @@ all_students_grades <- AF_grades_metrics %>%
         weight_growth = if_else(is.na(score_elpa) & !is.na(weight_growth) & pool == "HS", 0.3, weight_growth)
     ) %>%
     rowwise() %>%
-    mutate(total_weight = sum(weight_achievement, weight_growth, weight_absenteeism,
+    mutate(
+        total_weight = sum(weight_achievement, weight_growth, weight_absenteeism,
             weight_grad, weight_ready_grad, weight_elpa, na.rm = TRUE),
         final_average = round5(sum(weight_achievement * score_achievement,
             weight_growth * score_growth,
