@@ -1,6 +1,30 @@
 library(haven)
 library(tidyverse)
 
+# Enrollment variables for alt and MSAA
+enrollment <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/enrollment.csv")
+
+# EL for alt and MSAA
+el_alt <- read_csv("N:/ORP_accountability/data/2018_tdoe_provided_files/el_variables_updated.csv") %>%
+    janitor::clean_names() %>%
+    mutate_at(c("begin_date", "end_date"), ~ as.Date(., format = '%d-%b-%y')) %>%
+    group_by(student_key) %>%
+    mutate(temp = max(begin_date)) %>%
+    ungroup() %>%
+    filter(begin_date == temp) %>%
+    add_count(student_key) %>%
+    filter(n == 1 | (n > 1 & is.na(end_date))) %>%
+    add_count(student_key) %>%
+    filter(!(nn == 2 & t1_t4 == 1)) %>%
+    add_count(student_key) %>%
+    transmute(
+        unique_student_id = student_key,
+        el = if_else(english_learner == 1, "Y", "N"),
+        el_arrived_year_1 = if_else(el_recentlyarrivedyearone == 1, "Y", "N"),
+        el_arrived_year_2 = if_else(el_recentlyarrivedyeartwo == 1, "Y", "N"),
+        el_t1234 = t1_t4
+    )
+
 alt_science_ss <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_alt_science_ss_cdf.csv") %>%
     mutate(
         test = "Alt-Science/Social Studies",
@@ -27,51 +51,34 @@ alt_science_ss <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_alt_science
         refused_to_test = ri_status == 5,
         failed_attemptedness = ri_status == 6
     ) %>%
-    mutate_at(c("unique_student_id", "teacher_of_record_tln", "raw_score", "scale_score"), as.integer)
-
-fall_cdf <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_fall_cdf.csv") %>%
-    mutate(
-        test = "EOC",
-        semester = "Fall",
-        raw_score = as.integer(raw_score)
-    )
-
-el_hs <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/el_recently_arrived.csv") %>%
-    transmute(unique_student_id = student_key,
-        el = if_else(isel == 1, "Y", "N"),
-        el_arrived_year_1 = if_else(ELRECENTLYARRIVEDYEARONE == 1, "Y", "N"),
-        el_arrived_year_2 = if_else(ELRECENTLYARRIVEDYEARTWO == 1, "Y", "N")
-    ) %>%
-    distinct()
-
-spring_cdf <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_spring_cdf.csv") %>%
-    mutate(
-        test = "EOC",
-        semester = "Spring"
-    ) %>%
-    select(-el, -el_arrived_year_1, -el_arrived_year_2) %>%
-    left_join(el_hs, by = "unique_student_id") %>%
-    mutate_at(c("el", "el_arrived_year_1", "el_arrived_year_2"), ~ if_else(is.na(.), "N", .))
-
-el_38 <- read_csv("N:/ORP_accountability/data/2018_tdoe_provided_files/EL status and variables 2018.csv") %>%
-    transmute(unique_student_id = `Student Key`,
-        el = if_else(`IS EL` == 1, "Y", "N"),
-        el_arrived_year_1 = if_else(`Recently Arrived Year 1` == 1, "Y", "N"),
-        el_arrived_year_2 = if_else(`Recently Arrived Year 2` == 1, "Y", "N"),
-        el_t1234 = `T1T2  (T1T4)`
-    ) %>%
-    distinct()
+    mutate_at(c("system", "school", "unique_student_id", "teacher_of_record_tln", "raw_score", "scale_score"), as.integer) %>%
+# These are all "N" in the original file
+    select(-enrolled_50_pct_district, -enrolled_50_pct_school) %>%
+    left_join(enrollment, by = c("system" = "system", "school" = "school", "unique_student_id" = "student_id")) %>%
+    mutate_at(c("enrolled_50_pct_district", "enrolled_50_pct_school"), ~ if_else(is.na(.), "Y", .)) %>%
+# Merge on EL
+    left_join(el_alt, by = "unique_student_id") %>%
+    mutate_at(c("el", "el_arrived_year_1", "el_arrived_year_2"), ~ if_else(is.na(.), "N", .)) %>%
+    mutate_at("el_t1234", ~ if_else(is.na(.), 0L, .)) %>%
+# Defauly missing ED to "N"
+    mutate_at(c("economically_disadvantaged"), ~ if_else(is.na(.), "N", .))
 
 # MSAA
 msaa_math <- read_dta("N:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/2017-18/20180828_MSAA_StateStudentResults_SY2017-18_Whalen_v1.dta") %>%
     transmute(
-        system = as.character(districtid),
-        school = as.character(schoolid),
+        system = as.integer(districtid),
+        school = as.integer(schoolid),
         unique_student_id = state_student_id,
         last_name = lastorsurname,
         first_name = firstname,
         economically_disadvantaged = if_else(economicdisadvantagestatus == "Yes", "Y", "N"),
         el = if_else(lepstatus == "Yes", "Y", "N"),
+        hispanic = if_else(hispanicorlatinaethnicity == "Yes", "Y", "N"),
+        black = if_else(blackorafricanamerican == "Yes", "Y", "N"),
+        native_american = if_else(americanindianoralaskanative == "Yes", "Y", "N"),
+        hawaiian_pi = if_else(nativehawaiianothpacificislander == "Yes", "Y", "N"),
+        asian = if_else(asian == "Yes", "Y", "N"),
+        white = if_else(white == "Yes", "Y", "N"),
         reported_race = case_when(
             hispanicorlatinaethnicity == "Yes" ~ "H",
             blackorafricanamerican == "Yes" ~ "B",
@@ -81,7 +88,8 @@ msaa_math <- read_dta("N:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/201
             white == "Yes" ~ "W",
             TRUE ~ NA_character_
         ),
-        grade = as.character(grade), original_subject = "Math",
+        grade = as.character(grade),
+        original_subject = "Math",
         scale_score = matscaledscore,
         performance_level = case_when(
             matperflevel == 1 ~ "Below",
@@ -94,13 +102,19 @@ msaa_math <- read_dta("N:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/201
 
 msaa_ela <- read_dta("N:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/2017-18/20180828_MSAA_StateStudentResults_SY2017-18_Whalen_v1.dta") %>%
     transmute(
-        system = as.character(districtid),
-        school = as.character(schoolid),
+        system = as.integer(districtid),
+        school = as.integer(schoolid),
         unique_student_id = state_student_id,
         last_name = lastorsurname,
         first_name = firstname,
         economically_disadvantaged = if_else(economicdisadvantagestatus == "Yes", "Y", "N"),
         el = if_else(lepstatus == "Yes", "Y", "N"),
+        hispanic = if_else(hispanicorlatinaethnicity == "Yes", "Y", "N"),
+        black = if_else(blackorafricanamerican == "Yes", "Y", "N"),
+        native_american = if_else(americanindianoralaskanative == "Yes", "Y", "N"),
+        hawaiian_pi = if_else(nativehawaiianothpacificislander == "Yes", "Y", "N"),
+        asian = if_else(asian == "Yes", "Y", "N"),
+        white = if_else(white == "Yes", "Y", "N"),
         reported_race = case_when(
             hispanicorlatinaethnicity == "Yes" ~ "H",
             blackorafricanamerican == "Yes" ~ "B",
@@ -121,25 +135,63 @@ msaa_ela <- read_dta("N:/Assessment_Data Returns/TCAP ALT_ Grades 3-11_MSAA/2017
         reporting_status = elareportingstatus
     )
 
-enrollment <- read_csv("C:/Users/ca18761/Desktop/Student Demographics 2017 Final and Fall Snapshot.csv") %>%
-    filter(Snapshottitle == "2017Final") %>%
-    transmute(unique_student_id = STUDENT_KEY, system = as.character(DISTRICT_ID), school = as.character(SCHOOL_ID),
-        enrolled_50_pct_district = DISTRICT50PERCENT, enrolled_50_pct_school = SCHOOL50PERCENT) %>%
-    distinct()
-
 msaa <- bind_rows(msaa_math, msaa_ela) %>%
-    filter(!reporting_status %in% c("INV", "EXE", "WDR", "NLE")) %>%
+    filter(!reporting_status %in% c("WDR", "NLE")) %>%
     mutate(
         test = "MSAA",
         semester = "Spring",
         special_ed = "Y",
-        performance_level = if_else(reporting_status == "DNT", "Approaching", performance_level),
-        absent = is.na(performance_level),
+        performance_level = if_else(reporting_status != "TES", NA_character_, performance_level),
+        absent = FALSE,
         enrolled = 1,
-        tested = if_else(reporting_status == "PRF", 0, 1)
+        tested = if_else(reporting_status == "DNT", 0, 1)
     ) %>%
-    left_join(enrollment, by = c("system", "school", "unique_student_id")) %>%
-    mutate_at(c("enrolled_50_pct_school", "enrolled_50_pct_district"), ~ if_else(is.na(.), "Y", .))
+# Merge on enrollment
+    left_join(enrollment, by = c("system" = "system", "school" = "school", "unique_student_id" = "student_id")) %>%
+    mutate_at(c("enrolled_50_pct_district", "enrolled_50_pct_school"), ~ if_else(is.na(.), "Y", .)) %>%
+# Merge on EL
+    select(-el) %>%
+    left_join(el_alt, by = "unique_student_id") %>%
+    mutate_at(c("el", "el_arrived_year_1", "el_arrived_year_2"), ~ if_else(is.na(.), "N", .)) %>%
+    mutate_at("el_t1234", ~ if_else(is.na(.), 0L, .)) %>%
+    mutate_at(c("refused_to_test", "residential_facility"), function(x) x = FALSE) %>%
+    mutate_at(c("functionally_delayed", "homebound"), function(x) x = "N")
+
+# EOC CDFs
+fall_cdf <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_fall_cdf.csv") %>%
+    mutate(
+        test = "EOC",
+        semester = "Fall",
+        raw_score = as.integer(raw_score)
+    )
+
+# EL for Spring EOC CDF
+el_hs <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/el_recently_arrived.csv") %>%
+    transmute(unique_student_id = student_key,
+        el = if_else(isel == 1, "Y", "N"),
+        el_arrived_year_1 = if_else(ELRECENTLYARRIVEDYEARONE == 1, "Y", "N"),
+        el_arrived_year_2 = if_else(ELRECENTLYARRIVEDYEARTWO == 1, "Y", "N")
+    ) %>%
+    distinct()
+
+spring_cdf <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_spring_cdf.csv") %>%
+    mutate(
+        test = "EOC",
+        semester = "Spring"
+    ) %>%
+    select(-el, -el_arrived_year_1, -el_arrived_year_2) %>%
+    left_join(el_hs, by = "unique_student_id") %>%
+    mutate_at(c("el", "el_arrived_year_1", "el_arrived_year_2"), ~ if_else(is.na(.), "N", .))
+
+# 3-8 CDFs
+el_38 <- read_csv("N:/ORP_accountability/data/2018_tdoe_provided_files/EL status and variables 2018.csv") %>%
+    transmute(unique_student_id = `Student Key`,
+        el = if_else(`IS EL` == 1, "Y", "N"),
+        el_arrived_year_1 = if_else(`Recently Arrived Year 1` == 1, "Y", "N"),
+        el_arrived_year_2 = if_else(`Recently Arrived Year 2` == 1, "Y", "N"),
+        el_t1234 = `T1T2  (T1T4)`
+    ) %>%
+    distinct()
 
 cdf_38 <- read_csv("N:/ORP_accountability/data/2018_cdf/2018_3_8_cdf.csv") %>%
     select(-el, -el_arrived_year_1, -el_arrived_year_2, -el_t1234) %>%
@@ -183,7 +235,8 @@ cdf <- bind_rows(fall_cdf, spring_cdf, cdf_38) %>%
             content_area_code == "M3" ~ "Integrated Math III",
             content_area_code == "U1" ~ "US History"
         )
-    )
+    ) %>%
+    mutate_at(c("system", "school"), as.integer)
 
 math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
 english_eoc <- c("English I", "English II", "English III")
@@ -200,7 +253,8 @@ int_math_systems <- cdf %>%
     as.integer()
 
 student_level <- bind_rows(cdf, alt_science_ss, msaa) %>%
-    mutate(enrolled = 1,
+    mutate(
+        enrolled = 1,
         tested = if_else(test != "MSAA", 1, tested),
         valid_test = NA_integer_,
         race = case_when(
@@ -233,7 +287,7 @@ student_level <- bind_rows(cdf, alt_science_ss, msaa) %>%
         refused_to_test, failed_attemptedness, residential_facility, did_not_submit,
         semester, ri_status, medically_exempt, teacher_of_record_tln) %>%
     mutate_at(
-        c("system", "school", "state_student_id", "grade", "bhn_group", "functionally_delayed", "special_ed",
+        c("state_student_id", "grade", "bhn_group", "functionally_delayed", "special_ed",
             "economically_disadvantaged", "el", "el_t1234", "el_recently_arrived", "homebound", "absent",
             "breach_adult", "breach_student", "irregular_admin", "incorrect_grade_subject", 
             "refused_to_test", "failed_attemptedness", "residential_facility"),
@@ -260,7 +314,7 @@ student_level <- bind_rows(cdf, alt_science_ss, msaa) %>%
         tested = case_when(
             absent == 1 ~ 0,
             irregular_admin == 1 ~ 1,
-            el_recently_arrived == 1 & is.na(original_performance_level) ~ 0,
+            test != "MSAA" & el_recently_arrived == 1 & is.na(original_performance_level) ~ 0,
             breach_adult == 1 | breach_student == 1 | incorrect_grade_subject == 1 | refused_to_test == 1 | failed_attemptedness == 1 ~ 0,
             TRUE ~ tested
         ),
