@@ -4,9 +4,15 @@ library(tidyverse)
 pools <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/grade_pools_designation_immune.csv") %>%
     select(system, school, pool, designation_ineligible)
 
-bottom_five <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/bottom_five.csv") %>%
-    filter(bottom_five == 1) %>%
-    transmute(system, school, final_grade = "F")
+priority <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/priority.csv",
+        col_types = "iciccididiiiiii") %>%
+    filter(priority == 1) %>%
+    select(system, school, priority)
+
+comprehensive_support <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/comprehensive_support.csv",
+        col_types = "iciccididiiiii") %>%
+    filter(comprehensive_support == 1) %>%
+    select(system, school, comprehensive_support)
 
 school_accountability <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/2018_school_accountability_file.csv",
         col_types = "icicciccddddddiii")
@@ -33,7 +39,8 @@ absenteeism_scores <- school_accountability %>%
 
 elpa_scores <- school_accountability %>%
     filter(indicator == "ELPA Growth Standard") %>%
-    select(system, school, subgroup, score_elpa = score_abs)
+    select(system, school, subgroup, score_elpa = score_abs) %>%
+    mutate(subgroup = if_else(subgroup == "English Learners", "English Learners with Transitional 1-4", subgroup))
 
 AF_grades_metrics <- pools %>%
     inner_join(ach_scores, by = c("system", "school")) %>%
@@ -71,22 +78,25 @@ AF_grades_metrics <- pools %>%
 
 # Targeted support schools
 targeted_support <- AF_grades_metrics %>%
-    mutate(subgroup_average = if_else(pool == "K8" & total_weight < 0.6, NA_real_, subgroup_average),
-        subgroup_average = if_else(pool == "HS" & total_weight < 0.7, NA_real_, subgroup_average)) %>%
+    mutate(subgroup_average = if_else(total_weight < 1, NA_real_, subgroup_average)) %>%
     filter(subgroup %in% c("Black/Hispanic/Native American", "Economically Disadvantaged", "English Learners with Transitional 1-4",
         "Students with Disabilities", "American Indian or Alaska Native", "Asian", "Black or African American",
         "Hispanic", "Native Hawaiian or Other Pacific Islander", "White")) %>%
     select(system, school, subgroup, designation_ineligible, subgroup_average) %>%
-    full_join(bottom_five, by = c("system", "school")) %>%
+    full_join(priority, by = c("system", "school")) %>%
+    full_join(comprehensive_support, by = c("system", "school")) %>%
     group_by(subgroup) %>%
     mutate(denom = sum(!is.na(subgroup_average))) %>%
-    group_by(subgroup, designation_ineligible, final_grade) %>%
-    mutate(rank = rank(subgroup_average, ties.method = "min"),
-        targeted_support = if_else(is.na(final_grade) & !designation_ineligible, as.integer(rank <= ceiling(0.05 * denom)), NA_integer_)) %>%
+    group_by(subgroup, designation_ineligible, priority, comprehensive_support) %>%
+    mutate(
+        rank = if_else(is.na(priority) & is.na(comprehensive_support) & !designation_ineligible & !is.na(subgroup_average), rank(subgroup_average, ties.method = "min"), NA_integer_),
+        targeted_support = if_else(is.na(priority) & is.na(comprehensive_support) & !designation_ineligible, as.integer(rank <= ceiling(0.05 * denom)), NA_integer_)
+    ) %>%
     ungroup() %>%
-    select(system, school, subgroup, final_grade, targeted_support) %>%
+    select(system, school, subgroup, priority, comprehensive_support, targeted_support) %>%
     spread(subgroup, targeted_support) %>%
-    transmute(system, school,
+    transmute(
+        system, school, priority, comprehensive_support,
         targeted_support_BHN = `Black/Hispanic/Native American`,
         targeted_support_ED = `Economically Disadvantaged`,
         targeted_support_SWD = `Students with Disabilities`,
@@ -97,7 +107,7 @@ targeted_support <- AF_grades_metrics %>%
         targeted_support_Hispanic = Hispanic,
         targeted_support_HPI = `Native Hawaiian or Other Pacific Islander`,
         targeted_support_White = White,
-        targeted_support = if_else(is.na(final_grade),
+        targeted_support = if_else(is.na(priority) & is.na(comprehensive_support),
             pmax(targeted_support_BHN, targeted_support_ED, targeted_support_SWD, targeted_support_EL,
                 targeted_support_Black, targeted_support_Hispanic, targeted_support_Native,
                 targeted_support_HPI, targeted_support_Asian, targeted_support_White, na.rm = TRUE), NA_integer_)
@@ -205,26 +215,40 @@ all_students_grades <- AF_grades_metrics %>%
     )
 
 AF_grades_final <- all_students_grades %>%
-    full_join(bottom_five, by = c("system", "school")) %>%
     full_join(targeted_support, by = c("system", "school")) %>%
-    mutate(final_grade = case_when(
-        designation_ineligible == 1 ~ NA_character_,
-        final_grade == "F" ~ "F",
-        priority_grad == 1L ~ "F",
-        final_average > 3 ~ "A",
-        final_average > 2 ~ "B",
-        final_average > 1 ~ "C",
-        final_average >= 0 ~ "D",
-        TRUE ~ final_grade
-    ),
-    targeted_support = if_else(final_grade == "D", 1L, targeted_support),
-    targeted_support = if_else(designation_ineligible == 1, NA_integer_, targeted_support),
-    targeted_support = if_else(!is.na(priority_grad) & priority_grad == 1L, NA_integer_, targeted_support),
-    targeted_support = if_else(is.na(targeted_support), 0L, targeted_support),
-    final_grade = if_else(targeted_support == 1L & final_grade %in% c("A", "B", "C"), paste0(final_grade, "-"), final_grade)) %>%
-    select(system, school, pool, designation_ineligible, priority_grad,
+    rowwise() %>%
+    mutate(targeted_support_subgroups =
+        sum(
+            targeted_support_BHN, targeted_support_ED, targeted_support_SWD,
+            targeted_support_EL, targeted_support_Native, targeted_support_Asian,
+            targeted_support_Black, targeted_support_Hispanic, targeted_support_HPI,
+            targeted_support_White,
+            na.rm = TRUE
+        )
+    ) %>%
+    ungroup() %>%
+    mutate(
+        priority = if_else(is.na(priority), 0L, priority),
+        comprehensive_support = if_else(is.na(comprehensive_support), 0L, comprehensive_support),
+        targeted_support = if_else(designation_ineligible == 1, NA_integer_, targeted_support),
+        targeted_support = if_else(is.na(targeted_support), 0L, targeted_support),
+        additional_targeted_support =
+            if_else(designation_ineligible == 0 & priority == 0 & comprehensive_support == 0 & final_average <= 1 &
+                (targeted_support_BHN == 1 | targeted_support_ED == 1 | targeted_support_SWD == 1 | targeted_support_EL == 1),
+                1L, 0L),
+        additional_targeted_support =
+            if_else(designation_ineligible == 0 & priority == 0 & comprehensive_support == 0 &
+                targeted_support_subgroups >= 2, 1L, additional_targeted_support),
+        reward =
+            if_else(designation_ineligible == 0 & priority == 0 & comprehensive_support == 0 & additional_targeted_support == 0 & targeted_support == 0 &
+                final_average > 3, 1L, 0L)
+    ) %>%
+    select(system, school, pool, designation_ineligible, priority, comprehensive_support, reward, additional_targeted_support,
         score_achievement, score_growth, score_absenteeism, score_grad, score_ready_grad, score_elpa,
-        contains("targeted_support"), final_average, final_grade)
+        starts_with("targeted_support"), final_average)
 
-write_csv(AF_grades_metrics, "N:/ORP_accountability/projects/2018_school_accountability/school_grading_metrics.csv")
-write_csv(AF_grades_final, "N:/ORP_accountability/projects/2018_school_accountability/school_grading_grades.csv")
+AF_grades_metrics %>%
+    mutate(subgroup_average = if_else(is.nan(subgroup_average), NA_real_, subgroup_average)) %>%
+    write_csv("N:/ORP_accountability/projects/2018_school_accountability/school_grading_metrics.csv", na = "")
+
+write_csv(AF_grades_final, "N:/ORP_accountability/projects/2018_school_accountability/school_grading_grades.csv", na = "")
