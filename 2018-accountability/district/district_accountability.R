@@ -274,7 +274,7 @@ districts_final <- minimum_performance %>%
             subgroup_average >= 1 ~ "Satisfactory",
             subgroup_average < 1 ~ "Marginal"
         ),
-        overall_average = 0.6 * achievement_average + 0.4 * subgroup_average,
+        overall_average = round5(0.6 * achievement_average + 0.4 * subgroup_average, 1),
         number_of_schools, reward, pct_reward_schools,
         final_determination = case_when(
             met_minimum_performance == 0 ~ "In Need of Improvement",
