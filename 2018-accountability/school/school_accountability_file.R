@@ -125,7 +125,10 @@ success_rates <- collapse %>%
 
 tvaas <- readxl::read_excel("N:/ORP_accountability/data/2018_tvaas/2018-School-Level-Accountability-Results-EOC-TCAP.xlsx") %>%
     janitor::clean_names() %>%
-    filter(grade == "All grades, no grade 3") %>%
+    group_by(system_number, school_number, subgroup) %>%
+    mutate(best = max(index)) %>%
+    ungroup() %>%
+    filter(index == best) %>%
     transmute(
         system = as.integer(system_number),
         school = as.integer(school_number),
@@ -145,7 +148,8 @@ tvaas <- readxl::read_excel("N:/ORP_accountability/data/2018_tvaas/2018-School-L
             metric == 2 ~ 1,
             metric == 1 ~ 0
         )
-    ) 
+    ) %>%
+    distinct()
 
 amo_grad <- read_csv("N:/ORP_accountability/projects/2018_amo/school_ready_grad.csv") %>%
     transmute(system, school,
