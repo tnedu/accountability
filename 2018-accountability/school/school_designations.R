@@ -39,6 +39,7 @@ priority <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/
     
 comprehensive_support <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/comprehensive_support.csv",
         col_types = "iciccididiiiii") %>%
+    mutate(comprehensive_support = if_else(system == 985, 1L, comprehensive_support)) %>%
     filter(comprehensive_support == 1) %>%
     mutate(percentile = round5(100 * rank/count, 1)) %>%
     select(-rank_eligible)
