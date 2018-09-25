@@ -88,6 +88,17 @@ success_AMO_district <- collapse_system %>%
     group_by(system, subject, grade, subgroup) %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
+# Aggregate by HS Math/English
+    mutate(
+        subject = case_when(
+            subject %in% math_eoc ~ "HS Math",
+            subject %in% english_eoc ~ "HS English",
+            TRUE ~ subject
+        )
+    ) %>%
+    group_by(system, subject, grade, subgroup) %>%
+    summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
+    ungroup() %>%
 # Suppress subjects with n < 30
     mutate_at(c("valid_tests", "n_on_track", "n_mastered"), funs(if_else(valid_tests < 30, 0L, .))) %>%
     group_by(system, grade, subgroup) %>%
