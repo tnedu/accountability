@@ -2,11 +2,11 @@ library(acct)
 library(tidyverse)
 
 district_assessment <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/district_assessment_file.csv",
-    col_types = "iicccccdddiiiiddddd")
+    col_types = "iicccccdddiiiiddddd") %>%
+    filter(year == 2018)
 
 grade_bands <- district_assessment %>%
     filter(
-        year != 2016,
         grade != "All Grades",
         !subgroup %in% c("English Learner Transitional 1-2", "English Learner Transitional 1-4")
     ) %>%
