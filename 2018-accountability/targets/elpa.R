@@ -116,8 +116,10 @@ write_csv(growth_standard_district, path = "N:/ORP_accountability/projects/2019_
 
 # If including exits:
 district_w_exit <- read_csv("N:/ORP_accountability/data/2018_ELPA/wida_growth_standard_district.csv") %>%
+    filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
+        "English Learners", "Students with Disabilities", "Super Subgroup")) %>%
     transmute(system, subgroup, growth_standard_denom, pct_met_growth_standard,
         AMO_target = amo_target(growth_standard_denom, pct_met_growth_standard),
         AMO_target_double = amo_target(growth_standard_denom, pct_met_growth_standard, double = TRUE))
-    
+
 write_csv(district_w_exit, path = "N:/ORP_accountability/projects/2019_amo/elpa_district.csv", na = "")
