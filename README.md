@@ -1,23 +1,5 @@
 ## accountability
 
-Code repository for the Accountability team.
+Code for reporting state, district, and school-level assessment results, both with (numeric/accountability files) and without (base/assessment files) accountability rules applied, as well as AMO targets, and non-assessment indicators used in accountability such as absenteeism, graduation rate, ACT, and ELPA. Files suppressed under FERPA rules are available for public download on the [Tennnessee Department of Education](https://www.tn.gov/education/data/data-downloads.html) website.
 
-* 2016-accountability
-
-    Code for summer 2016 district and school accountability. Mostly not used due to testing suspension. Instead, we used the code in 2016-returns/ to deliver data to districts.
-
-* 2016-returns
-
-    Code for 2016 EOC data returns.
-
-* 2017-accountability
-
-    Code for 2017 district and school accountability.
-
-* edfacts
-
-    Code to produce edfacts files for federal reporting.
-
-* modeling
-
-    Modeling for A-F school grading and district accountability, to be implemented beginning summer 2018.
+This repository also contains code for producing district accountability designations. These designations are [publicly available](https://www.tn.gov/education/data/accountability.html).
