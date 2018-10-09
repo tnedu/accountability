@@ -16,7 +16,6 @@ student_level <- read_csv("N:/ORP_accountability/projects/2018_student_level_fil
 # Proficiency and subgroup indicators for collapse
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, EL_T1234 = el_t1234) %>%
     mutate(
-        grade = if_else(is.na(grade), 0L, grade),
         original_subject = if_else(test == "MSAA", subject, original_subject),
         test = if_else(test %in% c("MSAA", "Alt-Science/Social Studies"), "MSAA/Alt-Science/Social Studies", test),
         n_on_track = if_else(performance_level %in% c("On Track", "Proficient"), 1L, NA_integer_),
@@ -45,8 +44,8 @@ ACT_substitution <- read_csv("N:/ORP_accountability/data/2018_final_accountabili
     filter(subject == "ACT Math") %>%
     transmute(system, school,
         subject = case_when(
-            subject == "ACT Math" & system %in% int_math_systems ~ "Integrated Math III",
-            subject == "ACT Math" & !system %in% int_math_systems ~ "Algebra II"
+            system %in% int_math_systems ~ "Integrated Math III",
+            !system %in% int_math_systems ~ "Algebra II"
         ),
         grade = 11, subgroup = "All", valid_tests, n_on_track = n_met_benchmark)
 
@@ -76,7 +75,7 @@ collapse_school <- map_dfr(
 
 )
 
-success_AMO_school <- collapse_school %>%
+subject_AMO_school <- collapse_school %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
     bind_rows(ACT_substitution) %>%
     mutate(
@@ -98,7 +97,7 @@ success_AMO_school <- collapse_school %>%
             TRUE ~ subject
         )
     ) %>%
-# Aggregate by replaced subjects
+# Aggregate by replaced 3-8 subjects
     group_by(system, school, subject, subgroup) %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
@@ -113,14 +112,26 @@ success_AMO_school <- collapse_school %>%
     group_by(system, school, subject, subgroup) %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
+    transmute(
+        system, school, subject, subgroup,
+        valid_tests, n_on_track, n_mastered,
+        success_rate_prior = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_),
+        AMO_target = amo_target(valid_tests, success_rate_prior, n_minimum = 1),
+        AMO_target_double = amo_target(valid_tests, success_rate_prior, double = TRUE, n_minimum = 1)
+    )
+
+subject_AMO_school %>%
+    select(-n_on_track, -n_mastered) %>% 
+    write_csv("N:/ORP_accountability/projects/2019_amo/subject_targets_school.csv", na = "")
+
+success_AMO_school <- subject_AMO_school %>%
 # Suppress subjects with n < 30
     mutate_at(c("valid_tests", "n_on_track", "n_mastered"), funs(if_else(valid_tests < 30, 0L, .))) %>%
     group_by(system, school, subgroup) %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
     transmute(
-        system, school, subgroup,
-        valid_tests,
+        system, school, subgroup, valid_tests,
         success_rate_prior = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_),
         AMO_target = amo_target(valid_tests, success_rate_prior),
         AMO_target_double = amo_target(valid_tests, success_rate_prior, double = TRUE)
