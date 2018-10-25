@@ -17,7 +17,7 @@ cte_alt_adult <- read_csv("N:/ORP_accountability/data/2018_tdoe_provided_files/c
 junior_2018 <- read_dta("N:/Assessment_Data Returns/ACT/2017-18/2018 Spring/Final Spring Files/20180717_ACT_JuniorDayResults_SY2017-18_Whalen_v1.dta") %>%
     filter(!is.na(state_stud_id), test_location != "M") %>%
     add_count(state_stud_id) %>% # No duplicates
-    select(unique_student_id = state_stud_id, acthscode, 
+    select(unique_student_id = state_stud_id, acthscode,
         composite = act_composite,
         math = act_math,
         reading = act_read,
@@ -105,6 +105,18 @@ cohort2 <- read_dta("N:/Assessment_Data Returns/ACT/2017-18/2018 Cohort Highest 
         english = act_english_highest,
         science = act_science_highest)
 
+appeals <- readxl::read_excel("N:/ORP_accountability/appeals/2019/ACT/Coding/ACT Appeals Master Tracker.xlsm",
+        sheet = "Individual") %>%
+    janitor::clean_names() %>%
+    filter(status == "Approved") %>%
+    mutate_at(c("student_id", "act_composite_highest", "act_math_highest", "act_reading_highest", "act_english_highest", "act_science_highest", "sat_total"), as.numeric) %>%
+    mutate(
+        act_composite_highest = if_else(is.na(act_composite_highest) & sat_total > 1050, 21, act_composite_highest),
+        act_composite_highest = if_else(is.na(act_composite_highest) & sat_total < 980, 18, act_composite_highest)
+    ) %>%
+    select(unique_student_id = student_id, composite = act_composite_highest, math = act_math_highest,
+        reading = act_reading_highest, english = act_english_highest, science = act_science_highest)
+
 student_level <- bind_rows(junior_2018, junior_2017, cohort, cohort2) %>%
     group_by(unique_student_id) %>%
 # Dedup by highest composite score
@@ -129,6 +141,29 @@ student_level <- bind_rows(junior_2018, junior_2017, cohort, cohort2) %>%
     anti_join(closed, by = c("system", "school")) %>%
     anti_join(cte_alt_adult, by = c("system", "school")) %>%
     select(-system, -school) %>%
+    full_join(appeals, by = "unique_student_id") %>%
+    transmute(
+        unique_student_id,
+        composite = if_else(!is.na(composite.x) & !is.na(composite.y), composite.y, NA_real_),
+        composite = if_else(is.na(composite.x) & !is.na(composite.y), composite.y, composite),
+        composite = if_else(!is.na(composite.x) & is.na(composite.y), composite.x, composite),
+        
+        math = if_else(!is.na(composite.x) & !is.na(composite.y), math.y, NA_real_),
+        math = if_else(is.na(composite.x) & !is.na(composite.y), math.y, math),
+        math = if_else(!is.na(composite.x) & is.na(composite.y), math.x, math),
+        
+        reading = if_else(!is.na(composite.x) & !is.na(composite.y), reading.y, NA_real_),
+        reading = if_else(is.na(composite.x) & !is.na(composite.y), reading.y, reading),
+        reading = if_else(!is.na(composite.x) & is.na(composite.y), reading.x, reading),
+        
+        english = if_else(!is.na(composite.x) & !is.na(composite.y), english.y, NA_real_),
+        english = if_else(is.na(composite.x) & !is.na(composite.y), english.y, english),
+        english = if_else(!is.na(composite.x) & is.na(composite.y), english.x, english),
+        
+        science = if_else(!is.na(composite.x) & !is.na(composite.y), science.y, NA_real_),
+        science = if_else(is.na(composite.x) & !is.na(composite.y), science.y, science),
+        science = if_else(!is.na(composite.x) & is.na(composite.y), science.x, science)
+    ) %>%
     left_join(grad, ., by = c("student_key" = "unique_student_id")) %>%
     mutate(
         enrolled = 1,
