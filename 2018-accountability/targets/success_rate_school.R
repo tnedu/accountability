@@ -49,7 +49,6 @@ ACT_substitution <- read_csv("N:/ORP_accountability/data/2018_final_accountabili
         ),
         grade = 11, subgroup = "All", valid_tests, n_on_track = n_met_benchmark)
 
-
 collapse_school <- map_dfr(
 
     .x = list(
@@ -74,6 +73,42 @@ collapse_school <- map_dfr(
     }
 
 )
+
+subject_AMO_school <- collapse_school %>%
+    rename(valid_tests = valid_test, subject = original_subject) %>%
+    bind_rows(ACT_substitution) %>%
+    mutate(
+        subgroup = case_when(
+            subgroup == "All" ~ "All Students",
+            subgroup == "Black" ~ "Black or African American",
+            subgroup == "BHN" ~ "Black/Hispanic/Native American",
+            subgroup == "ED" ~ "Economically Disadvantaged",
+            subgroup == "EL_T1234" ~ "English Learners with Transitional 1-4",
+            subgroup == "Hawaiian" ~ "Native Hawaiian or Other Pacific Islander",
+            subgroup == "Native" ~ "American Indian or Alaska Native",
+            subgroup == "Super" ~ "Super Subgroup",
+            subgroup == "SWD" ~ "Students with Disabilities",
+            TRUE ~ subgroup
+        ),
+        subject = case_when(
+            subject %in% math_eoc & grade %in% 3:8 ~ "Math",
+            subject %in% english_eoc & grade %in% 3:8 ~ "ELA",
+            TRUE ~ subject
+        )
+    ) %>%
+# Aggregate by replaced 3-8 subjects
+    group_by(system, school, subject, subgroup) %>%
+    summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
+    ungroup() %>%
+    mutate(
+        success_rate_prior = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_),
+        AMO_target = amo_target(valid_tests, success_rate_prior, n_minimum = 1),
+        AMO_target_double = amo_target(valid_tests, success_rate_prior, double = TRUE, n_minimum = 1)
+    )
+
+subject_AMO_school %>%
+    select(-n_on_track, -n_mastered) %>% 
+    write_csv("N:/ORP_accountability/projects/2019_amo/subject_targets_school.csv", na = "")
 
 subject_AMO_school <- collapse_school %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%

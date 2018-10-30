@@ -88,6 +88,44 @@ subject_AMO_district <- collapse_system %>%
     group_by(system, subject, grade, subgroup) %>%
     summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
     ungroup() %>%
+    mutate(
+        success_rate_prior = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_),
+        AMO_target = amo_target(valid_tests, success_rate_prior, n_minimum = 1),
+        AMO_target_double = amo_target(valid_tests, success_rate_prior, double = TRUE, n_minimum = 1)
+    )
+
+subject_AMO_district %>%
+    select(-n_on_track, -n_mastered) %>%
+    write_csv("N:/ORP_accountability/projects/2019_amo/subject_targets_district.csv", na = "")
+
+subject_AMO_district <- collapse_system %>%
+    rename(valid_tests = valid_test, subject = original_subject) %>%
+    bind_rows(ACT_substitution) %>%
+    mutate(
+        subject = case_when(
+            subject %in% math_eoc & grade %in% 3:8 ~ "Math",
+            subject %in% english_eoc & grade %in% 3:8 ~ "ELA",
+            TRUE ~ subject
+        ),
+        grade = case_when(
+            grade %in% 3:5 ~ "3rd through 5th",
+            grade %in% 6:8 ~ "6th through 8th",
+            grade %in% 9:12 ~ "9th through 12th"
+        ),
+        subgroup = case_when(
+            subgroup == "All" ~ "All Students",
+            subgroup == "BHN" ~ "Black/Hispanic/Native American",
+            subgroup == "ED" ~ "Economically Disadvantaged",
+            subgroup == "EL_T1234" ~ "English Learners with Transitional 1-4",
+            subgroup == "SWD" ~ "Students with Disabilities",
+            subgroup == "Super" ~ "Super Subgroup",
+            TRUE ~ subgroup
+        )
+    ) %>%
+# Aggregate by replaced 3-8 subjects
+    group_by(system, subject, grade, subgroup) %>%
+    summarise_at(c("valid_tests", "n_on_track", "n_mastered"), sum, na.rm = TRUE) %>%
+    ungroup() %>%
 # Aggregate by HS Math/English
     mutate(
         subject = case_when(
