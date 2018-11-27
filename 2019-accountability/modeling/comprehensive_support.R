@@ -115,17 +115,8 @@ ach <- bind_rows(student_level_2018, student_level_2017) %>%
         )
     )
 
-growth <- readxl::read_excel("N:/ORP_accountability/data/2018_tvaas/2018-School-Level-Accountability-Results-EOC-TCAP.xlsx") %>%
-    janitor::clean_names() %>%
-    filter(subgroup == "All Students") %>% 
-# Best with and without grade 3
-    group_by(system_number, school_number) %>%
-    mutate(best = max(index)) %>%
-    ungroup() %>%
-    filter(index == best) %>%
-    transmute(
-        system = as.integer(system_number),
-        school = as.integer(school_number),
+growth <- read_csv("N:/ORP_accountability/projects/Alex/accountability/2019-accountability/modeling/tvaas_multi_year.csv") %>%
+    transmute(system, school,
         score_growth = case_when(
             level == 5 ~ 4,
             level == 4 ~ 3,
@@ -133,8 +124,7 @@ growth <- readxl::read_excel("N:/ORP_accountability/data/2018_tvaas/2018-School-
             level == 2 ~ 1,
             level == 1 ~ 0
         )
-    ) %>%
-    distinct()
+    )
 
 grad_lag <- read_dta("N:/ORP_accountability/data/2016_graduation_rate/School_grad_rate2017_JP.dta") %>%
     filter(subgroup == "All Students") %>%
@@ -306,7 +296,7 @@ comprehensive_support <- pools %>%
     mutate(
         tvaas_sh = as.integer(tvaas_2018 %in% c(4, 5) & tvaas_2017 %in% c(4, 5) | (tvaas_2018 %in% c(4, 5) & is.na(tvaas_2017))),
         tvaas_sh = if_else(is.na(tvaas_sh), 0L, tvaas_sh),
-        all_indicators = as.integer(round5(total_weight) == 1)
+        all_indicators = as.integer(round5(total_weight, 1) == 1)
     ) %>%
     group_by(pool, designation_ineligible, tvaas_sh, all_indicators) %>%
     mutate(rank_eligible = if_else(all_indicators == 1 & tvaas_sh == 0L & designation_ineligible == 0L,
@@ -318,10 +308,15 @@ comprehensive_support <- pools %>%
         comprehensive_support = if_else(is.na(comprehensive_support), 0L, comprehensive_support)
     )
 
+prior <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/comprehensive_support.csv") %>%
+    select(system, school, prior = comprehensive_support)
+
+comprehensive_support <- full_join(comprehensive_support, prior, by = c("system", "school"))
+
 write_csv(comprehensive_support, "N:/ORP_accountability/projects/Alex/accountability/2019-accountability/modeling/comprehensive_support.csv", na = "")
 
 # Matching
-j <- read_csv("N:/ORP_accountability/projects/Jessica/Accountability/2017-18/2018 Accountability Supporting Files/School Accountability/comprehensive_supportNEW_JW.csv") %>%
+j <- read_csv("N:/ORP_accountability/projects/Jessica/Accountability/2017-18/2018 Accountability Supporting Files/School Accountability/comprehensive_supportNEW_JW_v2.csv") %>%
     mutate(comprehensive_support = if_else(is.na(comprehensive_support), 0L, comprehensive_support))
 
 matching <- full_join(
