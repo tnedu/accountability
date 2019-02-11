@@ -18,7 +18,7 @@ layout <- tribble(
     379, 380, "modified_format",
     592, 593, "reason_not_tested",
     594, 595, "ri_status",
-    
+
     702, 704, "raw_score",
     708, 711, "scale_score",
     712, 726, "performance_level",
@@ -38,42 +38,40 @@ cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/Fa
 )
 
 # Demographic file
-demographics <- read_csv("N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/Demographic Files/fall_eoc_demographics.csv") %>%
+demographics <- read_csv("N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/Demographic Files/fall_eoc_demographics_snapshot_20181208.csv") %>%
 # Student IDs should be 7 digits
-    filter(str_length(as.character(STUDENT_KEY)) == 7) %>%
-# File has duplicates by student across different admin windows, all other fields are the same
-    select(-admin_window) %>%
-    distinct() %>%
+    filter(str_length(student_key) == 7) %>%
     transmute(
-        unique_student_id = STUDENT_KEY,
-        system = DISTRICT_ID,
-        school = SCHOOL_ID,
-        el = ISEL,
-        el_t1234 = T1T2,
+        unique_student_id = student_key,
+        system = district_id,
+        school = school_id,
+        el = isel,
+        el_t1234 = t1t2,
         reported_race = case_when(
-            ETHNICITY == "H" ~ "Hispanic/Latino",
-            ISBLACK == 1 ~ "Black or African American",
-            ISAMERICANINDIAN == 1 ~ "American Indian/Alaska Native",
-            ISPACIFICISLANDER == 1 ~ "Native Hawaiian/Pac. Islander",
-            ISASIAN == 1 ~ "Asian",
-            ISWHITE == 1 ~ "White",
+            ethnicity == "H" ~ "Hispanic/Latino",
+            isblack == 1 ~ "Black or African American",
+            isamericanindian == 1 ~ "American Indian/Alaska Native",
+            ispacificislander == 1 ~ "Native Hawaiian/Pac. Islander",
+            isasian == 1 ~ "Asian",
+            iswhite == 1 ~ "White",
             TRUE ~ "Unknown"
         ),
-        el_arrived_year_1 = ELRECENTLYARRIVEDYEARONE,
-        el_arrived_year_2 = ELRECENTLYARRIVEDYEARTWO,
-        gender = GENDER,
-        migrant = ISMIGRANT,
-        title_1 = TITLE1,
-        special_ed = SPECIALEDUCATION,
-        functionally_delayed = ISFUNCTIONALLYDELAYED,
+        el_arrived_year_1 = elrecentlyarrivedyearone,
+        el_arrived_year_2 = elrecentlyarrivedyeartwo,
+        gender,
+        migrant = ismigrant,
+        title_1 = title1,
+        special_ed = specialeducation,
+        functionally_delayed = isfunctionallydelayed,
         economically_disadvantaged = case_when(
-            CODEAB == 1 ~ 1,
-            CODEAB == 2 ~ 0
+            codeab == 1 ~ 1,
+            codeab == 2 ~ 0
         ),
-        enrolled_50_pct_district = DISTRICT50PERCENT,
-        enrolled_50_pct_school = SCHOOL50PERCENT
+        enrolled_50_pct_district = district50percent,
+        enrolled_50_pct_school = school50percent
     )
 
-cdf_with_demographics <- left_join(cdf, demographics, by = c("unique_student_id", "system", "school"))
+cdf_with_demographics <- left_join(cdf, demographics, by = c("unique_student_id", "system", "school")) %>%
+    filter(system <= 986)
 
 write_csv(cdf_with_demographics, path = "N:/ORP_accountability/data/2019_cdf/2019_fall_eoc_cdf.csv")
