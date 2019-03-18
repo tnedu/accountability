@@ -1,19 +1,33 @@
 library(tidyverse)
 
-school_master <- readxl::read_excel("N:/ORP_accountability/projects/Alex/accountability/edfacts/2018/2017-18  EDFacts School Master FIle_5-3-18.xls") %>%
-    transmute(system = as.integer(STATE_LEAID), school = as.integer(STATE_SCHID))
+grade_12 <- readxl::read_excel("N:/ORP_accountability/projects/Alex/accountability/edfacts/2018/2017-18  EDFacts School Master FIle_5-3-18.xlsx", sheet = 2) %>%
+    filter(`School Grade 12 Flag` == "Y") %>%
+    transmute(temp = paste(`DG 4 LEA ID (State)`, `DG 5 School ID (State)`, sep = "_"))
 
 school_grades <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/school_grading_metrics.csv") %>%
     filter(pool == "HS", !subgroup %in% c("Black/Hispanic/Native American", "Subgroups", "Super Subgroup")) %>%
-    inner_join(school_master, by = c("system", "school"))
+    inner_join(school_master, by = c("system", "school")) %>%
+    mutate(
+        system = sprintf("%05d", system),
+        school = sprintf("%04d", school)
+    )
 
-fs199 <- school_grades %>%
+grade_12 <- cross_df(.l = list("temp" = grade_12$temp, "subgroup" = unique(school_grades$subgroup))) %>%
+    transmute(
+        system = str_extract(temp, "^[0-9]{5}"),
+        school = str_extract(temp, "[0-9]{4}$"),
+        subgroup) %>%
+    left_join(school_grades, by = c("system", "school", "subgroup"))
+    
+
+fs199 <- grade_12 %>%
     arrange(system, school, subgroup) %>%
-    transmute(first = 1:nrow(school_grades),
+    transmute(
+        first = 1:nrow(foo),
         state_code = 47,
         state_agency_number = "01",
-        system = sprintf("%05d", system),
-        school = sprintf("%04d", school),
+        system,
+        school,
         table_name = "GRADRATESTATUS",
         racial = case_when(
             subgroup == "American Indian or Alaska Native" ~ "MAP",
