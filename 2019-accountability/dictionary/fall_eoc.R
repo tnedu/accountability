@@ -28,8 +28,8 @@ layout <- tribble(
 )
 
 # Read in cdf according to layout
-cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/Fall EOC 2018/2018-2019 TN 2019 Fall EOC CDF Final Scores-20190128/2018-2019 TN 2019 Fall EOC CDF Final Scores-20190128.txt",
-    col_types = "iciccccdicccciiiiciic",
+cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/Fall EOC 2018/2018-2019 TN 2019 Fall EOC CDF Final Scores-20190211.txt",
+    col_types = "iciccccdiicccciiiiciic",
     col_positions = fwf_positions(
         start = layout$start,
         end = layout$end,
@@ -46,7 +46,7 @@ demographics <- read_csv("N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/
         system = district_id,
         school = school_id,
         el = isel,
-        el_t1234 = t1t2,
+        t1234 = t1t2,
         reported_race = case_when(
             ethnicity == "H" ~ "Hispanic/Latino",
             isblack == 1 ~ "Black or African American",
@@ -72,6 +72,10 @@ demographics <- read_csv("N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/
     )
 
 cdf_with_demographics <- left_join(cdf, demographics, by = c("unique_student_id", "system", "school")) %>%
-    filter(system <= 986)
+    filter(
+        system <= 986,  # Private School districts
+        school != 981,  # Homeschool
+        grade %in% 3:12 | is.na(grade)
+    )
 
 write_csv(cdf_with_demographics, path = "N:/ORP_accountability/data/2019_cdf/2019_fall_eoc_cdf.csv")
