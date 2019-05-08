@@ -19,14 +19,14 @@ fs206 <- school_master %>%
         status = case_when(
             comprehensive_support == 1 ~ "CSI",
             comprehensive_support == 0 ~ "NOTCSITSI",
-            is.na(comprehensive_support) ~ "MISSING"
+            is.na(comprehensive_support) ~ "NOTCSITSI"
         ),
         csi = case_when(
             system == "00792" & school == "2815" ~ "CSILOWGR",
             comprehensive_support == 1 ~ "CSILOWPERF",
-            TRUE ~ "MISSING"
+            TRUE ~ ""
         ),
-        tsi = "MISSING",
+        tsi = "",
         filler1 = "",
         filler2 = "",
         explanation = ""
