@@ -127,7 +127,7 @@ student_level <- bind_rows(cdf) %>%
 #     transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
 
 dedup <- student_level %>%
-    anti_join(cte_alt_adult, by = c("system", "school")) %>%
+    # anti_join(cte_alt_adult, by = c("system", "school")) %>%
     mutate(
         # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
         test_priority = case_when(
@@ -193,8 +193,24 @@ output <- dedup %>%
         original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
         state_student_id, last_name, first_name, grade, race, bhn_group, functionally_delayed, special_ed,
         economically_disadvantaged, el, el_t1234, el_recently_arrived,
-        enrolled_50_pct_district, enrolled_50_pct_school, # homebound,
-        absent, refused_to_test, residential_facility) %>%
+        enrolled_50_pct_district, enrolled_50_pct_school, absent, refused_to_test, residential_facility
+    ) %>%
+# Percentiles by grade and original subject for 3-8
+    group_by(test, original_subject, grade) %>%
+    mutate(
+        rank = if_else(!is.na(scale_score), rank(scale_score, ties = "max"), NA_integer_),
+        denom = sum(!is.na(scale_score)),
+        percentile = if_else(test == "Achievement", round5(100 * rank/denom, 1), NA_real_)
+    ) %>%
+# Percentiles by original subject for 3-8
+    group_by(test, original_subject) %>%
+    mutate(
+        rank = if_else(!is.na(scale_score), rank(scale_score, ties = "max"), NA_integer_),
+        denom = sum(!is.na(scale_score)),
+        percentile = if_else(test == "EOC", round5(100 * rank/denom, 1), percentile)
+    ) %>%
+    ungroup() %>%
+    select(-rank, -denom) %>%
     arrange(system, school, state_student_id)
 
 write_csv(output, "N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv", na = "")
