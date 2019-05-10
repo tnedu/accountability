@@ -1,7 +1,7 @@
 library(tidyverse)
 
 fall_eoc <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_fall_eoc_cdf.csv",
-    col_types = "iciccccdiicccciiiiciiciiciiciiiiicc") %>%
+        col_types = "iciccccdicccciiiiciiciiciiciiiiicc") %>%
     mutate(
         test = "EOC",
         semester = "Fall"
@@ -57,10 +57,10 @@ student_level <- bind_rows(cdf) %>%
     transmute(
         system, school,
         test, semester,
-        original_subject,  
+        original_subject,
         subject = original_subject,
-        original_performance_level, 
-        performance_level = original_performance_level,
+        original_performance_level = performance_level, 
+        performance_level,
         scale_score,
         state_student_id = unique_student_id,
         last_name,
@@ -74,16 +74,16 @@ student_level <- bind_rows(cdf) %>%
         t1234 = t1234 %in% 1:4,
         special_ed = special_ed == "Y",
         functionally_delayed = functionally_delayed == "Y",
-        # homebound = homebound == "Y",
         enrolled_50_pct_district, 
         enrolled_50_pct_school,
         breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness,
         absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit
     ) %>%
     mutate_at(
-        vars(bhn_group, functionally_delayed, special_ed, economically_disadvantaged, el, el_t1234, el_recently_arrived),
-        as.integer
+        .vars = vars(bhn_group, functionally_delayed, special_ed, economically_disadvantaged, el, t1234, el_recently_arrived),
+        .f = as.integer
     ) %>%
+    rowwise() %>%
     # Apply testing flag hierarchy
     mutate(
         enrolled = case_when(
@@ -95,14 +95,14 @@ student_level <- bind_rows(cdf) %>%
         tested = case_when(
             any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0L,
             any(absent, not_enrolled, not_scheduled) ~ 0L,
-            el_recently_arrived & is.na(original_performance_level) ~ 0L,
+            el_recently_arrived == 1L & is.na(original_performance_level) ~ 0L,
             TRUE ~ 1L
         ),
         # EL Recently Arrived students performance level are converted to missing
         performance_level = case_when(
             any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ NA_character_,
             any(absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, did_not_submit) ~ NA_character_,
-            el_recently_arrived ~ NA_character_,
+            el_recently_arrived == 1L ~ NA_character_,
             TRUE ~ performance_level
         ),
         # Modify subject for MSAA tests in grades >= 9 (6.8)
@@ -119,18 +119,19 @@ student_level <- bind_rows(cdf) %>%
             grade %in% 3:8 & original_subject == "US History" ~ "Social Studies",
             TRUE ~ subject
         )
-    )
+    ) %>%
+    ungroup()
 
 # Records from Alternative, CTE, Adult HS are dropped from student level
-cte_alt_adult <- read_csv("N:/ORP_accountability/data/2019_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
-    transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
+# cte_alt_adult <- read_csv("N:/ORP_accountability/data/2019_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
+#     transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
 
 dedup <- student_level %>%
     anti_join(cte_alt_adult, by = c("system", "school")) %>%
     mutate(
         # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
         test_priority = case_when(
-            test %in% c("MSAA", "Alt-Science/Social Studies") ~ 3,
+            test %in% c("MSAA", "Alt-Social Studies") ~ 3,
             test == "EOC" ~ 2,
             test == "TNReady" ~ 1
         )
@@ -149,13 +150,13 @@ dedup <- student_level %>%
             performance_level %in% c("Mastered", "Advanced") ~ 4
         )
     ) %>%
-    group_by(state_student_id, subject, test) %>%
+    group_by(state_student_id, original_subject, test) %>%
     mutate(temp = max(prof_priority, na.rm = TRUE)) %>%
     filter(prof_priority == temp | temp == -Inf) %>%
     select(-prof_priority, -temp) %>%
     ungroup() %>%
 # For students with multiple records within the same performance level, take highest scale score
-    group_by(state_student_id, subject, test, performance_level) %>%
+    group_by(state_student_id, original_subject, test, performance_level) %>%
     mutate(temp = max(scale_score, na.rm = TRUE)) %>%
     filter(scale_score == temp | temp == -Inf) %>%
     select(-temp) %>%
@@ -167,10 +168,20 @@ dedup <- student_level %>%
             test == "EOC" & semester == "Fall" ~ 1
         )
     ) %>%
-    group_by(state_student_id, subject, test) %>%
+    group_by(state_student_id, original_subject, test) %>%
     mutate(temp = max(semester_priority, na.rm = TRUE)) %>%
     filter(semester_priority == temp | temp == -Inf) %>%
     select(-semester_priority, -temp) %>%
+    ungroup() %>%
+# For students with multiple test records with the same original subject, performance level, scale score
+# Deduplicate by missing race/ethnicity (!)
+    add_count(state_student_id, original_subject, test, performance_level, scale_score, semester) %>%
+    filter(!(n > 1 & is.na(reported_race))) %>%
+    ungroup() %>%
+# For students multiple test records with the same original subject, performance level, scale score, demographics
+# Deduplicate for non-missing grade (!)
+    add_count(state_student_id, original_subject, test, performance_level, scale_score, semester, reported_race) %>%
+    filter(!(n > 1 & is.na(grade))) %>%
     ungroup() %>%
 # Valid test if there is a proficiency level
     mutate(valid_test = as.integer(!is.na(performance_level)))
@@ -180,7 +191,7 @@ output <- dedup %>%
     select(
         system, system_name, school, school_name, test, original_subject, subject, semester,
         original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
-        state_student_id, last_name, first_name, grade, race, bhn_group, functionally_delayed, special_ed, 
+        state_student_id, last_name, first_name, grade, race, bhn_group, functionally_delayed, special_ed,
         economically_disadvantaged, el, el_t1234, el_recently_arrived,
         enrolled_50_pct_district, enrolled_50_pct_school, # homebound,
         absent, refused_to_test, residential_facility) %>%
