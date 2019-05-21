@@ -1,7 +1,8 @@
+library(acct)
 library(tidyverse)
 
 fall_eoc <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_fall_eoc_cdf.csv",
-        col_types = "iciccccdicccciiiiciiciiciiciiiiicc") %>%
+        col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
     mutate(
         test = "EOC",
         semester = "Fall"
@@ -55,8 +56,12 @@ int_math_systems <- cdf %>%
 
 student_level <- bind_rows(cdf) %>%
     transmute(
-        system, school,
-        test, semester,
+        system,
+        system_name,
+        school,
+        school_name,
+        test,
+        semester,
         original_subject,
         subject = original_subject,
         original_performance_level = performance_level, 
@@ -66,43 +71,46 @@ student_level <- bind_rows(cdf) %>%
         last_name,
         first_name,
         grade,
+        gender,
         reported_race, 
         bhn_group = reported_race %in% c("Black or African American", "Hispanic/Latino", "American Indian/Alaska Native"),
-        economically_disadvantaged = economically_disadvantaged == "Y",
-        el = el == "Y",
-        el_recently_arrived = (el_arrived_year_1 == "Y" | el_arrived_year_2 == "Y"),
+        economically_disadvantaged,
+        el,
+        el_recently_arrived = (el_arrived_year_1 == 1 | el_arrived_year_2 == 1),
         t1234 = t1234 %in% 1:4,
-        special_ed = special_ed == "Y",
-        functionally_delayed = functionally_delayed == "Y",
+        special_ed,
+        functionally_delayed,
+        gifted,
+        migrant,
         enrolled_50_pct_district, 
         enrolled_50_pct_school,
         breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness,
         absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit
     ) %>%
     mutate_at(
-        .vars = vars(bhn_group, functionally_delayed, special_ed, economically_disadvantaged, el, t1234, el_recently_arrived),
+        .vars = vars(bhn_group, t1234, el_recently_arrived),
         .f = as.integer
     ) %>%
     rowwise() %>%
     # Apply testing flag hierarchy
     mutate(
         enrolled = case_when(
-            any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0L,
-            any(not_enrolled, not_scheduled) ~ 0L,
-            TRUE ~ 1L
+            any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0,
+            any(not_enrolled, not_scheduled) ~ 0,
+            TRUE ~ 1
         ),
         # EL Recently Arrived students with missing proficiency are not considered tested
         tested = case_when(
-            any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0L,
-            any(absent, not_enrolled, not_scheduled) ~ 0L,
-            el_recently_arrived == 1L & is.na(original_performance_level) ~ 0L,
-            TRUE ~ 1L
+            any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0,
+            any(absent, not_enrolled, not_scheduled) ~ 0,
+            el_recently_arrived == 1L & is.na(original_performance_level) ~ 0,
+            TRUE ~ 1
         ),
         # EL Recently Arrived students performance level are converted to missing
         performance_level = case_when(
             any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ NA_character_,
             any(absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, did_not_submit) ~ NA_character_,
-            el_recently_arrived == 1L ~ NA_character_,
+            el_recently_arrived == 1 ~ NA_character_,
             TRUE ~ performance_level
         ),
         # Modify subject for MSAA tests in grades >= 9 (6.8)
@@ -175,26 +183,36 @@ dedup <- student_level %>%
     ungroup() %>%
 # For students with multiple test records with the same original subject, performance level, scale score
 # Deduplicate by missing race/ethnicity (!)
-    add_count(state_student_id, original_subject, test, performance_level, scale_score, semester) %>%
-    filter(!(n > 1 & is.na(reported_race))) %>%
+    group_by(state_student_id, original_subject, test, performance_level, scale_score, semester) %>%
+    mutate(
+        n = n(),                           # Tag duplicates by id, subject, test, performance level, scale_score, semester
+        temp = mean(is.na(reported_race))  # Check whether one among duplicates has non-missing race/ethnicity
+    ) %>%
+    filter(!(n > 1 & temp != 0 & is.na(reported_race))) %>%
     ungroup() %>%
+    select(-n, -temp) %>%
 # For students multiple test records with the same original subject, performance level, scale score, demographics
 # Deduplicate for non-missing grade (!)
-    add_count(state_student_id, original_subject, test, performance_level, scale_score, semester, reported_race) %>%
-    filter(!(n > 1 & is.na(grade))) %>%
+    group_by(state_student_id, original_subject, test, performance_level, scale_score, semester, reported_race) %>%
+    mutate(
+        n = n(),                   # Tag duplicates by id, subject, test, performance, leve, scale_score, semester
+        temp = mean(is.na(grade))  # Check whether one among duplicates has non-missing race/ethnicity
+    ) %>%
+    filter(!(n > 1 & temp != 0 & is.na(grade))) %>%
     ungroup() %>%
+    select(-n, -temp) %>%
 # Valid test if there is a proficiency level
     mutate(valid_test = as.integer(!is.na(performance_level)))
 
 output <- dedup %>%
-    left_join(school_names, by = c("system", "school")) %>%
     select(
         system, system_name, school, school_name, test, original_subject, subject, semester,
         original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
-        state_student_id, last_name, first_name, grade, race, bhn_group, functionally_delayed, special_ed,
-        economically_disadvantaged, el, el_t1234, el_recently_arrived,
+        state_student_id, last_name, first_name, grade, gender, reported_race, bhn_group,
+        functionally_delayed, special_ed, economically_disadvantaged, gifted, migrant, el, t1234, el_recently_arrived,
         enrolled_50_pct_district, enrolled_50_pct_school, absent, refused_to_test, residential_facility
     ) %>%
+    mutate_at(vars(absent, refused_to_test, residential_facility), as.integer) %>%
 # Percentiles by grade and original subject for 3-8
     group_by(test, original_subject, grade) %>%
     mutate(
@@ -202,7 +220,7 @@ output <- dedup %>%
         denom = sum(!is.na(scale_score)),
         percentile = if_else(test == "Achievement", round5(100 * rank/denom, 1), NA_real_)
     ) %>%
-# Percentiles by original subject for 3-8
+# Percentiles by original subject for EOCs
     group_by(test, original_subject) %>%
     mutate(
         rank = if_else(!is.na(scale_score), rank(scale_score, ties = "max"), NA_integer_),
