@@ -1,25 +1,32 @@
 library(acct)
 library(tidyverse)
 
-student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv",
-        col_types = "iciccccccciiiidcciciiiiiiiicciiii") %>%
+student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv") %>%
 # Proficiency and subgroup indicators for collapse
-    rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, EL = el, T1234 = t1234) %>%
-    mutate_at(vars(BHN, ED, SWD, EL, T1234), as.logical) %>%
+    rename(
+        BHN = bhn_group,
+        ED = economically_disadvantaged,
+        SWD = special_ed,
+        EL = el,
+        T1234 = t1234,
+        Gifted = gifted,
+        Migrant = migrant
+    ) %>%
+    mutate_at(vars(BHN, ED, SWD, EL, T1234, Gifted, Migrant), as.logical) %>%
     mutate(
         year = 2019,
-        test = if_else(test %in% c("MSAA", "Alt-Science/Social Studies"), "MSAA/Alt-Science/Social Studies", test),
+        test = if_else(test %in% c("MSAA", "Alt-Social Studies"), "MSAA/Alt-Social Studies", test),
         n_below = if_else(performance_level %in% c("Below", "Below Basic"), 1L, NA_integer_),
         n_approaching = if_else(performance_level %in% c("Approaching", "Basic"), 1L, NA_integer_),
         n_on_track = if_else(performance_level %in% c("On Track", "Proficient"), 1L, NA_integer_),
         n_mastered = if_else(performance_level %in% c("Mastered", "Advanced"), 1L, NA_integer_),
         All = TRUE,
-        Asian = race == "Asian",
-        Black = race == "Black or African American",
-        Hawaiian = race == "Native Hawaiian/Pac. Islander",
-        Hispanic = race == "Hispanic/Latino",
-        Native = race == "American Indian/Alaska Native",
-        White = race == "White",
+        Asian = reported_race == "Asian",
+        Black = reported_race == "Black or African American",
+        Hawaiian = reported_race == "Native Hawaiian/Pac. Islander",
+        Hispanic = reported_race == "Hispanic/Latino",
+        Native = reported_race == "American Indian/Alaska Native",
+        White = reported_race == "White",
         EL_T1234 = EL | T1234,
         Non_BHN = !BHN,
         Non_ED = !ED,
@@ -42,7 +49,6 @@ collapse <- function(g, ...) {
         summarise_at(vars(enrolled, tested, valid_test, n_below, n_approaching, n_on_track, n_mastered), sum, na.rm = TRUE) %>%
         ungroup() %>%
         mutate(subgroup = deparse(g_quo), grade = "All Grades")
-        
 
     by_grade <- student_level %>%
         filter(!!g_quo) %>%
@@ -55,14 +61,17 @@ collapse <- function(g, ...) {
 
 }
 
+# State assessment file
 state <- map_dfr(
     .x = list(
         quo(All), quo(Asian), quo(Black), quo(Hawaiian), quo(Hispanic), quo(Native), quo(White),
         quo(BHN), quo(ED), quo(SWD), quo(EL), quo(T1234), quo(EL_T1234), 
-        quo(Non_BHN), quo(Non_ED), quo(Non_EL), quo(Non_SWD), quo(Super)
+        quo(Non_BHN), quo(Non_ED), quo(Non_EL), quo(Non_SWD), quo(Super),
+        quo(Male), quo(Female), quo(Migrant), quo(Gifted)
     ),
     .f = ~ collapse(!!., year, test, original_subject)
 ) %>%
+    rename(subject = original_subject, valid_tests = valid_test) %>%
     mutate(
         grade = if_else(grade == 0, "Missing Grade", grade),
         pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
@@ -100,17 +109,30 @@ state <- map_dfr(
         enrolled, tested, valid_tests, n_below, n_approaching, n_on_track, n_mastered, 
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
-# Residential facility students are dropped at the district level
+state_prior <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/state_assessment_file.csv") %>%
+    filter(year %in% 2017:2018, subject %in% state$subject, !(subject == "Social Studies" & grade %in% 3:5))
+
+state_assessment <- bind_rows(state, state_prior) %>%
+    mutate(system = 0, system_name = "State of Tennessee") %>%
+    select(year, system, system_name, everything()) %>%
+    arrange(subject, grade, subgroup, desc(year))
+
+write_csv(state_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/state_assessment_file.csv", na = "")
+
+# District assessment file
+# Residential facility students are dropped at the district and school level
 student_level <- filter(student_level, residential_facility == 0)
 
 district <- map_dfr(
     .x = list(
         quo(All), quo(Asian), quo(Black), quo(Hawaiian), quo(Hispanic), quo(Native), quo(White),
         quo(BHN), quo(ED), quo(SWD), quo(EL), quo(T1234), quo(EL_T1234), 
-        quo(Non_BHN), quo(Non_ED), quo(Non_EL), quo(Non_SWD), quo(Super)
+        quo(Non_BHN), quo(Non_ED), quo(Non_EL), quo(Non_SWD), quo(Super),
+        quo(Male), quo(Female), quo(Migrant), quo(Gifted)
     ),
-    .f = ~ collapse(!!., year, system, test, original_subject)
+    .f = ~ collapse(!!., year, system, system_name, test, original_subject)
 ) %>%
+    rename(subject = original_subject, valid_tests = valid_test) %>%
     mutate(
         grade = if_else(grade == 0, "Missing Grade", grade),
         pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
@@ -144,20 +166,27 @@ district <- map_dfr(
             subgroup == "~White" ~ "White"
         )
     ) %>%
-    select(year, system, test, subject, grade, subgroup,
+    select(year, system, system_name, test, subject, grade, subgroup,
         enrolled, tested, valid_tests, n_below, n_approaching, n_on_track, n_mastered, 
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
-# Residential facility and homebound students are dropped at the district level
-student_level <- filter(student_level, homebound == 0)
+district_prior <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/district_assessment_file.csv") %>%
+    filter(year %in% 2017:2018, subject %in% state$subject, !(subject == "Social Studies" & grade %in% 3:5))
 
+district_assessment <- bind_rows(district, district_prior) %>%
+    arrange(system, subject, grade, subgroup, desc(year))
+
+write_csv(district_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/district_assessment_file.csv", na = "")
+
+# School assessment file
 school <- map_dfr(
     .x = list(
         quo(All), quo(Asian), quo(Black), quo(Hawaiian), quo(Hispanic), quo(Native), quo(White),
         quo(BHN), quo(ED), quo(SWD), quo(EL), quo(T1234), quo(EL_T1234), 
-        quo(Non_BHN), quo(Non_ED), quo(Non_EL), quo(Non_SWD), quo(Super)
+        quo(Non_BHN), quo(Non_ED), quo(Non_EL), quo(Non_SWD), quo(Super),
+        quo(Male), quo(Female), quo(Migrant), quo(Gifted)
     ),
-    .f = ~ collapse(!!., year, system, school, test, original_subject)) %>%
+    .f = ~ collapse(!!., year, system, system_name, school, school_name, test, original_subject)) %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
     mutate(
         grade = if_else(grade == 0, "Missing Grade", grade),
@@ -192,40 +221,20 @@ school <- map_dfr(
             subgroup == "~White" ~ "White"
         )
     ) %>%
-    select(year, system, school, test, subject, grade, subgroup,
+    select(year, system, system_name, school, school_name, test, subject, grade, subgroup,
         enrolled, tested, valid_tests, n_below, n_approaching, n_on_track, n_mastered, 
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
-state_prior <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/state_assessment_file.csv") %>%
-    filter(year %in% 2017:2018)
-
-state_assessment <- bind_rows(state, state_prior) %>%
-    transmute(year, system = 0, system_name = "State of Tennessee", everything()) %>%
-    arrange(subject, grade, subgroup, desc(year))
-
-write_csv(state_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/state_assessment_file.csv")
-
-district_prior <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/district_assessment_file.csv") %>%
-    filter(year %in% 2017:2018)
-
-district_assessment <- bind_rows(district, district_prior) %>%
-    transmute(year, system = 0, system_name = "State of Tennessee", everything()) %>%
-    arrange(system, subject, grade, subgroup, desc(year))
-
-write_csv(district_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/district_assessment_file.csv")
-
 school_prior <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/school_assessment_file.csv") %>%
-    filter(year %in% 2017:2018)
-    
+    filter(year %in% 2017:2018, subject %in% state$subject, !(subject == "Social Studies" & grade %in% 3:5))
+
 school_assessment <- bind_rows(school, school_prior) %>%
-    left_join(school_names, by = c("system", "school")) %>%
-    select(year, system, system_name, school, school_name, everything()) %>%
     arrange(system, school, subject, grade, subgroup, desc(year)) %>%
 # Drop schools with only prior year data
     group_by(system, school) %>%
     mutate(temp = max(year)) %>%
-    ungroup() %>%
     filter(temp == 2019) %>%
+    ungroup() %>%
     select(-temp)
 
-write_csv(school_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/school_assessment_file.csv")
+write_csv(school_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/school_assessment_file.csv", na = "")
