@@ -26,8 +26,8 @@ collapse <- function(s, ...) {
         group_by(...) %>%
         summarise(
             n_count = n(),
-            n_ready_grad = sum(ready_graduate == "Y", na.rm = TRUE),
-            pct_ready_grad = round5(100 * mean(ready_graduate == "Y", na.rm = TRUE), 1)
+            n_ready_grad = sum(ready_graduate == "Y" & completion_type %in% c(1, 11, 12, 13), na.rm = TRUE),
+            pct_ready_grad = round5(100 * mean(ready_graduate == "Y" & completion_type %in% c(1, 11, 12, 13), na.rm = TRUE), 1)
         ) %>%
         mutate(subgroup = deparse(s_quo)) %>%
         ungroup()
