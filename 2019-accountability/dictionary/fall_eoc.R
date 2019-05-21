@@ -16,6 +16,7 @@ layout <- tribble(
     377, 377, "test_mode",
     378, 378, "attempted",
     379, 380, "modified_format",
+    390, 409, "teacher_of_record_tln",
     592, 593, "reason_not_tested",
     594, 595, "ri_status",
 
@@ -28,8 +29,8 @@ layout <- tribble(
 )
 
 # Read in cdf according to layout
-cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/Fall EOC 2018/2018-2019 TN 2019 Fall EOC CDF Final Scores-20190211.txt",
-    col_types = "iciccccdiicccciiiiciic",
+cdf <- read_fwf("N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/Fall EOC 2018/2018-2019 TN 2019 Fall EOC CDF Final Scores-20190211.txt",
+    col_types = "iciccccdiccccdiiiiciic",
     col_positions = fwf_positions(
         start = layout$start,
         end = layout$end,
@@ -59,6 +60,7 @@ demographics <- read_csv("N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/
         el_arrived_year_1 = elrecentlyarrivedyearone,
         el_arrived_year_2 = elrecentlyarrivedyeartwo,
         gender,
+        gifted = isgifted,
         migrant = ismigrant,
         title_1 = title1,
         special_ed = specialeducation,
@@ -75,7 +77,8 @@ cdf_with_demographics <- left_join(cdf, demographics, by = c("unique_student_id"
     filter(
         system <= 986,  # Private School districts
         school != 981,  # Homeschool
-        grade %in% 3:12 | is.na(grade)
-    )
+        grade %in% 1:12 | is.na(grade)  # Grade 13
+    ) %>%
+    mutate(grade = if_else(grade %in% 1:2, NA_integer_, grade))
 
 write_csv(cdf_with_demographics, path = "N:/ORP_accountability/data/2019_cdf/2019_fall_eoc_cdf.csv")
