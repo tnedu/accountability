@@ -204,6 +204,10 @@ dedup <- student_level %>%
 # Valid test if there is a proficiency level
     mutate(valid_test = as.integer(!is.na(performance_level)))
 
+# Reassigned schools for accountability
+enrollment <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv") %>%
+    mutate_at(vars(acct_system, acct_school), as.integer)
+
 output <- dedup %>%
     select(
         system, system_name, school, school_name, test, original_subject, subject, semester,
@@ -229,6 +233,12 @@ output <- dedup %>%
     ) %>%
     ungroup() %>%
     select(-rank, -denom) %>%
-    arrange(system, school, state_student_id)
+    arrange(system, school, state_student_id) %>%
+# Add system and school for accountability purposes
+    left_join(enrollment, by = c("state_student_id" = "student_id")) %>%
+    mutate(
+        acct_system = if_else(is.na(acct_system), system, acct_system),
+        acct_school = if_else(is.na(acct_school), school, acct_school)
+    )
 
 write_csv(output, "N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv", na = "")

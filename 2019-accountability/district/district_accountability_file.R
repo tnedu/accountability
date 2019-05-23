@@ -2,29 +2,29 @@ library(acct)
 library(janitor)
 library(tidyverse)
 
-# TVAAS for Success Rate VA
-tvaas <- readxl::read_excel("N:/ORP_accountability/data/2019_tvaas/2019-District-Level-Accountability-Results-EOC-TCAP.xlsx") %>%
-    clean_names() %>%
-    mutate(
-        grade = case_when(
-            grade %in% c("Grades 3-5", "Grades 4-5") ~ "3rd through 5th",
-            grade == "Grades 6-8" ~ "6th through 8th",
-            grade == "Grades 9-12" ~ "9th through 12th"
-        ),
-        subgroup = if_else(subgroup == "English Learners (includes EL and T1-T4)", "English Learners with Transitional 1-4", subgroup)
-    ) %>%
-# Take better of with and without grade 3
-    group_by(system_number, subgroup, grade) %>%
-    mutate(temp = max(index)) %>%
-    ungroup() %>%
-    filter(temp == index) %>%
-    transmute(
-        system = as.numeric(system_number),
-        subgroup,
-        grade,
-        value_add_metric = level
-    ) %>%
-    distinct()
+# # TVAAS for Success Rate VA
+# tvaas <- readxl::read_excel("N:/ORP_accountability/data/2019_tvaas/2019-District-Level-Accountability-Results-EOC-TCAP.xlsx") %>%
+#     clean_names() %>%
+#     mutate(
+#         grade = case_when(
+#             grade %in% c("Grades 3-5", "Grades 4-5") ~ "3rd through 5th",
+#             grade == "Grades 6-8" ~ "6th through 8th",
+#             grade == "Grades 9-12" ~ "9th through 12th"
+#         ),
+#         subgroup = if_else(subgroup == "English Learners (includes EL and T1-T4)", "English Learners with Transitional 1-4", subgroup)
+#     ) %>%
+# # Take better of with and without grade 3
+#     group_by(system_number, subgroup, grade) %>%
+#     mutate(temp = max(index)) %>%
+#     ungroup() %>%
+#     filter(temp == index) %>%
+#     transmute(
+#         system = as.numeric(system_number),
+#         subgroup,
+#         grade,
+#         value_add_metric = level
+#     ) %>%
+#     distinct()
 
 # Success Rates
 amo_ach <- read_csv("N:/ORP_accountability/projects/2019_amo/success_rate_targets_district.csv") %>%
@@ -69,17 +69,18 @@ collapse <- function(g) {
 
     student_level %>%
         filter(!!g_quo) %>%
-        group_by(system, subject, grade) %>%
+        group_by(acct_system, subject, grade) %>%
         summarise_at(c("enrolled", "tested", "valid_test", "ot_m"), sum, na.rm = TRUE) %>%
-        mutate(subgroup = deparse(g_quo))
+        mutate(subgroup = deparse(g_quo)) %>%
+        ungroup()
 
 }
 
-success_rates <- map_dfr(
+ach <- map_dfr(
     .x = list(quo(All), quo(BHN), quo(ED), quo(SWD), quo(EL_T1234)),
     .f = ~ collapse(!!.)
 ) %>%
-    rename(valid_tests = valid_test) %>%
+    rename(system = acct_system, valid_tests = valid_test) %>%
     # bind_rows(ACT_substitution) %>%
     mutate(
         subgroup = case_when(
@@ -105,7 +106,7 @@ success_rates <- map_dfr(
     ungroup() %>%
     mutate(metric = if_else(valid_tests != 0, round5(100 * ot_m/valid_tests, 1), NA_real_)) %>%
     left_join(amo_ach, by = c("system", "subgroup", "grade")) %>%
-    full_join(tvaas, by = c("system", "subgroup", "grade")) %>%
+    # full_join(tvaas, by = c("system", "subgroup", "grade")) %>%
     transmute(
         system,
         indicator = "Achievement",
@@ -131,14 +132,14 @@ success_rates <- map_dfr(
             ci_bound > metric_prior ~ 1,
             ci_bound <= metric_prior ~ 0
         ),
-        value_add_metric,
-        value_add_pathway = case_when(
-            value_add_metric == 5 ~ 4,
-            value_add_metric == 4 ~ 3,
-            value_add_metric == 3 ~ 2,
-            value_add_metric == 2 ~ 1,
-            value_add_metric == 1 ~ 0
-        )
+        # value_add_metric,
+        # value_add_pathway = case_when(
+        #     value_add_metric == 5 ~ 4,
+        #     value_add_metric == 4 ~ 3,
+        #     value_add_metric == 3 ~ 2,
+        #     value_add_metric == 2 ~ 1,
+        #     value_add_metric == 1 ~ 0
+        # )
     )
 
 # Grad
@@ -185,6 +186,7 @@ grad <- read_csv("N:/ORP_accountability/data/2018_graduation_rate/district_grad_
 
 # Absenteeism
 amo_abs <- read_csv("N:/ORP_accountability/projects/2019_amo/absenteeism_targets_district_primary_enrollment.csv") %>%
+    filter(grade_band == "All Grades") %>%
     transmute(
         system,
         subgroup,
@@ -195,11 +197,12 @@ amo_abs <- read_csv("N:/ORP_accountability/projects/2019_amo/absenteeism_targets
 
 abs_va <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/district_absenteeism_va.csv")
 
-abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/system_chronic_absenteeism.csv",
-        col_types = "icicccdid") %>%
+abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/district_chronic_absenteeism.csv") %>%
+    filter(grade_band == "All Grades", subgroup %in% ach$subgroup) %>%
     transmute(
         system,
         indicator = "Chronic Absenteeism",
+        grade = grade_band,
         subgroup,
         n_count = if_else(n_students < 30, 0, n_students),
         metric = if_else(n_count < 30, NA_real_, pct_chronically_absent),
@@ -225,37 +228,37 @@ abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/system_chro
     full_join(abs_va, by = c("system", "subgroup"))
 
 # ELPA
-amo_elpa <- read_csv("N:/ORP_accountability/projects/2019_amo/elpa_district.csv")
+# amo_elpa <- read_csv("N:/ORP_accountability/projects/2019_amo/elpa_district.csv")
 
-elpa_va <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/district_elpa_va.csv")
+# elpa_va <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/district_elpa_va.csv")
 
-elpa <- read_csv("N:/ORP_accountability/data/2018_ELPA/wida_growth_standard_district.csv") %>%
-    filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
-        "English Learners", "Students with Disabilities")) %>%
-    transmute(
-        system,
-        indicator = "ELPA Growth Standard",
-        subgroup,
-        n_count = if_else(growth_standard_denom < 30, 0L, growth_standard_denom),
-        metric = if_else(n_count < 30, NA_real_, pct_met_growth_standard),
-        score_abs = case_when(
-            metric >= 60 ~ 4,
-            metric >= 50 ~ 3,
-            metric >= 40 ~ 2,
-            metric >= 25 ~ 1,
-            metric < 25 ~ 0
-        ),
-        score_target = case_when(
-            metric <= AMO_target_double ~ 4,
-            metric <= AMO_target ~ 3,
-            ci_bound <= AMO_target ~ 2,
-            ci_bound < metric_prior ~ 1,
-            ci_bound >= metric_prior ~ 0
-        )
-    ) %>%
-    full_join(elpa_va, by = c("system", "subgroup"))
+# elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_district.csv") %>%
+#     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
+#         "English Learners", "Students with Disabilities")) %>%
+#     transmute(
+#         system,
+#         indicator = "ELPA Growth Standard",
+#         subgroup,
+#         n_count = if_else(growth_standard_denom < 30, 0L, growth_standard_denom),
+#         metric = if_else(n_count < 30, NA_real_, pct_met_growth_standard),
+#         score_abs = case_when(
+#             metric >= 60 ~ 4,
+#             metric >= 50 ~ 3,
+#             metric >= 40 ~ 2,
+#             metric >= 25 ~ 1,
+#             metric < 25 ~ 0
+#         ),
+#         score_target = case_when(
+#             metric <= AMO_target_double ~ 4,
+#             metric <= AMO_target ~ 3,
+#             ci_bound <= AMO_target ~ 2,
+#             ci_bound < metric_prior ~ 1,
+#             ci_bound >= metric_prior ~ 0
+#         )
+#     ) %>%
+#     full_join(elpa_va, by = c("system", "subgroup"))
 
-district_accountability <- bind_rows(success_rates, grad, absenteeism, elpa) %>%
+district_accountability <- bind_rows(ach, grad, abs, elpa) %>%
     rowwise() %>%
     mutate(
         overall_score = mean(c(mean(c(absolute_pathway, AMO_pathway), na.rm = TRUE), value_add_pathway), na.rm = TRUE),

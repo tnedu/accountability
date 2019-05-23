@@ -29,21 +29,10 @@ student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_fil
         Super = BHN | ED | SWD | EL_T1234
     )
 
-# int_math_systems <- student_level %>%
-#     filter(original_subject %in% c("Algebra I", "Integrated Math I")) %>%
-#     count(system, original_subject) %>%
-#     group_by(system) %>%
-#     mutate(temp = max(n)) %>%
-#     filter(n == temp, original_subject == "Integrated Math I") %>%
-#     magrittr::extract2("system")
-
 # ACT_substitution <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/act_substitution_school.csv") %>%
 #     transmute(
 #         system, school,
-#         subject = case_when(
-#             subject == "ACT Math" & system %in% int_math_systems ~ "Integrated Math III",
-#             subject == "ACT Math" & !system %in% int_math_systems ~ "Algebra II"
-#         ),
+#         subject = "HS Math"
 #         grade = 11,
 #         subgroup = "All",
 #         valid_tests, 
@@ -56,7 +45,7 @@ collapse <- function(g) {
 
     student_level %>%
         filter(!!g_quo) %>%
-        group_by(system, school, test, subject, grade) %>%
+        group_by(acct_system, acct_school, test, subject, grade) %>%
         summarise_at(c("enrolled", "tested", "valid_test", "ot_m"), sum, na.rm = TRUE) %>%
         ungroup() %>% 
         mutate(subgroup = deparse(g_quo))
@@ -70,7 +59,7 @@ ach <- map_dfr(
     ),
     .f = ~ collapse(!!.)
 ) %>% 
-    rename(valid_tests = valid_test) %>%
+    rename(system = acct_system, school = acct_school, valid_tests = valid_test) %>%
     # bind_rows(ACT_substitution) %>%
     mutate(
         subgroup = case_when(
@@ -89,11 +78,11 @@ ach <- map_dfr(
         ),
         subject = case_when(
             subject %in% english_eoc ~ "HS English",
-            subject %in% math_eoc ~ "HS Math"
+            subject %in% c(math_eoc, "HS Math") ~ "HS Math"
         )
     ) %>%
 # Aggregate HS Math/English
-    group_by(system, subject, subgroup, grade) %>%
+    group_by(system, school, subject, subgroup, grade) %>%
     summarise_at(c("valid_tests", "ot_m"), sum, na.rm = TRUE) %>%
     ungroup() %>%
 # Suppress subjects with n < 30
@@ -142,16 +131,15 @@ amo_abs <- read_csv("N:/ORP_accountability/projects/2019_amo/absenteeism_targets
         AMO_target_double
     )
 
-abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/school_chronic_absenteeism.csv",
-         col_types = "iicicccdid") %>%
-    left_join(pools, by = c("system", "school")) %>%
+abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/school_chronic_absenteeism.csv") %>%
+    # left_join(pools, by = c("system", "school")) %>%
     transmute(
         system, school, pool, indicator = "Chronic Absenteeism", subgroup,
         n_count = if_else(n_students < 30, 0, n_students),
         metric = if_else(n_count < 30, NA_real_, pct_chronically_absent),
         ci_bound = if_else(n_students >= 30, ci_lower_bound(n_count, metric), NA_real_)
     ) %>%
-    left_join(amo_absenteeism, by = c("system", "school", "subgroup")) %>%
+    left_join(amo_abs, by = c("system", "school", "subgroup")) %>%
     mutate(
         score_abs = case_when(
             pool == "K8" & metric <= 6 ~ 4,
@@ -174,8 +162,7 @@ abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/school_chro
         ),
     # Schools need both absolute and AMO to get a grade
         score = pmax(score_abs, score_target)
-    ) %>%
-    select(-pool)
+    )
 
 # Graduation Rate
 amo_grad <- read_csv("N:/ORP_accountability/projects/2019_amo/grad_school.csv") %>%
@@ -260,6 +247,6 @@ ready_grad <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/
         score = pmax(score_abs, score_target)
     )
 
-bind_rows(ach, grad, ready_grad) %>%
+bind_rows(ach, grad, ready_grad, abs) %>%
     arrange(system, school, indicator, subgroup) %>%
     write_csv("N:/ORP_accountability/data/2019_final_accountability_files/school_accountability_file.csv", na = "")
