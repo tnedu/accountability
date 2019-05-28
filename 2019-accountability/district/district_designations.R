@@ -50,7 +50,7 @@ subgroups_overall <- subgroups %>%
     group_by(system) %>%
     summarise(subgroup_average = mean(overall_score, na.rm = TRUE))
 
-districts_final <- minimum_performance %>%
+final <- minimum_performance %>%
     left_join(all_students_overall, by = "system") %>%
     left_join(subgroups_overall, by = "system") %>%
     transmute(
@@ -81,4 +81,4 @@ districts_final <- minimum_performance %>%
     ) %>%
     mutate_at(c("achievement_average", "subgroup_average", "overall_average"), ~ if_else(is.nan(.), NA_real_, .))
 
-write_csv(districts_final, path = "N:/ORP_accountability/data/2019_final_accountability_files/district_determinations.csv", na = "")
+write_csv(final, path = "N:/ORP_accountability/data/2019_final_accountability_files/district_determinations.csv", na = "")

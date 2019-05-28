@@ -1,7 +1,18 @@
 library(acct)
 library(tidyverse)
 
-t1234 <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_student_level_file.csv") %>%
+t1234 <- read_csv("N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv") %>%
+    filter(
+        t1234 == 1,
+        original_subject %in% c("ELA", "English I", "English II", "English III"),
+        enrolled_50_pct_district == "Y",
+        residential_facility == 0
+    ) %>%
+    rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, T1234 = t1234) %>%
+    mutate_at(vars(BHN, ED, SWD, T1234), as.logical) %>%
+    mutate(All = TRUE)
+
+t1234_prior <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_student_level_file.csv") %>%
     filter(
         el_t1234 == 1,
         original_subject %in% c("ELA", "English I", "English II", "English III"),
@@ -9,17 +20,6 @@ t1234 <- read_csv("N:/ORP_accountability/projects/2018_student_level_file/2018_s
         residential_facility == 0
     ) %>%
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, T1234 = el_t1234) %>%
-    mutate_at(vars(BHN, ED, SWD, T1234), as.logical) %>%
-    mutate(All = TRUE)
-    
-t1234_prior <- read_csv("N:/ORP_accountability/projects/2017_student_level_file/state_student_level_2017_oct19.csv") %>%
-    filter(
-        el_t1_t2 == 1,
-        original_subject %in% c("ELA", "English I", "English II", "English III"),
-        greater_than_60_pct == "Y",
-        residential_facility == 0
-    ) %>%
-    rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, T1234 = el_t1_t2) %>%
     mutate_at(vars(BHN, ED, SWD, T1234), as.logical) %>%
     mutate(All = TRUE)
 

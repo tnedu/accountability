@@ -182,7 +182,7 @@ grad <- read_csv("N:/ORP_accountability/data/2018_graduation_rate/district_grad_
         )
     ) %>%
     full_join(grad_va, by = c("system", "subgroup", "indicator")) %>%
-    filter(!system %in% c(0, 90), subgroup %in% unique(amo_grad$subgroup))
+    filter(system != 90, subgroup %in% unique(amo_grad$subgroup))
 
 # Absenteeism
 amo_abs <- read_csv("N:/ORP_accountability/projects/2019_amo/absenteeism_targets_district_primary_enrollment.csv") %>%

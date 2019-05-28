@@ -16,12 +16,18 @@ prior <- read_csv("N:/ORP_accountability/data/2018_chronic_absenteeism/student_c
 
 current <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/student_chronic_absenteeism.csv") %>%
     filter(str_length(student_id) == 7) %>%
-    # Collapse multiple enrollments in the same district
-    group_by(system, system_name, student_id, Black, Hispanic, Native, ED, SWD, EL) %>%
+# Collapse multiple enrollments in the same district
+    group_by(system, system_name, student_id) %>%
     summarise(
         n_absences = sum(n_absences, na.rm = TRUE),
         isp_days = sum(isp_days, na.rm = TRUE),
-        instructional_calendar_days = max(instructional_calendar_days)
+        instructional_calendar_days = max(instructional_calendar_days),
+        Black = max(Black, na.rm = TRUE),
+        Hispanic = max(Hispanic, na.rm = TRUE),
+        Native = max(Native, na.rm = TRUE),
+        ED = max(ED, na.rm = TRUE),
+        SWD = max(SWD, na.rm = TRUE),
+        EL = max(EL, na.rm = TRUE)
     ) %>%
     ungroup() %>%
     filter(isp_days/instructional_calendar_days >= 0.5) %>%
@@ -74,7 +80,7 @@ abs_va <- map_dfr(
             subgroup == "~BHN" ~ "Black/Hispanic/Native American",
             subgroup == "~ED" ~ "Economically Disadvantaged",
             subgroup == "~SWD" ~ "Students with Disabilities",
-            subgroup == "~EL" ~ "English Learners",
+            subgroup == "~EL" ~ "English Learners with Transitional 1-4",
         ),
         value_add_metric,
         value_add_pathway
