@@ -73,7 +73,7 @@ state <- map_dfr(
 ) %>%
     rename(subject = original_subject, valid_tests = valid_test) %>%
     mutate(
-        grade = if_else(grade == 0, "Missing Grade", grade),
+        grade = if_else(is.na(grade), "Missing Grade", grade),
         pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
         pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
         pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
@@ -91,10 +91,14 @@ state <- map_dfr(
             subgroup == "~BHN" ~ "Black/Hispanic/Native American",
             subgroup == "~ED" ~ "Economically Disadvantaged",
             subgroup == "~EL" ~ "English Learners",
+            subgroup == "~Female" ~ "Female",
+            subgroup == "~Gifted" ~ "Gifted",
             subgroup == "~T1234" ~ "English Learner Transitional 1-4",
             subgroup == "~EL_T1234" ~ "English Learners with Transitional 1-4",
             subgroup == "~Hawaiian" ~ "Native Hawaiian or Other Pacific Islander",
             subgroup == "~Hispanic" ~ "Hispanic",
+            subgroup == "~Male" ~ "Male",
+            subgroup == "~Migrant" ~ "Migrant",
             subgroup == "~Native" ~ "American Indian or Alaska Native",
             subgroup == "~Non_BHN" ~ "Non-Black/Hispanic/Native American",
             subgroup == "~Non_ED" ~ "Non-Economically Disadvantaged",
@@ -134,7 +138,7 @@ district <- map_dfr(
 ) %>%
     rename(subject = original_subject, valid_tests = valid_test) %>%
     mutate(
-        grade = if_else(grade == 0, "Missing Grade", grade),
+        grade = if_else(is.na(grade), "Missing Grade", grade),
         pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
         pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
         pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
@@ -152,10 +156,14 @@ district <- map_dfr(
             subgroup == "~BHN" ~ "Black/Hispanic/Native American",
             subgroup == "~ED" ~ "Economically Disadvantaged",
             subgroup == "~EL" ~ "English Learners",
+            subgroup == "~Female" ~ "Female",
+            subgroup == "~Gifted" ~ "Gifted",
             subgroup == "~T1234" ~ "English Learner Transitional 1-4",
             subgroup == "~EL_T1234" ~ "English Learners with Transitional 1-4",
             subgroup == "~Hawaiian" ~ "Native Hawaiian or Other Pacific Islander",
             subgroup == "~Hispanic" ~ "Hispanic",
+            subgroup == "~Male" ~ "Male",
+            subgroup == "~Migrant" ~ "Migrant",
             subgroup == "~Native" ~ "American Indian or Alaska Native",
             subgroup == "~Non_BHN" ~ "Non-Black/Hispanic/Native American",
             subgroup == "~Non_ED" ~ "Non-Economically Disadvantaged",
@@ -189,7 +197,7 @@ school <- map_dfr(
     .f = ~ collapse(!!., year, system, system_name, school, school_name, test, original_subject)) %>%
     rename(valid_tests = valid_test, subject = original_subject) %>%
     mutate(
-        grade = if_else(grade == 0, "Missing Grade", grade),
+        grade = if_else(is.na(grade), "Missing Grade", grade),
         pct_approaching = if_else(valid_tests != 0, round5(100 * n_approaching/valid_tests, 1), NA_real_),
         pct_on_track = if_else(valid_tests != 0, round5(100 * n_on_track/valid_tests, 1), NA_real_),
         pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
@@ -207,10 +215,14 @@ school <- map_dfr(
             subgroup == "~BHN" ~ "Black/Hispanic/Native American",
             subgroup == "~ED" ~ "Economically Disadvantaged",
             subgroup == "~EL" ~ "English Learners",
+            subgroup == "~Female" ~ "Female",
+            subgroup == "~Gifted" ~ "Gifted",
             subgroup == "~T1234" ~ "English Learner Transitional 1-4",
             subgroup == "~EL_T1234" ~ "English Learners with Transitional 1-4",
             subgroup == "~Hawaiian" ~ "Native Hawaiian or Other Pacific Islander",
             subgroup == "~Hispanic" ~ "Hispanic",
+            subgroup == "~Male" ~ "Male",
+            subgroup == "~Migrant" ~ "Migrant",
             subgroup == "~Native" ~ "American Indian or Alaska Native",
             subgroup == "~Non_BHN" ~ "Non-Black/Hispanic/Native American",
             subgroup == "~Non_ED" ~ "Non-Economically Disadvantaged",
