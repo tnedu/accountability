@@ -228,35 +228,44 @@ abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/district_ch
     full_join(abs_va, by = c("system", "subgroup"))
 
 # ELPA
-# amo_elpa <- read_csv("N:/ORP_accountability/projects/2019_amo/elpa_district.csv")
+amo_elpa <- read_csv("N:/ORP_accountability/projects/2019_amo/elpa_district.csv") %>%
+    transmute(
+        system,
+        subgroup = if_else(subgroup == "English Learners", "English Learners with Transitional 1-4", subgroup),
+        metric_prior = if_else(growth_standard_denom >= 30, pct_met_growth_standard, NA_real_),
+        AMO_target, 
+        AMO_target_double
+    )
 
-# elpa_va <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/district_elpa_va.csv")
+elpa_va <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/district_elpa_va.csv")
 
-# elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_district.csv") %>%
-#     filter(subgroup %in% c("All Students", "Black/Hispanic/Native American", "Economically Disadvantaged",
-#         "English Learners", "Students with Disabilities")) %>%
-#     transmute(
-#         system,
-#         indicator = "ELPA Growth Standard",
-#         subgroup,
-#         n_count = if_else(growth_standard_denom < 30, 0L, growth_standard_denom),
-#         metric = if_else(n_count < 30, NA_real_, pct_met_growth_standard),
-#         score_abs = case_when(
-#             metric >= 60 ~ 4,
-#             metric >= 50 ~ 3,
-#             metric >= 40 ~ 2,
-#             metric >= 25 ~ 1,
-#             metric < 25 ~ 0
-#         ),
-#         score_target = case_when(
-#             metric <= AMO_target_double ~ 4,
-#             metric <= AMO_target ~ 3,
-#             ci_bound <= AMO_target ~ 2,
-#             ci_bound < metric_prior ~ 1,
-#             ci_bound >= metric_prior ~ 0
-#         )
-#     ) %>%
-#     full_join(elpa_va, by = c("system", "subgroup"))
+elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_district.csv") %>%
+    filter(subgroup %in% unique(ach$subgroup)) %>%
+    left_join(amo_elpa, by = c("system", "subgroup")) %>%
+    full_join(elpa_va, by = c("system", "subgroup")) %>%
+    transmute(
+        system,
+        indicator = "ELPA Growth Standard",
+        grade = "All Grades",
+        subgroup,
+        n_count = if_else(growth_standard_denom < 30, 0, growth_standard_denom),
+        metric = if_else(n_count < 30, NA_real_, pct_met_growth_standard),
+        ci_bound = ci_upper_bound(n_count, metric),
+        score_abs = case_when(
+            metric >= 60 ~ 4,
+            metric >= 50 ~ 3,
+            metric >= 40 ~ 2,
+            metric >= 25 ~ 1,
+            metric < 25 ~ 0
+        ),
+        score_target = case_when(
+            metric <= AMO_target_double ~ 4,
+            metric <= AMO_target ~ 3,
+            ci_bound <= AMO_target ~ 2,
+            ci_bound < metric_prior ~ 1,
+            ci_bound >= metric_prior ~ 0
+        )
+    )
 
 district_accountability <- bind_rows(ach, grad, abs, elpa) %>%
     rowwise() %>%

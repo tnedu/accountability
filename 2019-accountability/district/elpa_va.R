@@ -56,7 +56,7 @@ collapse <- function(df, g) {
         filter(!!g_quo) %>%
         group_by(system) %>%
         summarise(
-            former_el_ot_m = sum(proficiency_level %in% c("3. On Track", "4. Mastered"), na.rm = TRUE),
+            former_el_ot_m = sum(performance_level %in% c("On Track", "Mastered"), na.rm = TRUE),
             valid_tests = sum(valid_test, na.rm = TRUE)
         ) %>%
         ungroup() %>%
@@ -96,10 +96,8 @@ el_va <- left_join(current, prior, by = c("system", "subgroup")) %>%
             subgroup == "~BHN" ~ "Black/Hispanic/Native American",
             subgroup == "~ED" ~ "Economically Disadvantaged",
             subgroup == "~SWD" ~ "Students with Disabilities",
-            subgroup == "~T1234" ~ "English Learners",
+            subgroup == "~T1234" ~ "English Learners with Transitional 1-4",
         ),
-        grade = "All Grades",
-        indicator = "ELPA",
         value_add_metric,
         value_add_pathway
     )

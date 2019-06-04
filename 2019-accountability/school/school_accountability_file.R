@@ -247,6 +247,24 @@ ready_grad <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/
         score = pmax(score_abs, score_target)
     )
 
-bind_rows(ach, grad, ready_grad, abs) %>%
+elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_school.csv") %>%
+    filter(subgroup %in% unique(ach$subgroup)) %>%
+    transmute(
+        system,
+        school,
+        indicator = "ELPA Growth Standard",
+        subgroup,
+        n_count = if_else(growth_standard_denom < 10, 0, growth_standard_denom),
+        metric = if_else(n_count < 10, NA_real_, pct_met_growth_standard),
+        score_abs = case_when(
+            metric >= 60 ~ 4,
+            metric >= 50 ~ 3,
+            metric >= 40 ~ 2,
+            metric >= 25 ~ 1,
+            metric < 25 ~ 0
+        )
+    )
+
+bind_rows(ach, grad, ready_grad, abs, elpa) %>%
     arrange(system, school, indicator, subgroup) %>%
     write_csv("N:/ORP_accountability/data/2019_final_accountability_files/school_accountability_file.csv", na = "")
