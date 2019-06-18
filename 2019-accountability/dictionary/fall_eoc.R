@@ -39,7 +39,7 @@ cdf <- read_fwf("N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/Fall EOC 
 )
 
 # Demographic file
-demographics <- read_csv("N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/Demographic Files/fall_eoc_demographics_snapshot_20181208.csv") %>%
+demographics <- read_csv("N:/TNReady/2018-19/spring/demographics/spring_2019_assessment_demographics_combined_pull_20190610.csv") %>%
 # Student IDs should be 7 digits
     filter(str_length(student_key) == 7) %>%
     transmute(
