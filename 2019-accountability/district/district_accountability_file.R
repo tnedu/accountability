@@ -97,12 +97,12 @@ ach <- map_dfr(
     ) %>%
 # Aggregate HS Math/English
     group_by(system, subject, subgroup, grade) %>%
-    summarise_at(c("valid_tests", "ot_m"), sum, na.rm = TRUE) %>%
+    summarise_at(c("enrolled", "tested", "valid_tests", "ot_m"), sum, na.rm = TRUE) %>%
     ungroup() %>%
 # Suppress subjects with n < 30
-    mutate_at(c("valid_tests", "ot_m"), ~ if_else(valid_tests < 30, 0L, as.integer(.))) %>%
+    mutate_at(c("enrolled", "tested", "valid_tests", "ot_m"), ~ if_else(valid_tests < 30, 0L, as.integer(.))) %>%
     group_by(system, subgroup, grade) %>%
-    summarise_at(c("valid_tests", "ot_m"), sum, na.rm = TRUE) %>%
+    summarise_at(c("enrolled", "tested", "valid_tests", "ot_m"), sum, na.rm = TRUE) %>%
     ungroup() %>%
     mutate(metric = if_else(valid_tests != 0, round5(100 * ot_m/valid_tests, 1), NA_real_)) %>%
     left_join(amo_ach, by = c("system", "subgroup", "grade")) %>%
@@ -112,6 +112,7 @@ ach <- map_dfr(
         indicator = "Achievement",
         grade,
         subgroup,
+        participation_rate = if_else(enrolled != 0, round5(100 * tested/enrolled), NA_real_),
         n_count = valid_tests,
         metric,
         metric_prior,
@@ -119,6 +120,7 @@ ach <- map_dfr(
         AMO_target,
         AMO_target_double,
         absolute_pathway = case_when(
+            participation_rate < 95 ~ 0,
             metric >= 45 ~ 4,
             metric >= 35 ~ 3,
             metric >= 27.5 ~ 2,
@@ -126,6 +128,7 @@ ach <- map_dfr(
             metric < 20 ~ 0
         ),
         AMO_pathway = case_when(
+            participation_rate < 95 ~ 0,
             metric >= AMO_target_double ~ 4,
             metric >= AMO_target ~ 3,
             ci_bound >= AMO_target ~ 2,
@@ -154,12 +157,19 @@ amo_grad <- read_csv("N:/ORP_accountability/projects/2019_amo/grad_district.csv"
 
 grad_va <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/district_grad_va.csv")
 
+act_participation <- haven::read_dta("N:/ORP_accountability/data/2018_ACT/ACT_district2019.dta") %>%
+    mutate(subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with Transitional 1-4", subgroup)) %>%
+    filter(subgroup %in% ach$subgroup) %>%
+    transmute(system, subgroup, participation_rate = if_else(enrolled >= 30, participation_rate, NA_real_))
+
 grad <- read_csv("N:/ORP_accountability/data/2018_graduation_rate/district_grad_rate.csv") %>%
+    left_join(act_participation, by = c("system", "subgroup")) %>%
     transmute(
         system,
         indicator = "Graduation Rate",
         grade = "All Grades",
         subgroup,
+        participation_rate,
         n_count = if_else(grad_cohort < 30, 0, grad_cohort),
         metric = if_else(n_count < 30, NA_real_, grad_rate),
         ci_bound = ci_upper_bound(n_count, metric)
@@ -167,6 +177,7 @@ grad <- read_csv("N:/ORP_accountability/data/2018_graduation_rate/district_grad_
     left_join(amo_grad, by = c("system", "subgroup")) %>%
     mutate(
         absolute_pathway = case_when(
+            participation_rate < 95 ~ 0,
             metric >= 95 ~ 4,
             metric >= 90 ~ 3,
             metric >= 80 ~ 2,
@@ -174,6 +185,7 @@ grad <- read_csv("N:/ORP_accountability/data/2018_graduation_rate/district_grad_
             metric < 67 ~ 0
         ),
         AMO_pathway = case_when(
+            participation_rate < 95 ~ 0,
             metric >= AMO_target_double ~ 4,
             metric >= AMO_target ~ 3,
             ci_bound >= AMO_target ~ 2,
@@ -251,14 +263,14 @@ elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_dist
         n_count = if_else(growth_standard_denom < 30, 0, growth_standard_denom),
         metric = if_else(n_count < 30, NA_real_, pct_met_growth_standard),
         ci_bound = ci_upper_bound(n_count, metric),
-        score_abs = case_when(
+        absolute_pathway = case_when(
             metric >= 60 ~ 4,
             metric >= 50 ~ 3,
             metric >= 40 ~ 2,
             metric >= 25 ~ 1,
             metric < 25 ~ 0
         ),
-        score_target = case_when(
+        AMO_pathway = case_when(
             metric <= AMO_target_double ~ 4,
             metric <= AMO_target ~ 3,
             ci_bound <= AMO_target ~ 2,
@@ -271,7 +283,8 @@ district_accountability <- bind_rows(ach, grad, abs, elpa) %>%
     rowwise() %>%
     mutate(
         overall_score = mean(c(mean(c(absolute_pathway, AMO_pathway), na.rm = TRUE), value_add_pathway), na.rm = TRUE),
-        overall_score = if_else(is.nan(overall_score), NA_real_, overall_score)) %>%
+        overall_score = if_else(is.nan(overall_score), NA_real_, overall_score),
+    ) %>%
     ungroup() %>%
     arrange(system, indicator, grade, subgroup)
 
