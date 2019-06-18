@@ -1,6 +1,6 @@
 library(tidyverse)
 
-dupes <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/student_chronic_absenteeism.csv") %>%
+dupes <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/student_chronic_absenteeism_Jun17.csv") %>%
     filter(str_length(student_id) == 7) %>%
 # Remove duplicates on all columns
     distinct() %>%
@@ -18,8 +18,9 @@ dupes <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/student_c
     ungroup() %>%
 # Keep only record with greatest number of ISP days if >= half of school year
     filter(temp == isp_days, isp_days/instructional_calendar_days >= .5) %>%
+# If multiple records exist with >= half of school year enrollment, use system and school from assessment record
     add_count(student_id) %>%
     filter(n == 1) %>%
-    select(acct_system = system, acct_school = school, student_id)
+    select(acct_system = system, acct_school = school, state_student_id = student_id)
 
 write_csv(dupes, "N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv")

@@ -197,7 +197,7 @@ amo_abs <- read_csv("N:/ORP_accountability/projects/2019_amo/absenteeism_targets
 
 abs_va <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/district_absenteeism_va.csv")
 
-abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/district_chronic_absenteeism.csv") %>%
+abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/district_chronic_absenteeism_Jun17.csv") %>%
     filter(grade_band == "All Grades", subgroup %in% ach$subgroup) %>%
     transmute(
         system,
@@ -210,14 +210,14 @@ abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/district_ch
     ) %>%
     left_join(amo_abs, by = c("system", "subgroup")) %>%
     mutate(
-        score_abs = case_when(
+        absolute_pathway = case_when(
             metric <= 8 ~ 4,
             metric <= 11.5 ~ 3,
             metric <= 16.5 ~ 2,
             metric <= 25 ~ 1,
             metric > 25 ~ 0,
         ),
-        score_target = case_when(
+        AMO_pathway = case_when(
             metric <= AMO_target_double ~ 4,
             metric <= AMO_target ~ 3,
             ci_bound <= AMO_target ~ 2,
