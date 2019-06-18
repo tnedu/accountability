@@ -4,40 +4,6 @@ library(tidyverse)
 
 district_accountability <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/district_accountability_file.csv")
 
-math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
-english_eoc <- c("English I", "English II")
-
-minimum_performance <- read_csv("N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv") %>%
-    filter(
-        residential_facility == 0,
-        enrolled_50_pct_district == "Y",
-        original_subject %in% c("Math", "ELA", math_eoc, english_eoc)
-    ) %>%
-    mutate(
-        ot_m = if_else(performance_level %in% c("On Track", "Proficient", "Mastered", "Advanced"), 1L, NA_integer_),
-        subject = case_when(
-            subject %in% math_eoc ~ "HS Math",
-            subject %in% english_eoc ~ "HS English",
-        )
-    ) %>%
-# Aggregate HS Math/English
-    group_by(system, subject) %>%
-    summarise_at(c("valid_test", "ot_m"), sum, na.rm = TRUE) %>%
-    ungroup() %>%
-# Suppress subjects with n < 30
-    mutate_at(c("valid_test", "ot_m"), ~ if_else(valid_test < 30, 0L, as.integer(.))) %>%
-    group_by(system) %>%
-    summarise_at(c("valid_test", "ot_m"), sum, na.rm = TRUE) %>%
-    ungroup() %>%
-    mutate(
-        metric = if_else(valid_test != 0, round5(100 * ot_m/valid_test, 1), NA_real_),
-        rank = if_else(!is.na(metric), rank(metric, ties.method = "min"), NA_integer_),
-        denom = sum(!is.na(metric)),
-        percentile = round(100 * rank/denom, 1),
-        met_minimum_performance = as.integer(percentile > 5)
-    ) %>%
-    select(system, met_minimum_performance)
-
 c(subgroups, all_students) %<-% (district_accountability %>% split(.$subgroup == "All Students"))
 
 all_students_overall <- all_students %>%
@@ -50,12 +16,9 @@ subgroups_overall <- subgroups %>%
     group_by(system) %>%
     summarise(subgroup_average = mean(overall_score, na.rm = TRUE))
 
-final <- minimum_performance %>%
-    left_join(all_students_overall, by = "system") %>%
-    left_join(subgroups_overall, by = "system") %>%
+final <- left_join(all_students_overall, subgroups_overall, by = "system") %>%
     transmute(
-        system, 
-        met_minimum_performance,
+        system,
         achievement_average,
         achievement_determination = case_when(
             achievement_average >= 3 ~ "Exemplary",
@@ -71,6 +34,10 @@ final <- minimum_performance %>%
             subgroup_average < 1 ~ "Marginal"
         ),
         overall_average = round5(0.6 * achievement_average + 0.4 * subgroup_average, 1),
+        rank = if_else(not_na(overall_average), rank(overall_average, ties.method = "min"), NA_integer_),
+        denom = sum(not_na(overall_average)),
+        percentile = round(100 * rank/denom, 1),
+        met_minimum_performance = as.integer(percentile > 5),
         final_determination = case_when(
             met_minimum_performance == 0 ~ "In Need of Improvement",
             overall_average >= 3 ~ "Exemplary",
@@ -81,4 +48,4 @@ final <- minimum_performance %>%
     ) %>%
     mutate_at(c("achievement_average", "subgroup_average", "overall_average"), ~ if_else(is.nan(.), NA_real_, .))
 
-write_csv(final, path = "N:/ORP_accountability/data/2019_final_accountability_files/district_determinations.csv", na = "")
+write_csv(final, path = "N:/ORP_accountability/data/2019_final_accountability_files/district_designations.csv", na = "")
