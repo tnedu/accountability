@@ -1,26 +1,37 @@
 library(acct)
 library(tidyverse)
 
-student <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/ready_graduate_student_level.csv") %>%
+student <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/ready_graduate_student_level.csv",
+        col_types = "dcccciccciiciddddddddididddddddc") %>%
+    rename(
+        system = district_no, 
+        school = school_no,
+        EL = elb,
+        ED = econ_dis,
+        SWD = swd
+    ) %>%
     filter(included_in_cohort == "Y") %>%
     mutate(
-        all = TRUE,
-        native = race_ethnicity == "I",
-        asian = race_ethnicity == "A",
-        black = race_ethnicity == "B",
-        bhn = race_ethnicity %in% c("B", "H", "I"),
-        ed = ed == "Y",
-        el = el == "Y",
-        hispanic = race_ethnicity == "H",
-        hpi = race_ethnicity == "P",
-        swd = swd == "Y",
-        super = bhn | ed | el | swd,
-        white = race_ethnicity == "W"
+        All = TRUE,
+        Asian = race_ethnicity == "A",
+        BHN = race_ethnicity %in% c("B", "H", "I"),
+        Black = race_ethnicity == "B",
+        ED = ED == "Y",
+        EL = EL == "Y",
+        Hispanic = race_ethnicity == "H",
+        HPI = race_ethnicity == "P",
+        Native = race_ethnicity == "I",
+        Non_ED = !ED,
+        Non_EL = !EL,
+        SWD = SWD == "Y",
+        Non_SWD = !SWD,
+        Super = BHN | ED | EL | SWD,
+        White = race_ethnicity == "W"
     )
 
 collapse <- function(s, ...) {
     s_quo <- enquo(s)
-    
+
     student %>%
         filter(!!s_quo) %>%
         group_by(...) %>%
@@ -33,25 +44,60 @@ collapse <- function(s, ...) {
         ungroup()
 }
 
-district <- map_dfr(
-    .x = list(quo(all), quo(native), quo(asian), quo(black), quo(bhn), quo(ed), quo(el), quo(hispanic), quo(hpi), quo(swd), quo(super), quo(white)),
-    .f = ~ collapse(!!., district_no)
+state <- map_dfr(
+    .x = list(quo(All), quo(Asian), quo(BHN), quo(Black), quo(ED), quo(EL), quo(Hispanic), quo(HPI), 
+        quo(Non_ED), quo(Non_EL), quo(Non_SWD), quo(Native), quo(Super), quo(SWD), quo(White)),
+    .f = ~ collapse(!!.)
 ) %>%
     transmute(
-        system = district_no,
         subgroup = case_when(
-            subgroup == "~all" ~ "All Students",
-            subgroup == "~asian" ~ "Asian",
-            subgroup == "~bhn" ~ "Black/Hispanic/Native American",
-            subgroup == "~black" ~ "Black or African American",
-            subgroup == "~ed" ~ "Economically Disadvantaged",
-            subgroup == "~el" ~ "English Learners",
-            subgroup == "~hispanic" ~ "Hispanic",
-            subgroup == "~hpi" ~ "Native Hawaiian or Other Pacific Islander",
-            subgroup == "~native" ~ "American Indian or Alaska Native",
-            subgroup == "~super" ~ "Super Subgroup",
-            subgroup == "~swd" ~ "Students with Disabilities",
-            subgroup == "~white" ~ "White"
+            subgroup == "~All" ~ "All Students",
+            subgroup == "~Asian" ~ "Asian",
+            subgroup == "~BHN" ~ "Black/Hispanic/Native American",
+            subgroup == "~Black" ~ "Black or African American",
+            subgroup == "~ED" ~ "Economically Disadvantaged",
+            subgroup == "~EL" ~ "English Learners",
+            subgroup == "~Hispanic" ~ "Hispanic",
+            subgroup == "~HPI" ~ "Native Hawaiian or Other Pacific Islander",
+            subgroup == "~Native" ~ "American Indian or Alaska Native",
+            subgroup == "~Non_ED" ~ "Non-Economically Disadvantaged",
+            subgroup == "~Non_EL" ~ "Non-English Learners",
+            subgroup == "~Non_SWD" ~ "Non-Students with Disabilities",
+            subgroup == "~Super" ~ "Super Subgroup",
+            subgroup == "~SWD" ~ "Students with Disabilities",
+            subgroup == "~White" ~ "White"
+        ),
+        n_count,
+        n_ready_grad,
+        pct_ready_grad
+    )
+
+write_csv(state, "N:/ORP_accountability/projects/2019_ready_graduate/Data/ready_graduate_state.csv", na = "")
+
+district <- map_dfr(
+    .x = list(quo(All), quo(Asian), quo(BHN), quo(Black), quo(ED), quo(EL), quo(Hispanic), quo(HPI), 
+        quo(Non_ED), quo(Non_EL), quo(Non_SWD), quo(Native), quo(Super), quo(SWD), quo(White)),
+    .f = ~ collapse(!!., system)
+) %>%
+    filter(not_na(system)) %>%
+    transmute(
+        system,
+        subgroup = case_when(
+            subgroup == "~All" ~ "All Students",
+            subgroup == "~Asian" ~ "Asian",
+            subgroup == "~BHN" ~ "Black/Hispanic/Native American",
+            subgroup == "~Black" ~ "Black or African American",
+            subgroup == "~ED" ~ "Economically Disadvantaged",
+            subgroup == "~EL" ~ "English Learners",
+            subgroup == "~Hispanic" ~ "Hispanic",
+            subgroup == "~HPI" ~ "Native Hawaiian or Other Pacific Islander",
+            subgroup == "~Native" ~ "American Indian or Alaska Native",
+            subgroup == "~Non_ED" ~ "Non-Economically Disadvantaged",
+            subgroup == "~Non_EL" ~ "Non-English Learners",
+            subgroup == "~Non_SWD" ~ "Non-Students with Disabilities",
+            subgroup == "~Super" ~ "Super Subgroup",
+            subgroup == "~SWD" ~ "Students with Disabilities",
+            subgroup == "~White" ~ "White"
         ),
         n_count,
         n_ready_grad,
@@ -59,27 +105,32 @@ district <- map_dfr(
     )
 
 write_csv(district, "N:/ORP_accountability/projects/2019_ready_graduate/Data/ready_graduate_district.csv", na = "")
-    
+
 school <- map_dfr(
-    .x = list(quo(all), quo(native), quo(asian), quo(black), quo(bhn), quo(ed), quo(el), quo(hispanic), quo(hpi), quo(swd), quo(super), quo(white)),
-    .f = ~ collapse(!!., district_no, school_no)
+    .x = list(quo(All), quo(Asian), quo(BHN), quo(Black), quo(ED), quo(EL), quo(Hispanic), quo(HPI), 
+        quo(Non_ED), quo(Non_EL), quo(Non_SWD), quo(Native), quo(Super), quo(SWD), quo(White)),
+    .f = ~ collapse(!!., system, school)
 ) %>%
+    filter(not_na(system), not_na(school)) %>%
     transmute(
-        system = district_no,
-        school = school_no,
+        system,
+        school,
         subgroup = case_when(
-            subgroup == "~all" ~ "All Students",
-            subgroup == "~asian" ~ "Asian",
-            subgroup == "~bhn" ~ "Black/Hispanic/Native American",
-            subgroup == "~black" ~ "Black or African American",
-            subgroup == "~ed" ~ "Economically Disadvantaged",
-            subgroup == "~el" ~ "English Learners",
-            subgroup == "~hispanic" ~ "Hispanic",
-            subgroup == "~hpi" ~ "Native Hawaiian or Other Pacific Islander",
-            subgroup == "~native" ~ "American Indian or Alaska Native",
-            subgroup == "~super" ~ "Super Subgroup",
-            subgroup == "~swd" ~ "Students with Disabilities",
-            subgroup == "~white" ~ "White"
+            subgroup == "~All" ~ "All Students",
+            subgroup == "~Asian" ~ "Asian",
+            subgroup == "~BHN" ~ "Black/Hispanic/Native American",
+            subgroup == "~Black" ~ "Black or African American",
+            subgroup == "~ED" ~ "Economically Disadvantaged",
+            subgroup == "~EL" ~ "English Learners",
+            subgroup == "~Hispanic" ~ "Hispanic",
+            subgroup == "~HPI" ~ "Native Hawaiian or Other Pacific Islander",
+            subgroup == "~Native" ~ "American Indian or Alaska Native",
+            subgroup == "~Non_ED" ~ "Non-Economically Disadvantaged",
+            subgroup == "~Non_EL" ~ "Non-English Learners",
+            subgroup == "~Non_SWD" ~ "Non-Students with Disabilities",
+            subgroup == "~Super" ~ "Super Subgroup",
+            subgroup == "~SWD" ~ "Students with Disabilities",
+            subgroup == "~White" ~ "White"
         ),
         n_count,
         n_ready_grad,
