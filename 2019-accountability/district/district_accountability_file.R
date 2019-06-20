@@ -53,15 +53,15 @@ student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_fil
         )
     )
 
-# ACT_substitution <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/act_substitution_district.csv") %>%
-#     transmute(
-#         system,
-#         subject = "HS Math",
-#         grade = "9th through 12th",
-#         subgroup = "All",
-#         valid_tests,
-#         ot_m = n_met_benchmark
-#     )
+ACT_substitution <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/act_substitution_district.csv") %>%
+    transmute(
+        system,
+        subject = "HS Math",
+        grade = "9th through 12th",
+        subgroup = "~All",
+        valid_tests,
+        ot_m = n_met_benchmark
+    )
 
 collapse <- function(g) {
 
@@ -81,7 +81,7 @@ ach <- map_dfr(
     .f = ~ collapse(!!.)
 ) %>%
     rename(system = acct_system, valid_tests = valid_test) %>%
-    # bind_rows(ACT_substitution) %>%
+    bind_rows(ACT_substitution) %>%
     mutate(
         subgroup = case_when(
             subgroup == "~All" ~ "All Students",
@@ -92,7 +92,7 @@ ach <- map_dfr(
         ),
         subject = case_when(
             subject %in% english_eoc ~ "HS English",
-            subject %in% math_eoc ~ "HS Math"
+            subject %in% c(math_eoc, "HS Math") ~ "HS Math"
         )
     ) %>%
 # Aggregate HS Math/English

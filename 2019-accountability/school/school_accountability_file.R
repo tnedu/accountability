@@ -32,15 +32,15 @@ student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_fil
         Super = BHN | ED | SWD | EL_T1234
     )
 
-# ACT_substitution <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/act_substitution_school.csv") %>%
-#     transmute(
-#         system, school,
-#         subject = "HS Math"
-#         grade = 11,
-#         subgroup = "All",
-#         valid_tests, 
-#         ot_m = n_met_benchmark
-#     )
+ACT_substitution <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/act_substitution_school.csv") %>%
+    transmute(
+        system, school,
+        subject = "HS Math",
+        grade = 11,
+        subgroup = "~All",
+        valid_tests,
+        ot_m = n_met_benchmark
+    )
 
 collapse <- function(g) {
 
@@ -63,7 +63,7 @@ ach <- map_dfr(
     .f = ~ collapse(!!.)
 ) %>% 
     rename(system = acct_system, school = acct_school, valid_tests = valid_test) %>%
-    # bind_rows(ACT_substitution) %>%
+    bind_rows(ACT_substitution) %>%
     mutate(
         subgroup = case_when(
             subgroup == "~All" ~ "All Students",
@@ -214,7 +214,7 @@ grad <- read_csv("N:/ORP_accountability/data/2018_graduation_rate/school_grad_ra
     ) %>%
     left_join(pools, by = c("system", "school"))
 
-# Raedy Grad
+# Ready Grad
 amo_ready_grad <- read_csv("N:/ORP_accountability/projects/2019_amo/ready_grad_school.csv") %>%
     transmute(
         system,
@@ -291,7 +291,7 @@ elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_scho
     ) %>%
     left_join(pools, by = c("system", "school"))
 
-bind_rows(ach, grad, ready_grad, abs, elpa) %>%
+school_accountability <- bind_rows(ach, grad, ready_grad, abs, elpa) %>%
     select(system, school, pool, everything()) %>%
     arrange(system, school, indicator, subgroup) %>%
     mutate(
@@ -302,5 +302,6 @@ bind_rows(ach, grad, ready_grad, abs, elpa) %>%
             score == 1 ~ "D",
             score == 0 ~ "F",
         )
-    ) %>% 
-    write_csv("N:/ORP_accountability/data/2019_final_accountability_files/school_accountability_file.csv", na = "")
+    )
+    
+write_csv(school_accountability, "N:/ORP_accountability/data/2019_final_accountability_files/school_accountability_file.csv", na = "")
