@@ -151,13 +151,13 @@ wida %>%
     write_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_student.csv", na = "")
 
 # Split Student Level File
-district_numbers <- unique(wida$system)
+district_numbers <- sort(unique(wida$system))
 
 wida %>%
     mutate_at(vars(BHN, Hispanic, Black, Native, HPI, Asian, White, ED, SWD, EL, exit_denom, exit, growth_standard_denom), as.integer) %>%
     select(-max_comp, -max_lit, -reported_race) %>%
     split(., .$system) %>%
-    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSStudentLevelFile_13Jun2018.csv"), na = ""))
+    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSStudentLevelFile_13Jun2019.csv"), na = ""))
 
 wida <- wida %>%
     mutate_at(c("ED", "SWD"), ~ if_else(is.na(.), FALSE, .))
@@ -208,7 +208,7 @@ write_csv(growth_standard_school, "N:/ORP_accountability/data/2019_ELPA/wida_gro
 # Split School Level File
 growth_standard_school %>%
     split(., .$system) %>%
-    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSSchoolLevelFile_13Jun2018.csv"), na = ""))
+    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSSchoolLevelFile_13Jun2019.csv"), na = ""))
 
 # District Level File
 growth_standard_district <- map_dfr(
@@ -256,7 +256,7 @@ write_csv(growth_standard_district, "N:/ORP_accountability/data/2019_ELPA/wida_g
 # Split District Level File
 growth_standard_district %>%
     split(., .$system) %>%
-    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSDistrictLevelFile_13Jun2018.csv"), na = ""))
+    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSDistrictLevelFile_13Jun2019.csv"), na = ""))
 
 # State Level File
 growth_standard_state <- map_dfr(
