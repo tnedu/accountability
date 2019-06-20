@@ -9,6 +9,10 @@ website.
 This repository also contains code for producing district accountability designations. 
 These designations are [publicly available](https://www.tn.gov/education/data/accountability.html).
 
+**Requirements**
+
+See `installs.R`.
+
 **Procedures**
 
 Each year, accountability determinations are produced by running calculations in approximately the following order:
