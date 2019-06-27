@@ -48,7 +48,7 @@ collapse <- function(g) {
 
     student_level %>%
         filter(!!g_quo) %>%
-        group_by(acct_system, acct_school, test, subject, grade) %>%
+        group_by(acct_system, acct_school, subject, grade) %>%
         summarise_at(c("enrolled", "tested", "valid_test", "ot_m"), sum, na.rm = TRUE) %>%
         ungroup() %>% 
         mutate(subgroup = deparse(g_quo))
@@ -81,11 +81,12 @@ ach <- map_dfr(
         ),
         subject = case_when(
             subject %in% english_eoc ~ "HS English",
-            subject %in% c(math_eoc, "HS Math") ~ "HS Math"
+            subject %in% c(math_eoc, "HS Math") ~ "HS Math",
+            TRUE ~ subject
         )
     ) %>%
 # Aggregate HS Math/English
-    group_by(system, school, subject, subgroup, grade) %>%
+    group_by(system, school, subject, subgroup) %>%
     summarise_at(c("enrolled", "tested", "valid_tests", "ot_m"), sum, na.rm = TRUE) %>%
     ungroup() %>%
 # Suppress subjects with n < 30
