@@ -281,8 +281,8 @@ elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_dist
 district_accountability <- bind_rows(ach, grad, abs, elpa) %>%
     rowwise() %>%
     mutate(
-        overall_score = mean(c(mean(c(absolute_pathway, AMO_pathway), na.rm = TRUE), value_add_pathway), na.rm = TRUE),
-        overall_score = if_else(is.nan(overall_score), NA_real_, overall_score),
+        overall_score = mean(c(max(absolute_pathway, AMO_pathway), value_add_pathway), na.rm = TRUE),
+        overall_score = if_else(is.nan(overall_score) | overall_score == -Inf, NA_real_, overall_score),
     ) %>%
     ungroup() %>%
     arrange(system, indicator, grade, subgroup)
