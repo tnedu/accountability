@@ -157,19 +157,18 @@ amo_grad <- read_csv("N:/ORP_accountability/projects/2019_amo/grad_district.csv"
 
 grad_va <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/district_grad_va.csv")
 
-act_participation <- haven::read_dta("N:/ORP_accountability/data/2018_ACT/ACT_district2019.dta") %>%
-    mutate(subgroup = if_else(subgroup == "English Language Learners with T1/T2", "English Learners with Transitional 1-4", subgroup)) %>%
+ACT_participation <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/ready_graduate_district.csv") %>%
     filter(subgroup %in% ach$subgroup) %>%
-    transmute(system, subgroup, participation_rate = if_else(enrolled >= 30, participation_rate, NA_real_))
+    transmute(system, subgroup, participation_rate = act_participation_rate)
 
 grad <- read_csv("N:/ORP_accountability/data/2018_graduation_rate/district_grad_rate.csv") %>%
-    left_join(act_participation, by = c("system", "subgroup")) %>%
+    left_join(ACT_participation, by = c("system", "subgroup")) %>%
     transmute(
         system,
         indicator = "Graduation Rate",
         grade = "All Grades",
         subgroup,
-        participation_rate,
+        participation_rate = if_else(grad_cohort < 30, NA_real_, participation_rate),
         n_count = if_else(grad_cohort < 30, 0, grad_cohort),
         metric = if_else(n_count < 30, NA_real_, grad_rate),
         ci_bound = ci_upper_bound(n_count, metric)

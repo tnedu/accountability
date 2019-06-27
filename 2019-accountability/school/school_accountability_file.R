@@ -100,14 +100,14 @@ ach <- map_dfr(
         school,
         indicator = "Achievement",
         subgroup,
-        participation_rate = if_else(enrolled != 0, round5(100 * tested/enrolled), NA_real_),
+        participation_rate = if_else(enrolled >= 30, round5(100 * tested/enrolled), NA_real_),
         n_count = valid_tests,
         metric = success_rate,
         metric_prior,
         ci_bound = ci_upper_bound(n_count, metric),
         AMO_target, AMO_target_double,
         score_abs = case_when(
-            not_na(AMO_target) & not_na(metric) & participation_rate < 95 ~ 0,
+            not_na(metric) & participation_rate < 95 ~ 0,
             metric >= 45 ~ 4,
             metric >= 35 ~ 3,
             metric >= 27.5 ~ 2,
@@ -125,6 +125,7 @@ ach <- map_dfr(
     # Schools need both absolute and AMO to get a grade
         score = pmax(score_abs, score_target)
     ) %>%
+    mutate(participation_rate = if_else(n_count < 30, NA_real_, participation_rate)) %>%
     left_join(pools, by = c("system", "school"))
 
 # Absenteeism
@@ -225,34 +226,22 @@ amo_ready_grad <- read_csv("N:/ORP_accountability/projects/2019_amo/ready_grad_s
         AMO_target_double
     )
 
-act_participation <- haven::read_dta("N:/ORP_accountability/data/2018_ACT/ACT_school2019.dta") %>%
-    mutate(
-        subgroup = case_when(
-            subgroup == "English Language Learners with T1/T2" ~ "English Learners with Transitional 1-4",
-            subgroup == "HPI" ~ "Native Hawaiian or Other Pacific Islander",
-            subgroup == "Native American" ~ "American Indian or Alaska Native",
-            TRUE ~ subgroup
-        )
-    ) %>%
-    filter(subgroup %in% ach$subgroup) %>%
-    transmute(system, school, subgroup, participation_rate = if_else(enrolled >= 30, participation_rate, NA_real_))
-
 ready_grad <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/ready_graduate_school.csv") %>%
-    left_join(act_participation, by = c("system", "school", "subgroup")) %>%
     transmute(
         system,
         school,
         indicator = "Ready Graduates",
-        subgroup = if_else(subgroup == "English Learners", "English Learners with Transitional 1-4", subgroup),
-        participation_rate,
-        n_count,
+        subgroup,
+        participation_rate = act_participation_rate,
+        n_count = if_else(n_count < 30, 0, n_count),
         metric = if_else(n_count < 30, NA_real_, pct_ready_grad),
         ci_bound = ci_upper_bound(n_count, metric)
     ) %>%
+    filter(subgroup %in% ach$subgroup) %>%
     left_join(amo_ready_grad, by = c("system", "school", "subgroup")) %>%
     mutate(
         score_abs = case_when(
-            not_na(AMO_target) & not_na(metric) & participation_rate < 95 ~ 0,
+            not_na(metric) & participation_rate < 95 ~ 0,
             metric >= 40 ~ 4,
             metric >= 30 ~ 3,
             metric >= 25 ~ 2,
@@ -270,6 +259,7 @@ ready_grad <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/
     # Schools need both absolute and AMO to get a grade
         score = pmax(score_abs, score_target)
     ) %>%
+    mutate(participation_rate = if_else(n_count < 30, NA_real_, participation_rate)) %>%
     left_join(pools, by = c("system", "school"))
 
 elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_school.csv") %>%
