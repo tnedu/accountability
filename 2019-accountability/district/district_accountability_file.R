@@ -34,6 +34,10 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II")
 
 student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv") %>%
+## Fill in missing residential facility and enrolled 50%
+## Otherwise will get dropped when checking residential facility = 0 and enrolled 50% = "Y"
+    mutate_at("residential_facility", ~ if_else(is.na(.), 0, .)) %>%
+    mutate_at("enrolled_50_pct_district", ~ if_else(is.na(.), "Y", .)) %>%
     filter(
         residential_facility == 0,
         enrolled_50_pct_district == "Y",

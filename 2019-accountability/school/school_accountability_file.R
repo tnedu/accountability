@@ -10,7 +10,12 @@ pools <- read_csv("N:/ORP_accountability/projects/2019_school_accountability/gra
 amo_ach <- read_csv("N:/ORP_accountability/projects/2019_amo/success_rate_targets_school.csv") %>%
     select(system, school, subgroup, metric_prior = success_rate_prior, AMO_target, AMO_target_double)
 
+
 student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv") %>%
+## Fill in missing residential facility and enrolled 50%
+## Otherwise will get dropped when checking residential facility = 0 and enrolled 50% = "Y"
+    mutate_at("residential_facility", ~ if_else(is.na(.), 0, .)) %>%
+    mutate_at("enrolled_50_pct_school", ~ if_else(is.na(.), "Y", .)) %>%
     filter(
         residential_facility == 0,
         enrolled_50_pct_school == "Y",
