@@ -1,6 +1,15 @@
 library(acct)
 library(tidyverse)
 
+msaa <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_msaa_cdf.csv") %>%
+    filter(!reporting_status %in% c("WDR", "NLE")) %>%
+    mutate(
+        test = "MSAA",
+        semester = "Spring",
+        special_ed = 1L,
+        performance_level = if_else(reporting_status != "TES", NA_character_, performance_level),
+    )
+
 fall_eoc <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_fall_eoc_cdf.csv", 
         col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
     mutate(
@@ -59,7 +68,7 @@ int_math_systems <- cdf %>%
     filter(n == temp, content_area_code == "M1") %>%
     magrittr::extract2("system")
 
-student_level <- bind_rows(cdf) %>%
+student_level <- bind_rows(cdf, msaa) %>%
     transmute(
         system,
         system_name,
@@ -89,8 +98,9 @@ student_level <- bind_rows(cdf) %>%
         migrant,
         enrolled_50_pct_district,
         enrolled_50_pct_school,
+        reporting_status,
         breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness,
-        absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit
+        absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit,
     ) %>%
     mutate_at(vars(bhn_group, t1234, el_recently_arrived), as.integer) %>%
     rowwise() %>%
@@ -103,6 +113,7 @@ student_level <- bind_rows(cdf) %>%
         ),
     # EL Recently Arrived students with missing proficiency are not considered tested
         tested = case_when(
+            test == "MSAA" & reporting_status == "DNT" ~ 0,
             any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0,
             any(absent, not_enrolled, not_scheduled) ~ 0,
             el_recently_arrived == 1L & is.na(original_performance_level) ~ 0,
@@ -118,7 +129,7 @@ student_level <- bind_rows(cdf) %>%
     # Modify subject for MSAA tests in grades >= 9 (6.8)
         subject = case_when(
             original_subject == "Math" & test == "MSAA" & grade >= 9 & system %in% int_math_systems ~ "Integrated Math I",
-            original_subject == "Math" & test == "MSAA" & grade >= 9 & !system %in% int_math_systems ~ "Algebra I",
+            original_subject == "Math" & test == "MSAA" & grade >= 9 & !(system %in% int_math_systems) ~ "Algebra I",
             original_subject == "ELA" & test == "MSAA" & grade >= 9 ~ "English II",
             TRUE ~ subject
         ),
@@ -187,7 +198,7 @@ dedup <- student_level %>%
 # Deduplicate by missing race/ethnicity
     group_by(state_student_id, original_subject, test, performance_level, scale_score, semester) %>%
     mutate(
-        n = n(),                           # Tag duplicates by id, subject, test, performance level, scale_score, semester
+        n = n(),                           # Tag duplicates by id, subject, test, performance level, scale score, semester
         temp = mean(is.na(reported_race))  # Check whether one among duplicates has non-missing race/ethnicity
     ) %>%
     filter(!(n > 1 & temp != 0 & is.na(reported_race))) %>%
@@ -197,7 +208,7 @@ dedup <- student_level %>%
 # Deduplicate for non-missing grade
     group_by(state_student_id, original_subject, test, performance_level, scale_score, semester, reported_race) %>%
     mutate(
-        n = n(),                   # Tag duplicates by id, subject, test, performance, leve, scale_score, semester
+        n = n(),                   # Tag duplicates by id, subject, test, performance level, scale score, semester
         temp = mean(is.na(grade))  # Check whether one among duplicates has non-missing race/ethnicity
     ) %>%
     filter(!(n > 1 & temp != 0 & is.na(grade))) %>%
@@ -207,8 +218,7 @@ dedup <- student_level %>%
     mutate(valid_test = as.integer(not_na(performance_level)))
 
 # Reassigned schools for accountability
-enrollment <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv") %>%
-    mutate_at(vars(acct_system, acct_school), as.integer)
+enrollment <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv")
 
 output <- dedup %>%
     select(

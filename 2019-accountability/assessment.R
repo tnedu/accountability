@@ -34,10 +34,12 @@ student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_fil
         Non_EL = !EL_T1234,
         Super = BHN | ED | SWD | EL_T1234,
         Male = gender == "M",
-        Female = gender == "F"
-    ) %>%
-# EL Excluded are counted as tested and enrolled but do not receive a proficiency level
-    mutate(original_perfomance_level = if_else(el_recently_arrived == 1, "", original_performance_level))
+        Female = gender == "F",
+        residential_facility = residential_facility == 1,
+    # EL Recently Arrived are counted as tested and enrolled but do not receive a proficiency level
+        original_perfomance_level = if_else(el_recently_arrived == 1, "", original_performance_level)
+    )
+
 
 collapse <- function(g, ...) {
 
@@ -125,7 +127,9 @@ write_csv(state_assessment, "N:/ORP_accountability/data/2019_final_accountabilit
 
 # District assessment file
 # Residential facility students are dropped at the district and school level
-student_level <- filter(student_level, residential_facility == 0)
+student_level <- student_level %>%
+    mutate(residential_facility = if_else(is.na(residential_facility), FALSE, residential_facility)) %>%
+    filter(!residential_facility)
 
 district <- map_dfr(
     .x = list(
