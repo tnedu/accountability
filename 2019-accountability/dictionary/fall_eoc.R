@@ -11,7 +11,7 @@ layout <- tribble(
     201, 235, "first_name",
     236, 236, "middle_initial",
     245, 253, "unique_student_id",
-    274, 275, "grade",
+    274, 275, "grade",  # Student grade
     278, 280, "content_area_code",
     377, 377, "test_mode",
     378, 378, "attempted",

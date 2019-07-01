@@ -11,7 +11,7 @@ layout <- tribble(
     201, 235, "first_name",
     236, 236, "middle_initial",
     245, 253, "unique_student_id",
-    274, 275, "grade",  # Student grade
+    276, 277, "grade",  # Tested grade
     278, 280, "content_area_code",
     377, 377, "test_mode",
     378, 378, "attempted",
@@ -19,7 +19,7 @@ layout <- tribble(
     390, 409, "teacher_of_record_tln",
     592, 593, "reason_not_tested",
     594, 595, "ri_status",
-
+    
     702, 704, "raw_score",
     708, 711, "scale_score",
     712, 726, "performance_level",
@@ -29,18 +29,18 @@ layout <- tribble(
 )
 
 # Read in cdf according to layout
-cdf <- read_fwf("N:/Assessment_Data Returns/TCAP_End-of-Course/2018-19/Spring EOC 2019/2018-2019 TN 2019 Spring EOC CDF Final Scores-20190625.Txt",
-    col_types = "iciccccdiccccdiiiiciic",
+cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_Grades 3-8/2018-19/2018-2019 TN 2019 Spring 3-8 CDF Final Scores-20190629.zip",
     col_positions = fwf_positions(
         start = layout$start,
         end = layout$end,
         col_names = layout$colnames
-    )
+    ), 
+    col_types = c("iciccccdiccccdiiddcddc")
 )
 
 # Demographic file
 demographics <- read_csv("N:/TNReady/2018-19/spring/demographics/spring_2019_assessment_demographics_combined_pull_20190610.csv") %>%
-# Student IDs should be 7 digits
+    # Student IDs should be 7 digits
     filter(str_length(student_key) == 7) %>%
     transmute(
         unique_student_id = student_key,
@@ -81,4 +81,4 @@ cdf_with_demographics <- left_join(cdf, demographics, by = c("unique_student_id"
     ) %>%
     mutate(grade = if_else(grade %in% 1:2, NA_integer_, grade))
 
-write_csv(cdf_with_demographics, path = "N:/ORP_accountability/data/2019_cdf/2019_spring_eoc_cdf.csv")
+write_csv(cdf_with_demographics, path = "N:/ORP_accountability/data/2019_cdf/2019_3_8_cdf.csv")
