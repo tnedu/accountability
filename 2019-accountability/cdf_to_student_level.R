@@ -2,7 +2,7 @@ library(acct)
 library(tidyverse)
 
 msaa <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_msaa_cdf.csv") %>%
-    filter(!reporting_status %in% c("WDR", "NLE")) %>%
+    filter(!(reporting_status %in% c("WDR", "NLE"))) %>%
     mutate(
         test = "MSAA",
         semester = "Spring",
@@ -24,7 +24,14 @@ spring_eoc <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_spring_eoc_cdf.
         semester = "Spring"
     )
 
-cdf <- bind_rows(fall_eoc, spring_eoc) %>%
+tn_ready <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_3_8_cdf.csv",
+        col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
+    mutate(
+        test = "TNReady",
+        semester = "Spring"
+    )
+
+cdf <- bind_rows(fall_eoc, spring_eoc, tn_ready) %>%
     mutate(
         performance_level = if_else(performance_level == "On track", "On Track", performance_level),
         absent = reason_not_tested == 1,
@@ -41,9 +48,9 @@ cdf <- bind_rows(fall_eoc, spring_eoc) %>%
         refused_to_test = ri_status == 5,
         failed_attemptedness = ri_status == 6,
         original_subject = case_when(
-            content_area_code == "ENG" ~ "ELA",
-            content_area_code == "MAT" ~ "Math",
-            content_area_code == "SOC" ~ "Social Studies",
+            content_area_code == "EN" ~ "ELA",
+            content_area_code == "MA" ~ "Math",
+            content_area_code == "SS" ~ "Social Studies",
             content_area_code == "A1" ~ "Algebra I",
             content_area_code == "A2" ~ "Algebra II",
             content_area_code == "E1" ~ "English I",
@@ -125,7 +132,10 @@ student_level <- bind_rows(cdf, msaa) %>%
             any(absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, did_not_submit) ~ NA_character_,
             el_recently_arrived == 1 ~ NA_character_,
             TRUE ~ performance_level
-        ),
+        )
+    ) %>%
+    ungroup() %>%
+    mutate(
     # Modify subject for MSAA tests in grades >= 9 (6.8)
         subject = case_when(
             original_subject == "Math" & test == "MSAA" & grade >= 9 & system %in% int_math_systems ~ "Integrated Math I",
@@ -140,8 +150,7 @@ student_level <- bind_rows(cdf, msaa) %>%
             grade %in% 3:8 & original_subject == "US History" ~ "Social Studies",
             TRUE ~ subject
         )
-    ) %>%
-    ungroup()
+    )
 
 # Records from Alternative, CTE, Adult HS are dropped from student level
 cte_alt_adult <- read_csv("N:/ORP_accountability/data/2019_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
@@ -234,7 +243,7 @@ output <- dedup %>%
     mutate(
         rank = if_else(not_na(scale_score), rank(scale_score, ties = "max"), NA_integer_),
         denom = sum(not_na(scale_score)),
-        percentile = if_else(test == "Achievement", round5(100 * rank/denom, 1), NA_real_)
+        percentile = if_else(test == "TNReady", round5(100 * rank/denom, 1), NA_real_)
     ) %>%
 # Percentiles by original subject for EOCs
     group_by(test, original_subject) %>%
