@@ -7,11 +7,14 @@ fall_eoc <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_fall_eoc_cdf.csv"
 spring_eoc <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_spring_eoc_cdf.csv",
     col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc")
 
-districts <- bind_rows(fall_eoc, spring_eoc) %>%
+tn_ready <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_3_8_cdf.csv",
+    col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc")
+
+districts <- bind_rows(fall_eoc, spring_eoc, tn_ready) %>%
     select(system, system_name) %>%
     distinct()
 
-schools <- bind_rows(fall_eoc, spring_eoc) %>%
+schools <- bind_rows(fall_eoc, spring_eoc, tn_ready) %>%
     select(system, school, school_name) %>%
     distinct()
 
