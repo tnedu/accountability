@@ -44,9 +44,13 @@ district_numbers <- sort(unique(substitution_student$system))
 
 substitution_student %>%
     split(., .$system) %>%
-    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_ACTSubstitutiontudentLevelFile_20Jun2019.csv"), na = ""))
+    walk2(
+        .x = ., 
+        .y = district_numbers, 
+        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_ACTSubstitutionStudentLevelFile_20Jun2019.csv"), na = "")
+    )
 
-# school_names <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/school_names.csv")
+school_names <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/names.csv")
 
 # School ACT Substitution File
 substitution_school <- substitution_student %>%
@@ -62,13 +66,15 @@ substitution_school <- substitution_student %>%
     mutate(
         pct_met_benchmark = round5(100 * n_met_benchmark/valid_tests, 1),
         pct_not_met_benchmark = 100 - pct_met_benchmark
-    )
-    # left_join(school_names, by = c("system", "school")) %>%
-    # select(system, system_name, school, school_name, everything())
+    ) %>%
+    left_join(school_names, by = c("system", "school")) %>%
+    select(system, system_name, school, school_name, everything())
 
 write_csv(substitution_school, "N:/ORP_accountability/data/2019_final_accountability_files/act_substitution_school.csv", na = "")
 
-# district_names <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/system_names.csv")
+district_names <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/names.csv") %>%
+    select(system, system_name) %>%
+    distinct()
 
 # District ACT Substitution File
 substitution_district <- substitution_student %>%
@@ -83,9 +89,9 @@ substitution_district <- substitution_student %>%
     mutate(
         pct_met_benchmark = round5(100 * n_met_benchmark/valid_tests, 1),
         pct_not_met_benchmark = 100 - pct_met_benchmark
-    )
-    # left_join(district_names, by = "system") %>%
-    # select(system, system_name, everything())
+    ) %>%
+    left_join(district_names, by = "system") %>%
+    select(system, system_name, everything())
 
 write_csv(substitution_district, "N:/ORP_accountability/data/2019_final_accountability_files/act_substitution_district.csv", na = "")
 

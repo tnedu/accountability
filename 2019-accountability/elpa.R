@@ -6,6 +6,8 @@ prior <- read_csv("N:/ORP_accountability/data/2018_ELPA/wida_growth_standard_stu
             col_types = "diiiiiiiiiiddddddddddiiiddiiiiiiiiiii") %>%
     select(student_id, prof_composite_18 = prof_composite, prof_composite_17)
 
+names <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/names.csv")
+
 # Demographic file
 demographics <- read_csv("N:/TNReady/2018-19/spring/demographics/spring_2019_assessment_demographics_combined_pull_20190610.csv") %>%
     # Student IDs should be 7 digits
@@ -142,7 +144,10 @@ wida <- read_csv("N:/Assessment_Data Returns/ACCESS for ELs and ALT/2018-19/TN_S
             TRUE ~ 0L
         ),
         met_growth_standard = if_else(growth_standard_denom & exit, 1L, met_growth_standard)
-    )
+    ) %>%
+    left_join(names, by = c("system", "school")) %>%
+    select(system, system_name, school, school_name, everything()) %>%
+    arrange(system, school, student_id)
 
 # Export Student Level File
 wida %>%
@@ -180,7 +185,7 @@ growth_standard_school <- map_dfr(
         filter(wida, White) %>% mutate(subgroup = "White")
     ),
     .f = function(x) {
-        group_by(x, system, school, subgroup) %>%
+        group_by(x, system, system_name, school, school_name, subgroup) %>%
         summarise(
             exit_denom = sum(exit_denom, na.rm = TRUE),
             n_exit = sum(exit, na.rm = TRUE),
@@ -191,7 +196,7 @@ growth_standard_school <- map_dfr(
         ) %>%
         ungroup() %>%
         transmute(
-            system, school, subgroup,
+            system, system_name, school, school_name, subgroup,
             exit_denom, n_exit,
             pct_exit = if_else(exit_denom != 0, round5(100 * n_exit/exit_denom, 1), NA_real_),
             growth_standard_denom, n_met_growth_standard,
@@ -228,7 +233,7 @@ growth_standard_district <- map_dfr(
         filter(wida, White) %>% mutate(subgroup = "White")
     ),
     .f = function(x) {
-        group_by(x, system, subgroup) %>%
+        group_by(x, system, system_name, subgroup) %>%
         summarise(
             exit_denom = sum(exit_denom, na.rm = TRUE),
             n_exit = sum(exit, na.rm = TRUE),
@@ -239,7 +244,7 @@ growth_standard_district <- map_dfr(
         ) %>%
         ungroup() %>%
         transmute(
-            system, subgroup,
+            system, system_name, subgroup,
             exit_denom, n_exit,
             pct_exit = if_else(exit_denom != 0, round5(100 * n_exit/exit_denom, 1), NA_real_),
             growth_standard_denom, n_met_growth_standard,

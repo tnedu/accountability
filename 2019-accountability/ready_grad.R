@@ -1,7 +1,11 @@
 library(acct)
 library(tidyverse)
 
-names <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/names.csv")
+school_names <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/names.csv")
+
+district_names <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/names.csv") %>%
+    select(system, system_name) %>%
+    distinct()
 
 # Student ready grad file
 student <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/ready_graduate_student_level_06182019.csv",
@@ -32,7 +36,7 @@ student <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/rea
         White = race_ethnicity == "W"
     ) %>%
     arrange(system, school, student_key) %>%
-    left_join(names, by = c("system", "school")) %>%
+    left_join(school_names, by = c("system", "school")) %>%
     select(
         system, system_name, school, school_name, student_id = student_key, first_name, last_name, included_in_cohort, completion_type,
         sat_math, sat_critical_reading, sat_total, act_english, act_math, act_reading, act_science, act_composite,
@@ -103,9 +107,10 @@ write_csv(state, "N:/ORP_accountability/projects/2019_ready_graduate/Data/ready_
 district <- map_dfr(
     .x = list(quo(All), quo(Asian), quo(BHN), quo(Black), quo(ED), quo(EL), quo(Hispanic), quo(HPI), 
         quo(Non_ED), quo(Non_EL), quo(Non_SWD), quo(Native), quo(Super), quo(SWD), quo(White)),
-    .f = ~ collapse(!!., system, system_name)
+    .f = ~ collapse(!!., system)
 ) %>%
     filter(not_na(system)) %>%
+    left_join(district_names, by = "system") %>%
     transmute(
         system,
         system_name,
@@ -143,9 +148,11 @@ district %>%
 school <- map_dfr(
     .x = list(quo(All), quo(Asian), quo(BHN), quo(Black), quo(ED), quo(EL), quo(Hispanic), quo(HPI), 
         quo(Non_ED), quo(Non_EL), quo(Non_SWD), quo(Native), quo(Super), quo(SWD), quo(White)),
-    .f = ~ collapse(!!., system, system_name, school, school_name)
+    .f = ~ collapse(!!., system, school)
 ) %>%
     filter(not_na(system), not_na(school)) %>%
+    left_join(school_names, by = c("system", "school")) %>%
+    filter(not_na(school_name)) %>%
     transmute(
         system,
         system_name,

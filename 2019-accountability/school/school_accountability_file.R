@@ -10,8 +10,8 @@ pools <- read_csv("N:/ORP_accountability/projects/2019_school_accountability/gra
 amo_ach <- read_csv("N:/ORP_accountability/projects/2019_amo/success_rate_targets_school.csv") %>%
     select(system, school, subgroup, metric_prior = success_rate_prior, AMO_target, AMO_target_double)
 
-
 student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv") %>%
+    filter(!(system == 964 & school == 964 | system == 970 & school == 970)) %>%
 ## Fill in missing residential facility and enrolled 50%
 ## Otherwise will get dropped when checking residential facility = 0 and enrolled 50% = "Y"
     mutate_at("residential_facility", ~ if_else(is.na(.), 0, .)) %>%
@@ -219,7 +219,7 @@ grad <- read_csv("N:/ORP_accountability/data/2018_graduation_rate/school_grad_ra
     # Schools need both absolute and AMO to get a grade
         score = pmax(score_abs, score_target)
     ) %>%
-    left_join(pools, by = c("system", "school"))
+    inner_join(pools, by = c("system", "school"))
 
 # Ready Grad
 amo_ready_grad <- read_csv("N:/ORP_accountability/projects/2019_amo/ready_grad_school.csv") %>%
@@ -268,6 +268,7 @@ ready_grad <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/
     mutate(participation_rate = if_else(n_count < 30, NA_real_, participation_rate)) %>%
     left_join(pools, by = c("system", "school"))
 
+# ELPA
 elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_school.csv") %>%
     filter(subgroup %in% unique(ach$subgroup)) %>%
     transmute(
@@ -287,8 +288,12 @@ elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_scho
     ) %>%
     left_join(pools, by = c("system", "school"))
 
+names <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/names.csv")
+
 school_accountability <- bind_rows(ach, grad, ready_grad, abs, elpa) %>%
-    select(system, school, pool, everything()) %>%
+    left_join(names, by = c("system", "school")) %>%
+    filter(not_na(school_name)) %>%
+    select(system, system_name, school, school_name, pool, everything()) %>%
     arrange(system, school, indicator, subgroup) %>%
     mutate(
         grade = case_when(
@@ -299,5 +304,5 @@ school_accountability <- bind_rows(ach, grad, ready_grad, abs, elpa) %>%
             score == 0 ~ "F",
         )
     )
-    
+
 write_csv(school_accountability, "N:/ORP_accountability/data/2019_final_accountability_files/school_accountability_file.csv", na = "")

@@ -282,7 +282,13 @@ elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_dist
         )
     )
 
+names <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/names.csv") %>%
+    select(system, system_name) %>%
+    distinct()
+
 district_accountability <- bind_rows(ach, grad, abs, elpa) %>%
+    left_join(names, by = c("system", "school")) %>%
+    select(system, system_name, school, school_name, everything()) %>%
     rowwise() %>%
     mutate(
         overall_score = mean(c(max(absolute_pathway, AMO_pathway), value_add_pathway), na.rm = TRUE),
