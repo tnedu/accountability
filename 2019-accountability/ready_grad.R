@@ -52,7 +52,11 @@ student %>%
     mutate_at(vars(Asian, BHN, Black, ED, EL, Hispanic, HPI, Native, SWD, Super, White), as.integer) %>%
     select(-All, -Non_ED, -Non_EL, -Non_SWD, -Super) %>%
     split(., .$system) %>%
-    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/projects/2019_ready_graduate/Data/split/", .y, "ReadyGraduate_Student_Level_20Jun2019.csv"), na = ""))
+    walk2(
+        .x = ., 
+        .y = district_numbers, 
+        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/projects/2019_ready_graduate/Data/split/", .y, "_ReadyGraduate_Student_Level_20Jun2019.csv"), na = "")
+    )
 
 collapse <- function(s, ...) {
     s_quo <- enquo(s)
@@ -142,7 +146,11 @@ write_csv(district, "N:/ORP_accountability/projects/2019_ready_graduate/Data/rea
 # Split district ready grad file
 district %>%
     split(., .$system) %>%
-    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/projects/2019_ready_graduate/Data/split/", .y, "ReadyGraduate_District_Level_20Jun2019.csv"), na = ""))
+    walk2(
+        .x = ., 
+        .y = district_numbers, 
+        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/projects/2019_ready_graduate/Data/split/", .y, "_ReadyGraduate_District_Level_20Jun2019.csv"), na = "")
+    )
 
 # School ready grad file
 school <- map_dfr(
@@ -186,4 +194,4 @@ write_csv(school, "N:/ORP_accountability/projects/2019_ready_graduate/Data/ready
 # Split school ready grad file
 school %>%
     split(., .$system) %>%
-    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/projects/2019_ready_graduate/Data/split/", .y, "ReadyGraduate_School_Level_20Jun2019.csv"), na = ""))
+    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/projects/2019_ready_graduate/Data/split/", .y, "_ReadyGraduate_School_Level_20Jun2019.csv"), na = ""))

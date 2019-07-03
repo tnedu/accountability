@@ -213,7 +213,11 @@ write_csv(growth_standard_school, "N:/ORP_accountability/data/2019_ELPA/wida_gro
 # Split School Level File
 growth_standard_school %>%
     split(., .$system) %>%
-    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSSchoolLevelFile_13Jun2019.csv"), na = ""))
+    walk2(
+        .x = .,
+        .y = district_numbers, 
+        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSSchoolLevelFile_13Jun2019.csv"), na = "")
+    )
 
 # District Level File
 growth_standard_district <- map_dfr(

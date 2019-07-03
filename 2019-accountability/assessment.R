@@ -2,7 +2,7 @@ library(acct)
 library(tidyverse)
 
 student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv") %>%
-# Proficiency and subgroup indicators for collapse
+# Proficiency and subgroup indicators for aggregation
     rename(
         BHN = bhn_group,
         ED = economically_disadvantaged,
@@ -39,7 +39,6 @@ student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_fil
     # EL Recently Arrived are counted as tested and enrolled but do not receive a proficiency level
         original_perfomance_level = if_else(el_recently_arrived == 1, "", original_performance_level)
     )
-
 
 collapse <- function(g, ...) {
 
@@ -188,7 +187,19 @@ district_prior <- read_csv("N:/ORP_accountability/data/2018_final_accountability
 district_assessment <- bind_rows(district, district_prior) %>%
     arrange(system, subject, grade, subgroup, desc(year))
 
+## TODO: Missing system names due to 964, 970 MSAA records
 write_csv(district_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/district_assessment_file.csv", na = "")
+
+# Split Student Level File
+district_numbers <- sort(unique(student_level$system))
+
+district_assessment %>%
+    split(., .$system) %>%
+    walk2(
+        .x = ., 
+        .y = district_numbers, 
+        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_DistrictAssessmentFile_03Jul2019.csv"), na = "")
+    )
 
 # School assessment file
 school <- map_dfr(
@@ -207,7 +218,7 @@ school <- map_dfr(
         pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
         pct_below = if_else(valid_tests != 0, round5(100 - pct_approaching - pct_on_track - pct_mastered, 1), NA_real_),
         pct_on_mastered = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_),
-    # Fix % B/A/O if there are no n_B/A/O,
+    # Fix % B/A/O if there are no n_B/A/O
         pct_approaching = if_else(pct_below != 0 & n_below == 0, 100 - pct_on_track - pct_mastered, pct_approaching),
         pct_below = if_else(pct_below != 0 & n_below == 0, 0, pct_below),
         pct_on_track = if_else(pct_approaching != 0 & n_approaching == 0, 100 - pct_mastered, pct_on_track),
@@ -253,4 +264,14 @@ school_assessment <- bind_rows(school, school_prior) %>%
     ungroup() %>%
     select(-temp)
 
+## TODO: Missing system and school names due to 964, 970 MSAA records
 write_csv(school_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/school_assessment_file.csv", na = "")
+
+# Split assessment files
+school_assessment %>%
+    split(., .$system) %>%
+    walk2(
+        .x = ., 
+        .y = district_numbers, 
+        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_SchoolAssessmentFile_03Jul2019.csv"), na = "")
+    )
