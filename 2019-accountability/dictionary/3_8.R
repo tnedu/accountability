@@ -19,7 +19,7 @@ layout <- tribble(
     390, 409, "teacher_of_record_tln",
     592, 593, "reason_not_tested",
     594, 595, "ri_status",
-    
+
     702, 704, "raw_score",
     708, 711, "scale_score",
     712, 726, "performance_level",
@@ -29,7 +29,7 @@ layout <- tribble(
 )
 
 # Read in cdf according to layout
-cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_Grades 3-8/2018-19/2018-2019 TN 2019 Spring 3-8 CDF Final Scores-20190629.zip",
+cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_Grades 3-8/2018-19/2018-2019 TN 2019 Spring 3-8 CDF Final Scores-20190704.zip",
     col_positions = fwf_positions(
         start = layout$start,
         end = layout$end,
