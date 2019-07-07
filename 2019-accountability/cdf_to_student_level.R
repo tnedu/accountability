@@ -1,6 +1,7 @@
 library(acct)
 library(tidyverse)
 
+## TODO: School Numbers for 964/964 and 970/970
 msaa <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_msaa_cdf.csv") %>%
     filter(!(reporting_status %in% c("WDR", "NLE"))) %>%
     mutate(
@@ -48,9 +49,9 @@ cdf <- bind_rows(fall_eoc, spring_eoc, tn_ready) %>%
         refused_to_test = ri_status == 5,
         failed_attemptedness = ri_status == 6,
         original_subject = case_when(
-            content_area_code == "EN" ~ "ELA",
-            content_area_code == "MA" ~ "Math",
-            content_area_code == "SS" ~ "Social Studies",
+            content_area_code == "ENG" ~ "ELA",
+            content_area_code == "MAT" ~ "Math",
+            content_area_code == "SOC" ~ "Social Studies",
             content_area_code == "A1" ~ "Algebra I",
             content_area_code == "A2" ~ "Algebra II",
             content_area_code == "E1" ~ "English I",
@@ -229,7 +230,7 @@ dedup <- student_level %>%
 # Reassigned schools for accountability
 enrollment <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv")
 
-output <- dedup %>%
+student_level <- dedup %>%
     select(
         system, system_name, school, school_name, test, original_subject, subject, semester,
         original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
@@ -262,4 +263,15 @@ output <- dedup %>%
         acct_school = if_else(is.na(acct_school), school, acct_school)
     )
 
-write_csv(output, "N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv", na = "")
+write_csv(student_level, "N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv", na = "")
+
+# Split student level file
+district_numbers <- sort(unique(student_level$system))
+
+student_level %>%
+    split(., .$system) %>%
+    walk2(
+        .x = .,
+        .y = district_numbers, 
+        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_StudentLevelFiles_07Jul2019.csv"), na = "")
+    )
