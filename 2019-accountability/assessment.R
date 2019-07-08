@@ -13,6 +13,7 @@ student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_fil
         Migrant = migrant
     ) %>%
     mutate_at(vars(BHN, ED, SWD, EL, T1234, Gifted, Migrant), as.logical) %>%
+    mutate_at(vars(ED, SWD, EL), ~ if_else(is.na(.), FALSE, .)) %>%
     mutate(
         year = 2019,
         test = if_else(test %in% c("MSAA", "Alt-Social Studies"), "MSAA/Alt-Social Studies", test),
@@ -190,15 +191,15 @@ district_assessment <- bind_rows(district, district_prior) %>%
 ## TODO: Missing system names due to 964, 970 MSAA records
 write_csv(district_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/district_assessment_file.csv", na = "")
 
-# Split Student Level File
+# Split district file
 district_numbers <- sort(unique(student_level$system))
 
 district_assessment %>%
     split(., .$system) %>%
     walk2(
-        .x = ., 
+        .x = .,
         .y = district_numbers, 
-        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_DistrictAssessmentFile_03Jul2019.csv"), na = "")
+        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_DistrictAssessmentFile_07Jul2019.csv"), na = "")
     )
 
 # School assessment file
@@ -267,11 +268,11 @@ school_assessment <- bind_rows(school, school_prior) %>%
 ## TODO: Missing system and school names due to 964, 970 MSAA records
 write_csv(school_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/school_assessment_file.csv", na = "")
 
-# Split assessment files
+# Split school file
 school_assessment %>%
     split(., .$system) %>%
     walk2(
-        .x = ., 
+        .x = .,
         .y = district_numbers, 
-        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_SchoolAssessmentFile_03Jul2019.csv"), na = "")
+        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_SchoolAssessmentFile_07Jul2019.csv"), na = "")
     )
