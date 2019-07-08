@@ -36,7 +36,9 @@ cdf <- read_fwf(file = "N:/Assessment_Data Returns/TCAP_Grades 3-8/2018-19/2018-
         col_names = layout$colnames
     ), 
     col_types = c("iciccccdiccccdiiddcddc")
-)
+) %>%
+    filter(!(content_area_code == "ENG" & unique_student_id == 4244992)) %>%
+    mutate(ri_status = if_else(ri_status == 6 & reason_not_tested == 1, 0, ri_status))
 
 # Demographic file
 demographics <- read_csv("N:/TNReady/2018-19/spring/demographics/spring_2019_assessment_demographics_combined_pull_20190610.csv") %>%
