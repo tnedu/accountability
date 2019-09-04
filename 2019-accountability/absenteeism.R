@@ -267,7 +267,7 @@ state <- groups %>%
     grade_band,
     n_students,
     n_chronically_absent,
-    pct_chronically_absent = round5(100 * n_chronically_absent/n_students, 1)
+    pct_chronically_absent = if_else(n_students != 0, round5(100 * n_chronically_absent/n_students, 1), NA_real_),
   ) %>%
   arrange(subgroup, grade_band)
 
