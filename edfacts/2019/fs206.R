@@ -7,8 +7,12 @@ school_master <- read_excel("N:/ORP_accountability/projects/Alex/accountability/
 comprehensive_support <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/comprehensive_support.csv") %>%
     select(system, school, comprehensive_support, grad_less_than_67)
 
+additional_targeted_support <- read_csv("N:/ORP_accountability/projects/2018_school_accountability/school_grading_grades.csv") %>%
+    select(system, school, additional_targeted_support)
+
 fs206 <- school_master %>%
     left_join(comprehensive_support, by = c("system", "school")) %>%
+    left_join(additional_targeted_support, by = c("system", "school")) %>%
     arrange(system, school) %>%
     transmute(
         first = 1:nrow(.),
@@ -18,15 +22,18 @@ fs206 <- school_master %>%
         school = sprintf("%04d", school),
         status = case_when(
             comprehensive_support == 1 ~ "CSI",
-            comprehensive_support == 0 ~ "NOTCSITSI",
-            is.na(comprehensive_support) ~ "NOTCSITSI"
+            additional_targeted_support == 1 ~ "TSI",
+            comprehensive_support == 0 | is.na(comprehensive_support) ~ "NOTCSITSI"
         ),
         csi = case_when(
             system == "00792" & school == "2815" ~ "CSILOWGR",
             comprehensive_support == 1 ~ "CSILOWPERF",
             TRUE ~ ""
         ),
-        tsi = "",
+        tsi = case_when(
+            additional_targeted_support == 1 ~ "TSIOTHER",
+            additional_targeted_support == 0 | is.na(additional_targeted_support) ~ ""
+        ),
         filler1 = "",
         filler2 = "",
         explanation = ""
