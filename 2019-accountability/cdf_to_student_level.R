@@ -8,7 +8,21 @@ msaa <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_msaa_cdf.csv") %>%
         test = "MSAA",
         semester = "Spring",
         special_ed = 1L,
-        performance_level = if_else(reporting_status != "TES", NA_character_, performance_level),
+        performance_level = if_else(reporting_status != "TES", NA_character_, performance_level)
+    )
+
+alt_ss <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_alt_ss_cdf.csv") %>%
+    filter(school != 0) %>%
+    mutate(
+        system_name = if_else(system_name == str_to_upper(system_name), str_to_title(system_name), system_name),
+        test = "Alt-Social Studies",
+        semester = "Spring",
+        special_ed = 1L,
+        performance_level = case_when(
+            performance_level == "Level 3" ~ "Mastered",
+            performance_level == "Level 2" ~ "On Track",
+            performance_level == "Level 1" ~ "Approaching"
+        )
     )
 
 fall_eoc <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_fall_eoc_cdf.csv", 
@@ -32,8 +46,9 @@ tn_ready <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_3_8_cdf.csv",
         semester = "Spring"
     )
 
-cdf <- bind_rows(fall_eoc, spring_eoc, tn_ready) %>%
+cdf <- bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
     mutate(
+        ri_status = if_else(reason_not_tested == 1 & ri_status == 6, 0, ri_status),
         performance_level = if_else(performance_level == "On track", "On Track", performance_level),
         absent = reason_not_tested == 1,
         not_enrolled = reason_not_tested == 2,
@@ -86,7 +101,7 @@ student_level <- bind_rows(cdf, msaa) %>%
         semester,
         original_subject,
         subject = original_subject,
-        original_performance_level = performance_level, 
+        original_performance_level = performance_level,
         performance_level,
         scale_score,
         state_student_id = unique_student_id,
@@ -94,7 +109,7 @@ student_level <- bind_rows(cdf, msaa) %>%
         first_name,
         grade,
         gender,
-        reported_race, 
+        reported_race,
         bhn_group = reported_race %in% c("Black or African American", "Hispanic/Latino", "American Indian/Alaska Native"),
         economically_disadvantaged,
         el,
@@ -106,9 +121,10 @@ student_level <- bind_rows(cdf, msaa) %>%
         migrant,
         enrolled_50_pct_district,
         enrolled_50_pct_school,
+        teacher_of_record_tln,
         reporting_status,
         breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness,
-        absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit,
+        absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit
     ) %>%
     mutate_at(vars(bhn_group, t1234, el_recently_arrived), as.integer) %>%
     rowwise() %>%
@@ -238,7 +254,7 @@ student_level <- dedup %>%
     select(
         system, system_name, school, school_name, test, original_subject, subject, semester,
         original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
-        state_student_id, last_name, first_name, grade, gender, reported_race, bhn_group,
+        state_student_id, last_name, first_name, grade, gender, reported_race, bhn_group, teacher_of_record_tln,
         functionally_delayed, special_ed, economically_disadvantaged, gifted, migrant, el, t1234, el_recently_arrived,
         enrolled_50_pct_district, enrolled_50_pct_school, absent, refused_to_test, residential_facility
     ) %>%
