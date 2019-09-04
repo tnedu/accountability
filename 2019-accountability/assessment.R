@@ -1,7 +1,10 @@
 library(acct)
 library(tidyverse)
+library(lubridate)
 
-student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv") %>%
+student_level <- read_csv(
+    str_c("N:/ORP_accountability/projects/", year(now()), "_student_level_file/", year(now()), "_student_level_file.csv")
+) %>%
 # Proficiency and subgroup indicators for aggregation
     rename(
         BHN = bhn_group,
@@ -13,9 +16,10 @@ student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_fil
         Migrant = migrant
     ) %>%
     mutate_at(vars(BHN, ED, SWD, EL, T1234, Gifted, Migrant), as.logical) %>%
+# Default missing ED, SWD, EL to FALSE, otherwise doesn't get captured in Non- aggregations
     mutate_at(vars(ED, SWD, EL), ~ if_else(is.na(.), FALSE, .)) %>%
     mutate(
-        year = 2019,
+        year = year(now()),
         test = if_else(test %in% c("MSAA", "Alt-Social Studies"), "MSAA/Alt-Social Studies", test),
         n_below = if_else(performance_level %in% c("Below", "Below Basic"), 1L, NA_integer_),
         n_approaching = if_else(performance_level %in% c("Approaching", "Basic"), 1L, NA_integer_),
@@ -38,7 +42,13 @@ student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_fil
         Female = gender == "F",
         residential_facility = residential_facility == 1,
     # EL Recently Arrived are counted as tested and enrolled but do not receive a proficiency level
-        original_perfomance_level = if_else(el_recently_arrived == 1, "", original_performance_level)
+        original_perfomance_level = if_else(el_recently_arrived == 1, "", original_performance_level),
+    # Replace missing system_name
+        system_name = case_when(
+            system == 964 ~ "Tennessee School for the Deaf",
+            system == 970 ~ "Department of Children's Services Education Division",
+            TRUE ~ system_name
+        )
     )
 
 collapse <- function(g, ...) {
@@ -81,7 +91,7 @@ state <- map_dfr(
         pct_mastered = if_else(valid_tests != 0, round5(100 * n_mastered/valid_tests, 1), NA_real_),
         pct_below = if_else(valid_tests != 0, round5(100 - pct_approaching - pct_on_track - pct_mastered, 1), NA_real_),
         pct_on_mastered = if_else(valid_tests != 0, round5(100 * (n_on_track + n_mastered)/valid_tests, 1), NA_real_),
-    # Fix % B/A/O if there are no n_B/A/O,
+    # Fix % B/A/O if there are no n_B/A/O
         pct_approaching = if_else(pct_below != 0 & n_below == 0, 100 - pct_on_track - pct_mastered, pct_approaching),
         pct_below = if_else(pct_below != 0 & n_below == 0, 0, pct_below),
         pct_on_track = if_else(pct_approaching != 0 & n_approaching == 0, 100 - pct_mastered, pct_on_track),
@@ -115,15 +125,53 @@ state <- map_dfr(
         enrolled, tested, valid_tests, n_below, n_approaching, n_on_track, n_mastered, 
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
-state_prior <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/state_assessment_file.csv") %>%
-    filter(year %in% 2017:2018, subject %in% state$subject, !(subject == "Social Studies" & grade %in% 3:5))
+state_prior <- read_csv(
+        str_c("N:/ORP_accountability/data/", year(now()) - 1, "_final_accountability_files/state_assessment_file.csv")
+    ) %>%
+    filter(
+        year %in% as.integer(year(now()) - 2) : as.integer(year(now()) - 1),
+        subject %in% state$subject, 
+        !(subject == "Social Studies" & grade %in% 3:5)
+    )
 
 state_assessment <- bind_rows(state, state_prior) %>%
     mutate(system = 0, system_name = "State of Tennessee") %>%
     select(year, system, system_name, everything()) %>%
     arrange(subject, grade, subgroup, desc(year))
 
-write_csv(state_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/state_assessment_file.csv", na = "")
+write_csv(state_assessment,
+    str_c("N:/ORP_accountability/data/", year(now()), "_final_accountability_files/state_assessment_file.csv", na = ""))
+
+# Export suppressed file
+suppress <- function(file, threshold = 1) {
+
+    file %>%
+        rowwise() %>%
+        mutate(
+            temp = any(
+                pct_below < threshold, pct_below > (100 - threshold),
+                pct_approaching < threshold, pct_approaching > (100 - threshold),
+                pct_on_track < threshold, pct_on_track > (100 - threshold),
+                pct_mastered < threshold, pct_mastered > (100 - threshold))
+        ) %>%
+        ungroup() %>%
+        mutate_at(
+            vars(n_below, n_approaching, n_on_track, n_mastered,
+                pct_below, pct_approaching, pct_on_track, pct_mastered),
+            ~ if_else(temp, "**", as.character(.))
+        ) %>%
+        select(-temp) %>%
+        mutate(pct_on_mastered = if_else(pct_on_mastered < threshold | pct_on_mastered > (100 - threshold), "**", as.character(pct_on_mastered))) %>%
+        mutate_at(
+            vars(n_below, n_approaching, n_on_track, n_mastered,
+                pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered),
+            ~ if_else(valid_tests < 10, "*", as.character(.)))
+
+}
+
+state_assessment %>%
+    suppress(threshold = 1) %>%
+    write_csv("N:/ORP_accountability/data/2019_final_accountability_files/state_assessment_file_suppressed.csv", na = "")
 
 # District assessment file
 # Residential facility students are dropped at the district and school level
@@ -182,14 +230,18 @@ district <- map_dfr(
         enrolled, tested, valid_tests, n_below, n_approaching, n_on_track, n_mastered, 
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
-district_prior <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/district_assessment_file.csv") %>%
-    filter(year %in% 2017:2018, subject %in% state$subject, !(subject == "Social Studies" & grade %in% 3:5))
+district_prior <- read_csv(str_c("N:/ORP_accountability/data/", year(now()) - 1, "_final_accountability_files/district_assessment_file.csv")) %>%
+    filter(
+        year %in% as.integer(year(now()) - 2) : as.integer(year(now()) - 1), 
+        subject %in% state$subject,
+        !(subject == "Social Studies" & grade %in% 3:5)
+    )
 
 district_assessment <- bind_rows(district, district_prior) %>%
     arrange(system, subject, grade, subgroup, desc(year))
 
-## TODO: Missing system names due to 964, 970 MSAA records
-write_csv(district_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/district_assessment_file.csv", na = "")
+write_csv(district_assessment,
+    str_c("N:/ORP_accountability/data/", year(now()), "_final_accountability_files/district_assessment_file.csv", na = ""))
 
 # Split district file
 district_numbers <- sort(unique(student_level$system))
@@ -198,8 +250,28 @@ district_assessment %>%
     split(., .$system) %>%
     walk2(
         .x = .,
-        .y = district_numbers, 
-        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_DistrictAssessmentFile_07Jul2019.csv"), na = "")
+        .y = district_numbers,
+        .f = ~ write_csv(.x, path = paste0(
+            "N:/ORP_accountability/data/", year(now()), "_assessment_files/Split/", .y,
+            "_DistrictAssessmentFile_", sprintf("%02d", day(now())), month(now(), label = T), year(now()),
+            ".csv"
+        ), na = "")
+    )
+
+# Export suppressed file
+district_assessment %>%
+    suppress(threshold = 1) %>%
+    write_csv("N:/ORP_accountability/data/2019_final_accountability_files/district_assessment_file_suppressed.csv", na = "")
+
+# Export with CORE Region for analysts
+core <- readxl::read_excel("N:/ORP_accountability/data/2019_final_accountability_files/District by CORE Region_2014-15_revisedAug2015.xlsx") %>%
+    select(system = `District No`, region = Region)
+
+district_assessment %>%
+    left_join(core, by = "system") %>%
+    write_csv(
+        paste0("N:/ORP_accountability/data/", year(now()), "_final_accountability_files/district_assessment_file_with_region.csv"),
+        na = ""
     )
 
 # School assessment file
@@ -253,26 +325,48 @@ school <- map_dfr(
         enrolled, tested, valid_tests, n_below, n_approaching, n_on_track, n_mastered, 
         pct_below, pct_approaching, pct_on_track, pct_mastered, pct_on_mastered)
 
-school_prior <- read_csv("N:/ORP_accountability/data/2018_final_accountability_files/school_assessment_file.csv") %>%
-    filter(year %in% 2017:2018, subject %in% state$subject, !(subject == "Social Studies" & grade %in% 3:5))
+school_prior <- read_csv(
+        str_c("N:/ORP_accountability/data/", year(now()) - 1, "_final_accountability_files/school_assessment_file.csv")
+    ) %>%
+    filter(
+        year %in% as.integer(year(now()) - 2) : as.integer(year(now()) - 1),
+        subject %in% state$subject, 
+        !(subject == "Social Studies" & grade %in% 3:5)
+    )
 
 school_assessment <- bind_rows(school, school_prior) %>%
     arrange(system, school, subject, grade, subgroup, desc(year)) %>%
 # Drop schools with only prior year data
     group_by(system, school) %>%
     mutate(temp = max(year)) %>%
-    filter(temp == 2019) %>%
+    filter(temp == year(now())) %>%
     ungroup() %>%
     select(-temp)
 
 ## TODO: Missing system and school names due to 964, 970 MSAA records
-write_csv(school_assessment, "N:/ORP_accountability/data/2019_final_accountability_files/school_assessment_file.csv", na = "")
+school_assessment %>%
+    write_csv(str_c("N:/ORP_accountability/data/", year(now()), "_final_accountability_files/school_assessment_file.csv", na = ""))
 
 # Split school file
 school_assessment %>%
     split(., .$system) %>%
     walk2(
         .x = .,
-        .y = district_numbers, 
-        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_SchoolAssessmentFile_07Jul2019.csv"), na = "")
+        .y = district_numbers,
+        .f = ~ write_csv(.x, path = paste0(
+                "N:/ORP_accountability/data/", year(now()), "_assessment_files/Split/", .y,
+                "_SchoolAssessmentFile_", sprintf("%02d", day(now())), month(now(), label = T), year(now()), ".csv"
+            ), na = "")
     )
+
+school_assessment %>%
+    left_join(core, by = "system") %>%
+    write_csv(
+        paste0("N:/ORP_accountability/data/", year(now()), "_final_accountability_files/school_assessment_file_with_region.csv"),
+        na = ""
+    )
+
+# Export suppressed file
+school_assessment %>%
+    suppress(threshold = 5) %>%
+    write_csv("N:/ORP_accountability/data/2019_final_accountability_files/school_assessment_file_suppressed.csv", na = "")

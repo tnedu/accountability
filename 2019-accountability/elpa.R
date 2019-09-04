@@ -53,7 +53,7 @@ wida <- read_csv("N:/Assessment_Data Returns/ACCESS for ELs and ALT/2018-19/TN_S
     transmute(
         student_id = state_student_id,
         system = as.integer(str_sub(district_number, 3, 5)),
-        school = school_number,
+        school = if_else(system == 792 & school_number == 2596, 2598, school_number),
         grade,
         scale_score_listening = listening_scale_score,
         scale_score_reading = reading_scale_score,
@@ -162,7 +162,7 @@ wida %>%
     mutate_at(vars(BHN, Hispanic, Black, Native, HPI, Asian, White, ED, SWD, EL, exit_denom, exit, growth_standard_denom), as.integer) %>%
     select(-max_comp, -max_lit, -reported_race) %>%
     split(., .$system) %>%
-    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSStudentLevelFile_13Jun2019.csv"), na = ""))
+    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSStudentLevelFile_22Jul2019.csv"), na = ""))
 
 wida <- wida %>%
     mutate_at(c("ED", "SWD"), ~ if_else(is.na(.), FALSE, .))
@@ -176,7 +176,7 @@ growth_standard_school <- map_dfr(
         filter(wida, Black) %>% mutate(subgroup = "Black or African American"),
         filter(wida, BHN) %>% mutate(subgroup = "Black/Hispanic/Native American"),
         filter(wida, ED) %>% mutate(subgroup = "Economically Disadvantaged"),
-        filter(wida, EL) %>% mutate(subgroup = "English Learners with Transitional 1-4"),
+        filter(wida, EL) %>% mutate(subgroup = "English Learners"),
         filter(wida, Hispanic) %>% mutate(subgroup = "Hispanic"),
         filter(wida, HPI) %>% mutate(subgroup = "Native Hawaiian or Other Pacific Islander"),
         filter(wida, !ED) %>% mutate(subgroup = "Non-Economically Disadvantaged"),
@@ -216,7 +216,7 @@ growth_standard_school %>%
     walk2(
         .x = .,
         .y = district_numbers, 
-        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSSchoolLevelFile_13Jun2019.csv"), na = "")
+        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSSchoolLevelFile_22Jul2019.csv"), na = "")
     )
 
 # District Level File
@@ -228,7 +228,7 @@ growth_standard_district <- map_dfr(
         filter(wida, Black) %>% mutate(subgroup = "Black or African American"),
         filter(wida, BHN) %>% mutate(subgroup = "Black/Hispanic/Native American"),
         filter(wida, ED) %>% mutate(subgroup = "Economically Disadvantaged"),
-        filter(wida, EL) %>% mutate(subgroup = "English Learners with Transitional 1-4"),
+        filter(wida, EL) %>% mutate(subgroup = "English Learners"),
         filter(wida, Hispanic) %>% mutate(subgroup = "Hispanic"),
         filter(wida, HPI) %>% mutate(subgroup = "Native Hawaiian or Other Pacific Islander"),
         filter(wida, !ED) %>% mutate(subgroup = "Non-Economically Disadvantaged"),
@@ -265,7 +265,7 @@ write_csv(growth_standard_district, "N:/ORP_accountability/data/2019_ELPA/wida_g
 # Split District Level File
 growth_standard_district %>%
     split(., .$system) %>%
-    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSDistrictLevelFile_13Jun2019.csv"), na = ""))
+    walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_ELPA/split/", .y, "_ACCESSDistrictLevelFile_22Jul2019.csv"), na = ""))
 
 # State Level File
 growth_standard_state <- map_dfr(
@@ -276,7 +276,7 @@ growth_standard_state <- map_dfr(
         filter(wida, Black) %>% mutate(subgroup = "Black or African American"),
         filter(wida, BHN) %>% mutate(subgroup = "Black/Hispanic/Native American"),
         filter(wida, ED) %>% mutate(subgroup = "Economically Disadvantaged"),
-        filter(wida, EL) %>% mutate(subgroup = "English Learners with Transitional 1-4"),
+        filter(wida, EL) %>% mutate(subgroup = "English Learners"),
         filter(wida, Hispanic) %>% mutate(subgroup = "Hispanic"),
         filter(wida, HPI) %>% mutate(subgroup = "Native Hawaiian or Other Pacific Islander"),
         filter(wida, !ED) %>% mutate(subgroup = "Non-Economically Disadvantaged"),
@@ -309,3 +309,34 @@ growth_standard_state <- map_dfr(
 
 # Export State Level File
 write_csv(growth_standard_state, "N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_state.csv", na = "")
+
+# Export Suppressed Files
+suppress <- function(file, threshold = 1) {
+    
+    file %>%
+        mutate_at(
+            .vars = vars(n_exit, pct_exit),
+            .funs = ~ if_else(pct_exit < threshold | pct_exit > (100 - threshold), "**", as.character(.))
+        ) %>%
+        mutate_at(
+            .vars = vars(n_exit, pct_exit, composite_average, literacy_average),
+            .funs = ~ if_else(exit_denom < 10, "*", as.character(.))
+        ) %>%
+        mutate_at(
+            .vars = vars(n_met_growth_standard, pct_met_growth_standard),
+            .funs = ~ if_else(pct_met_growth_standard < threshold | pct_met_growth_standard > (100 - threshold), "**", as.character(.))
+        ) %>%
+        mutate_at(
+            .vars = vars(n_met_growth_standard, pct_met_growth_standard),
+            .funs = ~ if_else(growth_standard_denom < 10, "*", as.character(.))
+        )
+    
+}
+
+growth_standard_district %>%
+    suppress() %>%
+    write_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_district_suppressed.csv", na = "")
+
+growth_standard_school %>%
+    suppress(threshold = 5) %>%
+    write_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_school_suppressed.csv", na = "")

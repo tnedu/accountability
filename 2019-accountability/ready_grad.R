@@ -147,8 +147,8 @@ write_csv(district, "N:/ORP_accountability/projects/2019_ready_graduate/Data/rea
 district %>%
     split(., .$system) %>%
     walk2(
-        .x = ., 
-        .y = district_numbers, 
+        .x = .,
+        .y = district_numbers,
         .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/projects/2019_ready_graduate/Data/split/", .y, "_ReadyGraduate_District_Level_20Jun2019.csv"), na = "")
     )
 
@@ -195,3 +195,29 @@ write_csv(school, "N:/ORP_accountability/projects/2019_ready_graduate/Data/ready
 school %>%
     split(., .$system) %>%
     walk2(., district_numbers, ~ write_csv(.x, path = paste0("N:/ORP_accountability/projects/2019_ready_graduate/Data/split/", .y, "_ReadyGraduate_School_Level_20Jun2019.csv"), na = ""))
+
+suppress <- function(file, threshold = 1) {
+
+    file %>%
+        mutate_at(
+            .vars = vars(n_ready_grad, pct_ready_grad),
+            .funs = ~ if_else(pct_ready_grad < threshold | pct_ready_grad > (100 - threshold), "**", as.character(.))
+        ) %>%
+        mutate_at(
+            .vars = vars(n_ready_grad, pct_ready_grad),
+            .funs = ~ if_else(n_count < 10, "*", as.character(.))
+        )
+    
+}
+
+district %>%
+    suppress() %>%
+    select(-act_participation_rate) %>%
+    arrange(system, subgroup) %>%
+    write_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/ready_graduate_district_suppressed.csv", na = "")
+
+school %>%
+    suppress(threshold = 5) %>%
+    select(-act_participation_rate) %>%
+    arrange(system, school, subgroup) %>%
+    write_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/ready_graduate_school_suppressed.csv", na = "")
