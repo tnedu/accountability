@@ -275,10 +275,17 @@ write_csv(student_level, "N:/ORP_accountability/projects/2019_student_level_file
 # Split student level file
 district_numbers <- sort(unique(student_level$system))
 
-student_level %>%
-    split(., .$system) %>%
+# Split files should contain either students with assessment or accountability school number 
+split_by_district <- function(s) {
+    filter(student_level, system == s | acct_system == s)
+}
+
+map(district_numbers, split_by_district) %>%
     walk2(
         .x = .,
-        .y = district_numbers, 
-        .f = ~ write_csv(.x, path = paste0("N:/ORP_accountability/data/2019_final_accountability_files/split/", .y, "_StudentLevelFiles_07Jul2019.csv"), na = "")
+        .y = district_numbers,
+        .f = ~ write_csv(.x,
+            path = paste0("N:/ORP_accountability/data/2019_assessment_files/Split/", .y, "_StudentLevelFiles_30Jul2019.csv"), 
+            na = ""
+        )
     )
