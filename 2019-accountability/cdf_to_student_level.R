@@ -230,6 +230,10 @@ dedup <- student_level %>%
 # Reassigned schools for accountability
 enrollment <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv")
 
+# ELPA Students should be EL = 1
+elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_student.csv") %>%
+    select(student_id)
+
 student_level <- dedup %>%
     select(
         system, system_name, school, school_name, test, original_subject, subject, semester,
@@ -261,6 +265,9 @@ student_level <- dedup %>%
     mutate(
         acct_system = if_else(is.na(acct_system), system, acct_system),
         acct_school = if_else(is.na(acct_school), school, acct_school)
+# Assign EL = 1 if student tested ELPA
+    mutate(
+        el = if_else(state_student_id %in% elpa$student_id, 1, el)
     )
 
 write_csv(student_level, "N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv", na = "")
