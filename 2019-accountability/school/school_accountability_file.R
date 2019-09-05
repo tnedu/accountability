@@ -5,20 +5,20 @@ math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integ
 english_eoc <- c("English I", "English II")
 
 pools <- read_csv("N:/ORP_accountability/projects/2019_school_accountability/grade_pools_designation_immune.csv") %>%
-    select(system, school, pool)
+    select(system, school, pool, designation_ineligible)
 
 amo_ach <- read_csv("N:/ORP_accountability/projects/2019_amo/success_rate_targets_school.csv") %>%
     select(system, school, subgroup, metric_prior = success_rate_prior, AMO_target, AMO_target_double)
 
 student_level <- read_csv("N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv") %>%
     filter(!(system == 964 & school == 964 | system == 970 & school == 970)) %>%
-## Fill in missing residential facility and enrolled 50%
-## Otherwise will get dropped when checking residential facility = 0 and enrolled 50% = "Y"
+# Fill in missing residential facility and enrolled 50%
+# Otherwise will get dropped when checking residential facility = 0 and enrolled 50% = "Y"
     mutate_at("residential_facility", ~ if_else(is.na(.), 0, .)) %>%
     mutate_at("enrolled_50_pct_school", ~ if_else(is.na(.), "Y", .)) %>%
     filter(
         residential_facility == 0,
-        enrolled_50_pct_school == "Y",
+        (enrolled_50_pct_school == "Y" | (acct_system != system | acct_school != school)),
         original_subject %in% c("Math", "ELA", math_eoc, english_eoc)
     ) %>%
 # Proficiency and subgroup indicators for collapse
@@ -145,10 +145,10 @@ amo_abs <- read_csv("N:/ORP_accountability/projects/2019_amo/absenteeism_targets
         AMO_target_double
     )
 
-abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/school_chronic_absenteeism_Jun17.csv") %>%
+abs <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/school_chronic_absenteeism_Jul11.csv") %>%
     left_join(pools, by = c("system", "school")) %>%
     transmute(
-        system, school, pool, indicator = "Chronic Absenteeism", subgroup,
+        system, school, pool, designation_ineligible, indicator = "Chronic Absenteeism", subgroup,
         n_count = if_else(n_students < 30, 0, n_students),
         metric = if_else(n_count < 30, NA_real_, pct_chronically_absent),
         ci_bound = if_else(n_students >= 30, ci_lower_bound(n_count, metric), NA_real_)
@@ -270,15 +270,13 @@ ready_grad <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/
 
 # ELPA
 elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_school.csv") %>%
-    filter(subgroup %in% unique(ach$subgroup)) %>%
     transmute(
-        system,
-        school,
+        system, school,
         indicator = "ELPA Growth Standard",
-        subgroup,
+        subgroup = if_else(subgroup == "English Learners", "English Learners with Transitional 1-4", subgroup),
         n_count = if_else(growth_standard_denom < 10, 0, growth_standard_denom),
         metric = if_else(n_count < 10, NA_real_, pct_met_growth_standard),
-        score_abs = case_when(
+        score = case_when(
             metric >= 60 ~ 4,
             metric >= 50 ~ 3,
             metric >= 40 ~ 2,
@@ -286,23 +284,42 @@ elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_scho
             metric < 25 ~ 0
         )
     ) %>%
+    filter(subgroup %in% unique(ach$subgroup)) %>%
     left_join(pools, by = c("system", "school"))
 
+# TVAAS
+tvaas <- readxl::read_excel("N:/ORP_accountability/data/2019_tvaas/2019-School-Level-Accountability-Results-EOC-TCAP.xlsx") %>%
+    janitor::clean_names() %>%
+    mutate_at(vars(ends_with("_number")), as.numeric) %>%
+# Take better of with and without grade 3
+    arrange(system_number, school_number, subgroup, desc(level), desc(index)) %>%
+    group_by(system_number, school_number, subgroup) %>%
+    summarise_at(vars(number_of_students, level), first) %>%
+    ungroup() %>%
+    transmute(
+        system = system_number,
+        school = school_number,
+        indicator = "Growth",
+        subgroup = case_when(
+            subgroup == "Black" ~ "Black or African American",
+            subgroup == "Native American" ~ "American Indian or Alaska Native",
+            subgroup == "English Learners (includes EL and T1-4)" ~ "English Learners with Transitional 1-4",
+            subgroup == "Hawaiian Pacific Islander" ~ "Native Hawaiian or Other Pacific Islander",
+            TRUE ~ subgroup
+        ), 
+        n_count = number_of_students,
+        metric = level,
+        score = metric - 1
+    ) %>%
+    left_join(pools, by = c("system", "school"))
+
+# Output
 names <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/names.csv")
 
-school_accountability <- bind_rows(ach, grad, ready_grad, abs, elpa) %>%
+school_accountability <- bind_rows(ach, tvaas, grad, ready_grad, abs, elpa) %>%
     left_join(names, by = c("system", "school")) %>%
     filter(not_na(school_name)) %>%
-    select(system, system_name, school, school_name, pool, everything()) %>%
-    arrange(system, school, indicator, subgroup) %>%
-    mutate(
-        grade = case_when(
-            score == 4 ~ "A",
-            score == 3 ~ "B",
-            score == 2 ~ "C",
-            score == 1 ~ "D",
-            score == 0 ~ "F",
-        )
-    )
+    select(system, system_name, school, school_name, pool, designation_ineligible, everything()) %>%
+    arrange(system, school, indicator, subgroup)
 
 write_csv(school_accountability, "N:/ORP_accountability/data/2019_final_accountability_files/school_accountability_file.csv", na = "")

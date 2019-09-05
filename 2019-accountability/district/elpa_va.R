@@ -5,8 +5,8 @@ t1234 <- read_csv("N:/ORP_accountability/projects/2019_student_level_file/2019_s
     filter(
         t1234 == 1,
         original_subject %in% c("ELA", "English I", "English II", "English III"),
-        enrolled_50_pct_district == "Y",
-        residential_facility == 0
+        (enrolled_50_pct_district == "Y" | is.na(enrolled_50_pct_district)),
+        (residential_facility == 0 | is.na(residential_facility))
     ) %>%
     rename(BHN = bhn_group, ED = economically_disadvantaged, SWD = special_ed, T1234 = t1234) %>%
     mutate_at(vars(BHN, ED, SWD, T1234), as.logical) %>%

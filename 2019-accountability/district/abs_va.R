@@ -15,7 +15,7 @@ prior <- read_csv("N:/ORP_accountability/data/2018_chronic_absenteeism/student_c
     transmute(student_id, ca_prior = n_absences/isp_days >= 0.1) %>%
     filter(ca_prior)
 
-current <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/student_chronic_absenteeism_Jun17.csv") %>%
+current <- read_csv("N:/ORP_accountability/data/2019_chronic_absenteeism/student_chronic_absenteeism_Jul11.csv") %>%
     filter(str_length(student_id) == 7) %>%
 # Collapse multiple enrollments in the same district
     group_by(system, system_name, student_id) %>%

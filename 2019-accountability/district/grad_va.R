@@ -1,3 +1,4 @@
+library(acct)
 library(tidyverse)
 
 subgroups <- c(
@@ -19,8 +20,8 @@ ready <- read_csv("N:/ORP_accountability/projects/2019_ready_graduate/Data/ready
     group_by(subgroup) %>%
     mutate(
         value_add_metric = pct_ready_grad - prior,
-        rank = if_else(!is.na(value_add_metric), rank(value_add_metric, ties.method = "max"), NA_integer_),
-        denom = sum(!is.na(value_add_metric)),
+        rank = if_else(not_na(value_add_metric), rank(value_add_metric, ties.method = "max"), NA_integer_),
+        denom = sum(not_na(value_add_metric)),
         value_add_pathway = case_when(
             rank/denom >= 0.8 ~ 4L,
             rank/denom >= 0.6 ~ 3L,
