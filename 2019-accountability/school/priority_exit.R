@@ -44,6 +44,9 @@ priority_exit <- read_csv("N:/ORP_accountability/data/2019_final_accountability_
         system, system_name, school, school_name, pool, designation_ineligible, priority_csi,
         metric, rank, percentile, metric_prior, rank_prior, percentile_prior, 
         literacy, numeracy, literacy_prior, numeracy_prior, priority_exit
+    ) %>%
+    mutate(
+        priority_csi = if_else(system == 985, 1L, priority_csi)
     )
 
 write_csv(priority_exit, "N:/ORP_accountability/projects/2019_school_accountability/priority_exit.csv", na = "")
