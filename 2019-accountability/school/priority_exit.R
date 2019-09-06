@@ -46,6 +46,7 @@ priority_exit <- read_csv("N:/ORP_accountability/data/2019_final_accountability_
         literacy, numeracy, literacy_prior, numeracy_prior, priority_exit
     ) %>%
     mutate(
+        priority_csi = if_else(system == 600 & school == 110, 0L, priority_csi),
         priority_csi = if_else(system == 985, 1L, priority_csi)
     )
 
