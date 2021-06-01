@@ -1,0 +1,10 @@
+library(DBI)
+library(haven)
+library(janitor)
+library(lubridate)
+library(magrittr)
+library(openxlsx)
+library(rlang)
+library(tidyverse)
+
+setwd(str_c(Sys.getenv('tnshare_data_use'), 'team-members/josh-carson/accountability/2021-accountability'))
