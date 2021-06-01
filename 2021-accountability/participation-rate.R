@@ -123,7 +123,7 @@ partic_fall_eoc <- regis_fall_eoc_raw %>%
     overall_snt = if_else(overall_snt == Inf, NA_real_, overall_snt)
   ) %>%
   ungroup() %>%
-  # Join data from the registration file and the CDF, respectively.
+  # Join registration (denominator) and CDF (numerator) data sets.
   left_join(
     cdf_fall_eoc_raw %>%
       mutate(
@@ -145,8 +145,22 @@ partic_fall_eoc <- regis_fall_eoc_raw %>%
             .x == 'U1' ~ 'TNSOCSUH'
           )
         )
-      ),
+      ) %>%
+      mutate(in_cdf = T),
     by = c('usid' = 'unique_student_id', 'test_code_2' = 'content_area_code')
+  )
+
+temp <- partic_fall_eoc %>%
+  # If the CDF indicates a reason not tested, use that. If not, but the
+  # registration file does, use the reason from the registration file. Assign
+  # an SNT code of 1 if there is no record in the CDF and no SNT in the
+  # registration file.
+  mutate(
+    reason_not_tested_2 = case_when(
+      !is.na(reason_not_tested) ~ reason_not_tested,
+      is.na(in_cdf) & is.na(overall_snt) ~ '1',
+      T ~ as.character(overall_snt)
+    )
   )
 
 # Confirm that the overall SNT code equals 1 anywhere at least one sub-part has
@@ -157,3 +171,5 @@ partic_fall_eoc %>%
   summarize(m = mean(overall_snt == 1)) %>%
   pull(m) %>%
   testthat::expect_equal(1)
+
+count(temp, overall_snt, reason_not_tested, reason_not_tested_2, in_cdf, sort = T)
