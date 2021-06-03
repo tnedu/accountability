@@ -14,6 +14,20 @@ setwd(str_c(Sys.getenv('tnshare_data_use'), 'team-members/josh-carson/accountabi
 # Set all column types to character because read_csv() incorrectly identifies
 # some column types (e.g., modified format, RI sub-part 1).
 
+access_alt_raw <- clean_names(
+  read_csv(
+    'N:/Assessment_Data Returns/ACCESS for ELs and ALT/2020-21/TN_Alternate_StudRR_File_2021-04-29.csv',
+    col_types = glue::glue_collapse(rep('c', 179))
+  )
+)
+
+access_summative_raw <- clean_names(
+  read_csv(
+    'N:/Assessment_Data Returns/ACCESS for ELs and ALT/2020-21/TN_Summative_StudRR_File_2021-04-29.csv',
+    col_types = glue::glue_collapse(rep('c', 164))
+  )
+)
+
 cdf_fall_eoc_raw <- read_csv(
   'N:/ORP_accountability/data/2021_cdf/2021_fall_eoc_cdf.csv',
   col_types = glue::glue_collapse(rep('c', 36))
@@ -102,7 +116,7 @@ cdf_fall_eoc_raw %>%
     performance_level_available
   )
 
-# Apply business rules to the registration and CDF data ----
+# Apply fall EOC business rules ----
 
 partic_fall_eoc <- regis_fall_eoc_raw %>%
   # The lowest SNT among the sub-parts of the test in the registration file is
