@@ -48,7 +48,7 @@ regis_fall_eoc_raw <- clean_names(
   )
 )
 
-# Explore fall EOC registration data ----
+# Explore fall EOC registration data (denominator) ----
 
 nrow(distinct(regis_fall_eoc_raw)) == nrow(regis_fall_eoc_raw)
 
@@ -78,7 +78,7 @@ count(regis_fall_eoc_raw, snt_subpart2)
 count(regis_fall_eoc_raw, snt_subpart3)
 count(regis_fall_eoc_raw, ri_subpart1)
 
-# Explore fall EOC CDF data ----
+# Explore fall EOC CDF data (numerator) ----
 
 nrow(distinct(cdf_fall_eoc_raw)) == nrow(cdf_fall_eoc_raw)
 
@@ -196,7 +196,9 @@ partic_fall_eoc %>%
 
 count(temp, overall_snt, reason_not_tested, reason_not_tested_2, in_cdf, sort = T)
 
-# Explore WIDA Cumulative Student Status file (denominator) ----
+# Explore English Learner enrollment data (denominator) ----
+
+# Explore WIDA Cumulative Student Status file (numerator) ----
 
 nrow(distinct(access_css_raw)) == nrow(access_css_raw)
 
@@ -244,7 +246,7 @@ str_split(access_css_raw$tests_started, ' ') %>%
   as_date() %>% # Most dates failed to parse.
   summary()
 
-# Explore WIDA ACCESS test results (numerator) ----
+# Explore WIDA ACCESS test results (numerator? not needed?) ----
 
 nrow(distinct(access_alt_raw)) == nrow(access_alt_raw)
 nrow(distinct(access_summative_raw)) == nrow(access_summative_raw)
