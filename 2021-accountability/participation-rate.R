@@ -28,6 +28,14 @@ access_summative_raw <- clean_names(
   )
 )
 
+access_css_raw <- clean_names(
+  read_csv(
+    'N:/Assessment_Data Returns/WIDA/2021/Cumulative_Status/Cumulative_Student_Status_21.csv',
+    col_types = glue::glue_collapse(rep('c', 22)),
+    skip = 5
+  )
+)
+
 cdf_fall_eoc_raw <- read_csv(
   'N:/ORP_accountability/data/2021_cdf/2021_fall_eoc_cdf.csv',
   col_types = glue::glue_collapse(rep('c', 36))
@@ -188,6 +196,54 @@ partic_fall_eoc %>%
 
 count(temp, overall_snt, reason_not_tested, reason_not_tested_2, in_cdf, sort = T)
 
+# Explore WIDA Cumulative Student Status file (denominator) ----
+
+nrow(distinct(access_css_raw)) == nrow(access_css_raw)
+
+# Distinct by district, school, student, grade, domain, assessment, and test
+# start datetime
+
+summarize(
+  access_css_raw,
+  n0 = n(),
+  n1 = n_distinct(district),
+  n2 = n_distinct(district, school),
+  n3 = n_distinct(state_student_id),
+  n4 = n_distinct(district, school, state_student_id),
+  n5 = n_distinct(state_student_id, domain),
+  n6 = n_distinct(
+    district, school, state_student_id, grade,
+    domain, assessment, tests_started
+  )
+)
+
+# The "not tested" and alternate assessment fields (as well as the invalidation
+# field, below) have no values.
+
+map(as.list(access_css_raw), ~mean(is.na(.x)))
+
+access_css_raw %>%
+  mutate(test_start_missing = is.na(tests_started)) %>%
+  count(test_status, test_start_missing)
+
+count(access_css_raw, grade)
+count(access_css_raw, domain)
+count(access_css_raw, domain, assessment) %>% View() # What does HW mean?
+count(access_css_raw, invalidation)
+count(access_css_raw, accomodations, sort = T)
+count(access_css_raw, test_part) # All values are '#1'.
+count(access_css_raw, tests_started, sort = T)
+
+str_split(access_css_raw$tests_started, ' ') %>%
+  map_if(~ length(.x) < 3, ~ NA_Date_) %>%
+  map_if(
+    ~ length(.x) >= 3,
+    ~ str_c(.x[[length(.x) - 1]], .x[[1]], .x[[length(.x) - 2]], sep = '-')
+  ) %>%
+  unlist() %>%
+  as_date() %>% # Most dates failed to parse.
+  summary()
+
 # Explore WIDA ACCESS test results (numerator) ----
 
 nrow(distinct(access_alt_raw)) == nrow(access_alt_raw)
@@ -255,3 +311,65 @@ count(access_summative_raw, native_language, sort = T)
 count(access_alt_raw, migrant)
 count(access_summative_raw, migrant)
 
+# Apply WIDA ACCESS business rules ----
+
+access_css <- access_css_raw %>%
+  # For any student with multiple records within the same school and same
+  # domain, keep the record(s) where test status is "Completed" (if there is
+  # one).
+  group_by(district, school, domain, state_student_id) %>%
+  filter(sum(test_status == 'Completed') == 0 | test_status == 'Completed') %>%
+  # Apply the same rule for any student with multiple records ACROSS multiple
+  # schools but within the same domain.
+  group_by(domain, state_student_id) %>%
+  filter(sum(test_status == 'Completed') == 0 | test_status == 'Completed') %>%
+  # Determine the highest test status within district-school-student but
+  # across domains.
+  group_by(district, school, state_student_id) %>%
+  mutate(
+    test_status_level = case_when(
+      test_status == 'Completed' ~ 3,
+      test_status == 'In Progress' ~ 2,
+      test_status == 'Not Started' ~ 1
+    ),
+    max_test_status_level_1 = max(test_status_level)
+  ) %>%
+  # Determine the highest test status within student but across district-school-
+  # domain.
+  group_by(state_student_id) %>%
+  mutate(max_test_status_level_2 = max(max_test_status_level_1)) %>%
+  # Keep observations from the school where the highest test status occurred.
+  filter(max_test_status_level_2 == max_test_status_level_1) %>%
+  ungroup() %>%
+  select(-test_status_level, -max_test_status_level_1, -max_test_status_level_2)
+
+# count(access_css, keep)
+
+# access_css %>%
+#   group_by(state_student_id) %>%
+#   filter(sum(!keep) > 0) %>%
+#   ungroup() %>%
+#   arrange(state_student_id, domain) %>%
+#   View()
+
+# Distinct by district, school, student, grade, domain, assessment, and test
+# start datetime
+
+summarize(
+  access_css,
+  n0 = n(),
+  n1 = n_distinct(district),
+  n2 = n_distinct(district, school),
+  n3 = n_distinct(state_student_id),
+  n4 = n_distinct(district, school, state_student_id),
+  n5 = n_distinct(state_student_id, domain),
+  n6 = n_distinct(
+    district, school, state_student_id, grade,
+    domain, assessment, tests_started
+  )
+)
+
+map(as.list(access_css), ~mean(is.na(.x)))
+
+count(access_css, grade)
+count(access_css, domain)
