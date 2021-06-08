@@ -187,3 +187,71 @@ partic_fall_eoc %>%
   testthat::expect_equal(1)
 
 count(temp, overall_snt, reason_not_tested, reason_not_tested_2, in_cdf, sort = T)
+
+# Explore WIDA ACCESS test results (numerator) ----
+
+nrow(distinct(access_alt_raw)) == nrow(access_alt_raw)
+nrow(distinct(access_summative_raw)) == nrow(access_summative_raw)
+
+# Distinct by district, school, and student
+
+summarize(
+  access_alt_raw,
+  n0 = n(),
+  n1 = n_distinct(district_number),
+  n2 = n_distinct(district_number, school_number),
+  n3 = n_distinct(state_student_id),
+  n4 = n_distinct(unique_drc_student_id),
+  n5 = n_distinct(district_number, school_number, state_student_id)
+  # n5 = n_distinct(state_student_id, content_area_code)
+)
+
+# Almost distinct by district, school, student, and grade
+
+summarize(
+  access_summative_raw,
+  n0 = n(),
+  n1 = n_distinct(district_number),
+  n2 = n_distinct(district_number, school_number),
+  n3 = n_distinct(state_student_id),
+  n4 = n_distinct(unique_drc_student_id),
+  n5 = n_distinct(district_number, school_number, state_student_id),
+  n6 = n_distinct(district_number, school_number, state_student_id, grade)
+)
+
+# 67 district-school-student combinations appear multiple times. Most of them
+# have test results split across multiple rows: Usually the writing cluster is
+# separate from the other clusters. Some of the student information (e.g.,
+# middle initial, spelling of name, date of birth) also differs across
+# duplicates.
+
+access_summative_raw %>%
+  group_by(district_number, school_number, state_student_id) %>%
+  filter(n() > 1) %>%
+  ungroup() %>%
+  arrange(district_number, school_number, state_student_id) %>%
+  View()
+
+map(as.list(access_alt_raw), ~mean(is.na(.x)))
+map(as.list(access_summative_raw), ~mean(is.na(.x)))
+
+count(
+  access_alt_raw,
+  ethnicity_hispanic_latino, race_american_indian_alaskan_native, race_asian,
+  race_black_african_american, race_pacific_islander_hawaiian, race_white,
+  sort = T
+)
+
+count(
+  access_summative_raw,
+  ethnicity_hispanic_latino, race_american_indian_alaskan_native, race_asian,
+  race_black_african_american, race_pacific_islander_hawaiian, race_white,
+  sort = T
+)
+
+count(access_alt_raw, native_language, sort = T)
+count(access_summative_raw, native_language, sort = T)
+
+count(access_alt_raw, migrant)
+count(access_summative_raw, migrant)
+
