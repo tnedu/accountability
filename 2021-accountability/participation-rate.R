@@ -7,12 +7,34 @@ library(openxlsx)
 library(rlang)
 library(tidyverse)
 
+connection_eis <- DBI::dbConnect(
+  RJDBC::JDBC(
+    "oracle.jdbc.OracleDriver",
+    classPath = Sys.getenv("jar_path")
+  ),
+  Sys.getenv("eis_connection_string"),
+  "EIS_MGR", Sys.getenv("eis_password")
+)
+
 setwd(str_c(Sys.getenv('tnshare_data_use'), 'team-members/josh-carson/accountability/2021-accountability'))
+
+# Functions ----
+
+convert_date <- function(v) {
+  as_date(
+    str_c(str_split(v, '/', simplify = T)[, 3],
+          str_split(v, '/', simplify = T)[, 1],
+          str_split(v, '/', simplify = T)[, 2],
+          sep = '-')
+  )
+}
 
 # Read input data ----
 
 # Set all column types to character because read_csv() incorrectly identifies
 # some column types (e.g., modified format, RI sub-part 1).
+
+# WIDA ACCESS and enrollment
 
 access_alt_raw <- clean_names(
   read_csv(
@@ -35,6 +57,11 @@ access_css_raw <- clean_names(
     skip = 5
   )
 )
+
+enr_raw <- read_csv('N:/Data Mgmt and Reporting/DU_Data/Student_Enrollment_Demographics/Student_Enrollment_Demographics/Cleaned_Data/student_enrollment_Oct1_2021/2021-05-25/school_enrollment_Oct1_2021.csv') %>%
+  mutate(across(ends_with('_date'), convert_date))
+
+# Fall EOC
 
 cdf_fall_eoc_raw <- read_csv(
   'N:/ORP_accountability/data/2021_cdf/2021_fall_eoc_cdf.csv',
@@ -197,6 +224,26 @@ partic_fall_eoc %>%
 count(temp, overall_snt, reason_not_tested, reason_not_tested_2, in_cdf, sort = T)
 
 # Explore English Learner enrollment data (denominator) ----
+
+count(enr_raw, ell_lw, ell_lw_1234)
+
+enr_el_raw <- enr_raw %>% filter(ell_lw_1234 == 1)
+
+summarize(enr_el_raw, n = n_distinct(district_no, school_no, student_key))
+summary(enr_el_raw)
+map(as.list(enr_el_raw), ~ mean(is.na(.x)))
+count(enr_el_raw, school_type_id)
+count(enr_el_raw, instructional_type_id, it_description)
+count(enr_el_raw, assignment)
+count(enr_el_raw, type_of_service)
+count(enr_el_raw, english_language_background)
+
+enr_el <- enr_el_raw %>%
+  filter(
+    !instructional_type_id %in% c('006', '008', '009'),
+    !str_detect(assignment, 'P'),
+    end_date > as_date('2020-10-02')
+  )
 
 # Explore WIDA Cumulative Student Status file (numerator) ----
 
