@@ -113,37 +113,40 @@ regis_raw <- regis_fall_eoc_raw %>%
       )
   )
 
-# Explore fall EOC registration data (denominator) ----
+# Explore registration data (denominator?) ----
 
-nrow(distinct(regis_fall_eoc_raw)) == nrow(regis_fall_eoc_raw)
-
-# Distinct by student and test, one school per student
+nrow(distinct(regis_raw))
+nrow(regis_raw)
 
 summarize(
-  regis_fall_eoc_raw,
+  regis_raw,
   n0 = n(),
-  n1 = n_distinct(district_id),
+  n1 = n_distinct(district_id), # Includes private schools
   n2 = n_distinct(district_id, school_id),
   n3 = n_distinct(usid),
   n4 = n_distinct(district_id, school_id, usid),
   n5 = n_distinct(usid, local_class_number),
-  n6 = n_distinct(usid, test_code)
+  n6 = n_distinct(usid, test_code),
+  n7 = n_distinct(usid, test_code, semester) # Distinct by student-test-semester
 )
 
-summary(as.numeric(regis_fall_eoc_raw$district_id))
-summary(as.numeric(regis_fall_eoc_raw$school_id))
-map(as.list(regis_fall_eoc_raw), ~mean(is.na(.x)))
+summary(regis_raw)
+map(as.list(regis_raw), ~mean(is.na(.x))) # No demographic data except gender
 
 map(
-  quos(gender, enrolled_grade, test_format),
-  ~ count(regis_fall_eoc_raw, !!.x, sort = T)
+  quos(gender, enrolled_grade, test_format), # Grades 0-12, test format = P
+  ~ count(regis_raw, !!.x, sort = T)
 )
 
-count(regis_fall_eoc_raw, test_name, test_code)
-count(regis_fall_eoc_raw, snt_subpart1)
-count(regis_fall_eoc_raw, snt_subpart2)
-count(regis_fall_eoc_raw, snt_subpart3)
-count(regis_fall_eoc_raw, ri_subpart1)
+count(regis_raw, test_name, test_code, sort = T) %>% View()
+count(regis_raw, snt_subpart1)
+count(regis_raw, snt_subpart2)
+count(regis_raw, snt_subpart3)
+count(regis_raw, snt_subpart4)
+count(regis_raw, ri_subpart1)
+count(regis_raw, ri_subpart2)
+count(regis_raw, ri_subpart3)
+count(regis_raw, ri_subpart4)
 
 # Explore fall EOC CDF data (numerator) ----
 
