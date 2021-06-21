@@ -61,8 +61,6 @@ access_css_raw <- clean_names(
 enr_raw <- read_csv('N:/Data Mgmt and Reporting/DU_Data/Student_Enrollment_Demographics/Student_Enrollment_Demographics/Cleaned_Data/student_enrollment_Oct1_2021/2021-05-25/school_enrollment_Oct1_2021.csv') %>%
   mutate(across(ends_with('_date'), convert_date))
 
-# Fall EOC
-
 cdf_fall_eoc_raw <- read_csv(
   'N:/ORP_accountability/data/2021_cdf/2021_fall_eoc_cdf.csv',
   col_types = glue::glue_collapse(rep('c', 36))
@@ -70,10 +68,50 @@ cdf_fall_eoc_raw <- read_csv(
 
 regis_fall_eoc_raw <- clean_names(
   read_csv(
-    'N:/ORP_accountability/projects/Andrew/Data Requests/2021/data/Student Registration Export_Fall 2020 EOC_03292021.csv',
-    col_types = glue::glue_collapse(rep('c', 38))
+    "N:/Assessment_Data Returns/Student Registration file/SY2020-21/EOC fall Student Registration Export 2021-06-15.csv",
+    col_types = 'nnncccccncccncnnccccccccccccccnnnnnnnn'
   )
 )
+
+regis_spring_eoc_raw <- clean_names(
+  read_csv(
+    "N:/Assessment_Data Returns/Student Registration file/SY2020-21/EOC spring Student Registration Export 2021-06-15.csv",
+    col_types = 'nnncccccncccncnnccccccccccccccnnnnnnnn'
+  )
+)
+
+regis_spring_3_8_raw <- clean_names(
+  read_csv(
+    "N:/Assessment_Data Returns/Student Registration file/SY2020-21/ACH Student Registration Export 2021-06-15.csv",
+    col_types = 'nnncccccncccncnnccccccccccccccnnnnnnnn'
+  )
+)
+
+regis_spring_alt_raw <- clean_names(
+  read_csv(
+    "N:/Assessment_Data Returns/Student Registration file/SY2020-21/Alt Student Registration Export 2021-06-15.csv",
+    col_types = 'nnncccccncccncnnccccccccccccccnnnnnnnn'
+  )
+)
+
+# Combine registration data sets ----
+
+regis_raw <- regis_fall_eoc_raw %>%
+  mutate(test = 'EOC', semester = 'Fall') %>%
+  bind_rows(regis_spring_eoc_raw %>% mutate(test = 'EOC', semester = 'Spring')) %>%
+  bind_rows(regis_spring_3_8_raw %>% mutate(test = 'TNReady', semester = 'Spring')) %>%
+  bind_rows(
+    regis_spring_alt_raw %>%
+      mutate(test = 'Alt', semester = 'Spring') %>%
+      rename(
+        snt_subpart2 = filler,
+        snt_subpart3 = filler_1,
+        snt_subpart4 = filler_2,
+        ri_subpart2 = filler_3,
+        ri_subpart3 = filler_4,
+        ri_subpart4 = filler_5
+      )
+  )
 
 # Explore fall EOC registration data (denominator) ----
 
