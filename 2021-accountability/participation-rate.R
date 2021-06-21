@@ -7,14 +7,14 @@ library(openxlsx)
 library(rlang)
 library(tidyverse)
 
-connection_eis <- DBI::dbConnect(
-  RJDBC::JDBC(
-    "oracle.jdbc.OracleDriver",
-    classPath = Sys.getenv("jar_path")
-  ),
-  Sys.getenv("eis_connection_string"),
-  "EIS_MGR", Sys.getenv("eis_password")
-)
+# connection_eis <- DBI::dbConnect(
+#   RJDBC::JDBC(
+#     "oracle.jdbc.OracleDriver",
+#     classPath = Sys.getenv("jar_path")
+#   ),
+#   Sys.getenv("eis_connection_string"),
+#   "EIS_MGR", Sys.getenv("eis_password")
+# )
 
 setwd(str_c(Sys.getenv('tnshare_data_use'), 'team-members/josh-carson/accountability/2021-accountability'))
 
@@ -92,6 +92,8 @@ summarize(
   n6 = n_distinct(usid, test_code)
 )
 
+summary(as.numeric(regis_fall_eoc_raw$district_id))
+summary(as.numeric(regis_fall_eoc_raw$school_id))
 map(as.list(regis_fall_eoc_raw), ~mean(is.na(.x)))
 
 map(
@@ -154,6 +156,10 @@ cdf_fall_eoc_raw %>%
 # Apply fall EOC business rules ----
 
 partic_fall_eoc <- regis_fall_eoc_raw %>%
+  filter(
+    as.numeric(district_id) <= 986,
+    as.numeric(school_id) < 9000
+  ) %>%
   # The lowest SNT among the sub-parts of the test in the registration file is
   # used as the overall SNT for the registration. The two parts of the English
   # tests are combined and the lowest SNT is kept between the two parts as the
@@ -197,9 +203,7 @@ partic_fall_eoc <- regis_fall_eoc_raw %>%
       ) %>%
       mutate(in_cdf = T),
     by = c('usid' = 'unique_student_id', 'test_code_2' = 'content_area_code')
-  )
-
-temp <- partic_fall_eoc %>%
+  ) %>%
   # If the CDF indicates a reason not tested, use that. If not, but the
   # registration file does, use the reason from the registration file. Assign
   # an SNT code of 1 if there is no record in the CDF and no SNT in the
@@ -221,7 +225,21 @@ partic_fall_eoc %>%
   pull(m) %>%
   testthat::expect_equal(1)
 
-count(temp, overall_snt, reason_not_tested, reason_not_tested_2, in_cdf, sort = T)
+count(
+  partic_fall_eoc,
+  overall_snt, reason_not_tested, reason_not_tested_2, in_cdf,
+  sort = T
+)
+
+partic_fall_eoc_2 <- partic_fall_eoc %>%
+  group_by(district_id) %>%
+  summarize(
+    n_tests_completed = sum(reason_not_tested_2 == '0'),
+    n_tests_total = n()
+  ) %>%
+  ungroup() %>%
+  mutate(across(district_id, as.numeric)) %>%
+  arrange_all()
 
 # Explore English Learner enrollment data (denominator) ----
 
@@ -237,13 +255,6 @@ count(enr_el_raw, instructional_type_id, it_description)
 count(enr_el_raw, assignment)
 count(enr_el_raw, type_of_service)
 count(enr_el_raw, english_language_background)
-
-enr_el <- enr_el_raw %>%
-  filter(
-    !instructional_type_id %in% c('006', '008', '009'),
-    !str_detect(assignment, 'P'),
-    end_date > as_date('2020-10-02')
-  )
 
 # Explore WIDA Cumulative Student Status file (numerator) ----
 
@@ -422,3 +433,53 @@ map(as.list(access_css), ~mean(is.na(.x)))
 
 count(access_css, grade)
 count(access_css, domain)
+
+access_css_2 <- access_css %>%
+  group_by(district, state_student_id, domain) %>% # school
+  summarize(domain_complete = max(test_status == 'Completed') == 1) %>%
+  summarize(all_complete = all(domain_complete)) %>%
+  ungroup() %>%
+  mutate(across(district, ~ as.numeric(str_remove(.x, 'TN')))) %>% # school
+  arrange_all()
+
+summary(access_css_2$district)
+# summary(access_css_2$school)
+# access_css_2 %>% filter(is.na(school) | school == 0)
+# count(access_css_2, domain_complete)
+count(access_css_2, all_complete)
+
+access_css_3 <- access_css_2 %>%
+  group_by(district) %>%
+  summarize(
+    n_students_completed = n_distinct(state_student_id[all_complete]),
+    n_students_total = n_distinct(state_student_id)
+  ) %>%
+  ungroup()
+
+# The numerator is test records that have each applicable domain with a status
+# of Completed or In Progress.
+
+partic_access <- enr_el_raw %>%
+  filter(
+    !instructional_type_id %in% c('006', '008', '009'),
+    !str_detect(assignment, 'P'),
+    end_date > as_date('2020-10-02')
+  ) %>%
+  group_by(district_no) %>%
+  summarize(n_students_total = n_distinct(student_key)) %>%
+  ungroup() %>%
+  full_join(
+    access_css_3,
+    by = c('district_no' = 'district'),
+    suffix = c('_eis', '_css')
+  )
+
+partic_access %>% filter(!complete.cases(.))
+
+partic_access %>%
+  mutate(
+    r1 = n_students_completed / n_students_total_eis,
+    r2 = n_students_total_css / n_students_total_eis
+  ) %>%
+  # summary()
+  filter(r1 > 1 | r2 > 1)
