@@ -131,6 +131,98 @@ fall_eoc <- read_csv(
 #     semester = "Spring"
 #   )
 
+# Apply participation rate business rules ----
+
+partic <- regis_raw %>%
+  filter(
+    as.numeric(district_id) <= 986,
+    as.numeric(school_id) < 9000
+  ) %>%
+  # Drop records from CTE, Alternative, or Adult HS.
+  anti_join(
+    cte_alt_adult,
+    by = c('district_id' = 'system', 'school_id' = 'school')
+  ) %>%
+  # The lowest SNT among the sub-parts of the test in the registration file is
+  # used as the overall SNT for the registration. The two parts of the English
+  # tests are combined and the lowest SNT is kept between the two parts as the
+  # overall SNT for English I and English II.
+  mutate(
+    test_code_2 = if_else(
+      str_detect(test_name, 'Subpart'),
+      str_remove(test_code, '[:digit:]U[:digit:]$'),
+      test_code
+    )
+  ) %>%
+  mutate(across(starts_with('snt'), as.numeric)) %>%
+  group_by(usid, test_code_2) %>%
+  mutate(
+    overall_snt = min(pmin(snt_subpart1, snt_subpart2, snt_subpart3, snt_subpart4, na.rm = T), na.rm = T),
+    overall_snt = if_else(overall_snt == Inf, NA_real_, overall_snt)
+  ) %>%
+  ungroup() %>%
+  # Join registration (denominator?) and CDF (numerator?) data sets.
+  full_join(
+    cdf_fall_eoc_raw %>%
+      mutate(
+        across(
+          content_area_code,
+          ~ case_when(
+            .x == 'A1' ~ 'TNMATAL1',
+            .x == 'A2' ~ 'TNMATAL2',
+            .x == 'B1' ~ 'TNSCIEBI',
+            .x == 'E1' & modified_format == 'BR' ~ 'TNBRELAEN1',
+            .x == 'E1' ~ 'TNELAEN1',
+            .x == 'E2' & modified_format == 'BR' ~ 'TNBRELAEN2',
+            .x == 'E2' ~ 'TNELAEN2',
+            .x == 'G1' ~ 'TNMATGEO',
+            .x == 'M1' ~ 'TNMATIM1',
+            .x == 'M2' ~ 'TNMATIM2',
+            .x == 'M3' ~ 'TNMATIM3',
+            .x == 'U1' & modified_format == 'BR' ~ 'TNBRSOCSUH',
+            .x == 'U1' ~ 'TNSOCSUH'
+          )
+        )
+      ) %>%
+      mutate(semester = 'Fall', in_cdf = T),
+    by = c(
+      'usid' = 'unique_student_id',
+      'test_code_2' = 'content_area_code',
+      'semester'
+    )
+  ) %>%
+  # If the CDF indicates a reason not tested, use that. If not, but the
+  # registration file does, use the reason from the registration file. Assign
+  # an SNT code of 1 if there is no record in the CDF and no SNT in the
+  # registration file.
+  mutate(
+    reason_not_tested_2 = case_when(
+      !is.na(reason_not_tested) ~ reason_not_tested,
+      is.na(in_cdf) & is.na(overall_snt) ~ '1',
+      T ~ as.character(overall_snt)
+    )
+  )
+
+count(partic, test_code, test_code_2, test_name) %>% View()
+
+# Confirm that the overall SNT code equals 1 anywhere at least one sub-part has
+# an SNT code of 1.
+
+partic %>%
+  filter(pmin(snt_subpart1, snt_subpart2, snt_subpart3, snt_subpart4, na.rm = T) == 1) %>%
+  summarize(m = mean(overall_snt == 1)) %>%
+  pull(m) %>%
+  testthat::expect_equal(1)
+
+count(
+  partic,
+  overall_snt, reason_not_tested, reason_not_tested_2, in_cdf,
+  sort = T
+)
+
+# Apply remaining accountability business rules for excluding and counting
+# records in participation rates.
+
 cdf <- bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
   mutate(
     ri_status = if_else(reason_not_tested == 1 & ri_status == 6, 0, ri_status),
