@@ -503,3 +503,18 @@ student_level_2 <- dedup %>%
 #                      na = ""
 #     )
 #   )
+
+summarize(
+  student_level_2,
+  n0 = n(),
+  n1 = n_distinct(state_student_id),
+  n2 = n_distinct(state_student_id, subject),
+  n3 = n_distinct(state_student_id, subject, semester)
+)
+
+partic_dist <- student_level_2 %>%
+  group_by(system) %>%
+  summarize(across(c(enrolled, tested), sum)) %>%
+  ungroup()
+
+View(partic_dist)
