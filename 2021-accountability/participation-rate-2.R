@@ -1,50 +1,135 @@
 library(acct)
+library(DBI)
+library(haven)
+library(janitor)
+library(lubridate)
+library(magrittr)
+library(openxlsx)
+library(rlang)
 library(tidyverse)
 
+setwd(str_c(Sys.getenv('tnshare_data_use'), 'team-members/josh-carson/accountability/2021-accountability'))
+
+# Functions ----
+
+convert_date <- function(v) {
+  as_date(
+    str_c(str_split(v, '/', simplify = T)[, 3],
+          str_split(v, '/', simplify = T)[, 1],
+          str_split(v, '/', simplify = T)[, 2],
+          sep = '-')
+  )
+}
+
+# Read input data ----
+
+# Set all column types to character because read_csv() incorrectly identifies
+# some column types (e.g., modified format, RI sub-part 1).
+
+# WIDA ACCESS and enrollment
+
+access_alt_raw <- clean_names(
+  read_csv(
+    'N:/Assessment_Data Returns/ACCESS for ELs and ALT/2020-21/TN_Alternate_StudRR_File_2021-04-29.csv',
+    col_types = glue::glue_collapse(rep('c', 179))
+  )
+)
+
+access_summative_raw <- clean_names(
+  read_csv(
+    'N:/Assessment_Data Returns/ACCESS for ELs and ALT/2020-21/TN_Summative_StudRR_File_2021-04-29.csv',
+    col_types = glue::glue_collapse(rep('c', 164))
+  )
+)
+
+access_css_raw <- clean_names(
+  read_csv(
+    'N:/Assessment_Data Returns/WIDA/2021/Cumulative_Status/Cumulative_Student_Status_21.csv',
+    col_types = glue::glue_collapse(rep('c', 22)),
+    skip = 5
+  )
+)
+
+cte_alt_adult <- read_csv("N:/ORP_accountability/data/2021_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
+  transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
+
+enr_raw <- read_csv('N:/Data Mgmt and Reporting/DU_Data/Student_Enrollment_Demographics/Student_Enrollment_Demographics/Cleaned_Data/student_enrollment_Oct1_2021/2021-05-25/school_enrollment_Oct1_2021.csv') %>%
+  mutate(across(ends_with('_date'), convert_date))
+
 ## TODO: School Numbers for 964/964 and 970/970
-msaa <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_msaa_cdf.csv") %>%
-  filter(!(reporting_status %in% c("WDR", "NLE"))) %>%
+msaa <- read.xlsx("2021_TN_StateStudentResults.xlsx") %>%
+  # filter(!(reporting_status %in% c("WDR", "NLE"))) %>%
   mutate(
     test = "MSAA",
     semester = "Spring",
-    special_ed = 1L,
-    performance_level = if_else(reporting_status != "TES", NA_character_, performance_level)
+    special_ed = 1L
+    # performance_level = if_else(reporting_status != "TES", NA_character_, performance_level)
   )
 
-alt_ss <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_alt_ss_cdf.csv") %>%
-  filter(school != 0) %>%
-  mutate(
-    system_name = if_else(system_name == str_to_upper(system_name), str_to_title(system_name), system_name),
-    test = "Alt-Social Studies",
-    semester = "Spring",
-    special_ed = 1L,
-    performance_level = case_when(
-      performance_level == "Level 3" ~ "Mastered",
-      performance_level == "Level 2" ~ "On Track",
-      performance_level == "Level 1" ~ "Approaching"
-    )
-  )
+# alt_ss <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_alt_ss_cdf.csv") %>%
+#   filter(school != 0) %>%
+#   mutate(
+#     system_name = if_else(system_name == str_to_upper(system_name), str_to_title(system_name), system_name),
+#     test = "Alt-Social Studies",
+#     semester = "Spring",
+#     special_ed = 1L,
+#     performance_level = case_when(
+#       performance_level == "Level 3" ~ "Mastered",
+#       performance_level == "Level 2" ~ "On Track",
+#       performance_level == "Level 1" ~ "Approaching"
+#     )
+#   )
 
-fall_eoc <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_fall_eoc_cdf.csv", 
-                     col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
+regis_fall_eoc_raw <- clean_names(
+  read_csv(
+    "N:/Assessment_Data Returns/Student Registration file/SY2020-21/EOC fall Student Registration Export 2021-06-15.csv",
+    col_types = 'nnncccccncccncnnccccccccccccccnnnnnnnn'
+  )
+)
+
+regis_spring_eoc_raw <- clean_names(
+  read_csv(
+    "N:/Assessment_Data Returns/Student Registration file/SY2020-21/EOC spring Student Registration Export 2021-06-15.csv",
+    col_types = 'nnncccccncccncnnccccccccccccccnnnnnnnn'
+  )
+)
+
+regis_spring_3_8_raw <- clean_names(
+  read_csv(
+    "N:/Assessment_Data Returns/Student Registration file/SY2020-21/ACH Student Registration Export 2021-06-15.csv",
+    col_types = 'nnncccccncccncnnccccccccccccccnnnnnnnn'
+  )
+)
+
+regis_spring_alt_raw <- clean_names(
+  read_csv(
+    "N:/Assessment_Data Returns/Student Registration file/SY2020-21/Alt Student Registration Export 2021-06-15.csv",
+    col_types = 'nnncccccncccncnnccccccccccccccnnnnnnnn'
+  )
+)
+
+fall_eoc <- read_csv(
+  "N:/ORP_accountability/data/2021_cdf/2021_fall_eoc_cdf.csv", 
+  col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc"
+) %>%
   mutate(
     test = "EOC",
     semester = "Fall"
   )
 
-spring_eoc <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_spring_eoc_cdf.csv",
-                       col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
-  mutate(
-    test = "EOC",
-    semester = "Spring"
-  )
+# spring_eoc <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_spring_eoc_cdf.csv",
+#                        col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
+#   mutate(
+#     test = "EOC",
+#     semester = "Spring"
+#   )
 
-tn_ready <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_3_8_cdf.csv",
-                     col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
-  mutate(
-    test = "TNReady",
-    semester = "Spring"
-  )
+# tn_ready <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_3_8_cdf.csv",
+#                      col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
+#   mutate(
+#     test = "TNReady",
+#     semester = "Spring"
+#   )
 
 cdf <- bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
   mutate(
