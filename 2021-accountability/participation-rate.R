@@ -372,16 +372,17 @@ partic_2 <- partic %>%
       any(absent, not_enrolled, not_scheduled) ~ 0,
       el_recently_arrived == 1L & is.na(original_performance_level) ~ 0,
       TRUE ~ 1
-    ),
-    # EL Recently Arrived students performance level are converted to missing
-    performance_level = case_when(
-      any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ NA_character_,
-      any(absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, did_not_submit) ~ NA_character_,
-      el_recently_arrived == 1 ~ NA_character_,
-      TRUE ~ performance_level
     )
+    # EL Recently Arrived students performance level are converted to missing (not sure if needed, maybe for dedup)
+    # performance_level = case_when(
+    #   any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ NA_character_,
+    #   any(absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, did_not_submit) ~ NA_character_,
+    #   el_recently_arrived == 1 ~ NA_character_,
+    #   TRUE ~ performance_level
+    # )
   ) %>%
   ungroup() %>%
+  # Not sure if needed, maybe for dedup
   mutate(
     # Modify subject for MSAA tests in grades >= 9 (6.8)
     subject = case_when(
@@ -399,8 +400,10 @@ partic_2 <- partic %>%
     )
   )
 
-dedup <- student_level %>%
-  anti_join(cte_alt_adult, by = c("system", "school")) %>%
+# De-duplicate.
+
+partic_3 <- partic_2 %>%
+  # anti_join(cte_alt_adult, by = c("system", "school")) %>% # Already done above
   # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
   mutate(
     test_priority = case_when(
@@ -469,49 +472,51 @@ dedup <- student_level %>%
   # Valid test if there is a proficiency level
   mutate(valid_test = as.integer(not_na(performance_level)))
 
-# Reassigned schools for accountability
-enrollment <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv")
+# Reassigned schools for accountability (NOT SURE WHERE THIS IS FOR 2021)
+# enrollment <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv")
 
 # ELPA Students should be EL = 1
-elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_student.csv") %>%
+elpa <- read_csv("N:/ORP_accountability/data/2021_ELPA/wida_growth_standard_student.csv") %>%
   select(student_id)
 
-student_level <- dedup %>%
-  select(
-    system, system_name, school, school_name, test, original_subject, subject, semester,
-    original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
-    state_student_id, last_name, first_name, grade, gender, reported_race, bhn_group, teacher_of_record_tln,
-    functionally_delayed, special_ed, economically_disadvantaged, gifted, migrant, el, t1234, el_recently_arrived,
-    enrolled_50_pct_district, enrolled_50_pct_school, absent, refused_to_test, residential_facility
-  ) %>%
-  mutate_at(vars(absent, refused_to_test, residential_facility), as.integer) %>%
-  # Percentiles by grade and original subject for 3-8
-  group_by(test, original_subject, grade) %>%
-  mutate(
-    rank = if_else(not_na(scale_score), rank(scale_score, ties = "max"), NA_integer_),
-    denom = sum(not_na(scale_score)),
-    percentile = if_else(test == "TNReady", round5(100 * rank/denom, 1), NA_real_)
-  ) %>%
-  # Percentiles by original subject for EOCs
-  group_by(test, original_subject) %>%
-  mutate(
-    rank = if_else(not_na(scale_score), rank(scale_score, ties = "max"), NA_integer_),
-    denom = sum(not_na(scale_score)),
-    percentile = if_else(test == "EOC", round5(100 * rank/denom, 1), percentile)
-  ) %>%
-  ungroup() %>%
-  select(-rank, -denom) %>%
-  arrange(system, school, state_student_id) %>%
-  # Add system and school for accountability purposes
-  left_join(enrollment, by = "state_student_id") %>%
-  mutate(
-    acct_system = if_else(is.na(acct_system), system, acct_system),
-    acct_school = if_else(is.na(acct_school), school, acct_school)
-  ) %>%
-  # Assign EL = 1 if student tested ELPA
-  mutate(
-    el = if_else(state_student_id %in% elpa$student_id, 1, el)
-  )
+# Not sure if this is needed for participation rates:
+
+# student_level <- dedup %>%
+#   select(
+#     system, system_name, school, school_name, test, original_subject, subject, semester,
+#     original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
+#     state_student_id, last_name, first_name, grade, gender, reported_race, bhn_group, teacher_of_record_tln,
+#     functionally_delayed, special_ed, economically_disadvantaged, gifted, migrant, el, t1234, el_recently_arrived,
+#     enrolled_50_pct_district, enrolled_50_pct_school, absent, refused_to_test, residential_facility
+#   ) %>%
+#   mutate_at(vars(absent, refused_to_test, residential_facility), as.integer) %>%
+#   # Percentiles by grade and original subject for 3-8
+#   group_by(test, original_subject, grade) %>%
+#   mutate(
+#     rank = if_else(not_na(scale_score), rank(scale_score, ties = "max"), NA_integer_),
+#     denom = sum(not_na(scale_score)),
+#     percentile = if_else(test == "TNReady", round5(100 * rank/denom, 1), NA_real_)
+#   ) %>%
+#   # Percentiles by original subject for EOCs
+#   group_by(test, original_subject) %>%
+#   mutate(
+#     rank = if_else(not_na(scale_score), rank(scale_score, ties = "max"), NA_integer_),
+#     denom = sum(not_na(scale_score)),
+#     percentile = if_else(test == "EOC", round5(100 * rank/denom, 1), percentile)
+#   ) %>%
+#   ungroup() %>%
+#   select(-rank, -denom) %>%
+#   arrange(system, school, state_student_id) %>%
+#   # Add system and school for accountability purposes
+#   left_join(enrollment, by = "state_student_id") %>%
+#   mutate(
+#     acct_system = if_else(is.na(acct_system), system, acct_system),
+#     acct_school = if_else(is.na(acct_school), school, acct_school)
+#   ) %>%
+#   # Assign EL = 1 if student tested ELPA
+#   mutate(
+#     el = if_else(state_student_id %in% elpa$student_id, 1, el)
+#   )
 
 # write_csv(student_level, "N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv", na = "")
 
