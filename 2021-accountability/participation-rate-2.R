@@ -186,6 +186,7 @@ cdf_1 <- fall_eoc %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
   )
 
 partic <- cdf_1 %>%
+  filter(system == 10) %>%
   mutate(
     content_area_code_2 = case_when(
       content_area_code == 'A1' ~ 'TNMATAL1',
@@ -287,7 +288,7 @@ int_math_systems <- cdf %>%
   filter(n == temp, content_area_code == "M1") %>%
   magrittr::extract2("system")
 
-student_level <- bind_rows(cdf, msaa) %>%
+student_level <- bind_rows(cdf, filter(msaa, system == 10) %>% mutate(across(grade, as.integer))) %>% # bind_rows(cdf, msaa) %>%
   transmute(
     system,
     system_name,
@@ -366,8 +367,8 @@ student_level <- bind_rows(cdf, msaa) %>%
   )
 
 # Records from Alternative, CTE, Adult HS are dropped from student level
-cte_alt_adult <- read_csv("N:/ORP_accountability/data/2019_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
-  transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
+# cte_alt_adult <- read_csv("N:/ORP_accountability/data/2019_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
+#   transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
 
 dedup <- student_level %>%
   anti_join(cte_alt_adult, by = c("system", "school")) %>%
@@ -443,10 +444,10 @@ dedup <- student_level %>%
 enrollment <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv")
 
 # ELPA Students should be EL = 1
-elpa <- read_csv("N:/ORP_accountability/data/2019_ELPA/wida_growth_standard_student.csv") %>%
+elpa <- read_csv("N:/ORP_accountability/data/2021_ELPA/wida_growth_standard_student.csv") %>%
   select(student_id)
 
-student_level <- dedup %>%
+student_level_2 <- dedup %>%
   select(
     system, system_name, school, school_name, test, original_subject, subject, semester,
     original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
@@ -477,28 +478,28 @@ student_level <- dedup %>%
   mutate(
     acct_system = if_else(is.na(acct_system), system, acct_system),
     acct_school = if_else(is.na(acct_school), school, acct_school)
-    # Assign EL = 1 if student tested ELPA
-    mutate(
-      el = if_else(state_student_id %in% elpa$student_id, 1, el)
-    )
-    
-    write_csv(student_level, "N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv", na = "")
-    
-    # Split student level file
-    district_numbers <- sort(unique(student_level$system))
-    
-    # Split files should contain either students with assessment or accountability school number 
-    split_by_district <- function(s) {
-      filter(student_level, system == s | acct_system == s)
-    }
-    
-    map(district_numbers, split_by_district) %>%
-      walk2(
-        .x = .,
-        .y = district_numbers,
-        .f = ~ write_csv(.x,
-                         path = paste0("N:/ORP_accountability/data/2019_assessment_files/Split/", .y, "_StudentLevelFiles_30Jul2019.csv"), 
-                         na = ""
-        )
-      )
-    
+  ) %>%
+  # Assign EL = 1 if student tested ELPA
+  mutate(
+    el = if_else(state_student_id %in% elpa$student_id, 1, el)
+  )
+
+# write_csv(student_level, "N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv", na = "")
+#     
+# # Split student level file
+# district_numbers <- sort(unique(student_level$system))
+# 
+# # Split files should contain either students with assessment or accountability school number 
+# split_by_district <- function(s) {
+#   filter(student_level, system == s | acct_system == s)
+# }
+# 
+# map(district_numbers, split_by_district) %>%
+#   walk2(
+#     .x = .,
+#     .y = district_numbers,
+#     .f = ~ write_csv(.x,
+#                      path = paste0("N:/ORP_accountability/data/2019_assessment_files/Split/", .y, "_StudentLevelFiles_30Jul2019.csv"), 
+#                      na = ""
+#     )
+#   )
