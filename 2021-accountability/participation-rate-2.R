@@ -246,8 +246,12 @@ count(scores_2_8_raw, s1op_max_pts_possible, sort = T)
 summary(scores_eoc_raw$s1op_max_pts_possible)
 
 scores_raw <- bind_rows(
-  scores_2_8_raw %>% mutate(across(s1op_raw_score:total_point_possible, as.numeric)),
-  scores_eoc_raw %>% mutate(across(s1op_raw_score:total_point_possible, as.numeric))
+  scores_2_8_raw %>%
+    mutate(across(s1op_raw_score:total_point_possible, as.numeric)) %>%
+    mutate(test = "TNReady", semester = "Spring"),
+  scores_eoc_raw %>%
+    mutate(across(s1op_raw_score:total_point_possible, as.numeric)) %>%
+    mutate(test = "EOC", semester = "Spring")
 )
 
 nrow(scores_raw)
@@ -278,7 +282,24 @@ map(as.list(scores_raw), ~ mean(is.na(.x))) %>% keep(~ .x != 0)
 
 # Apply new participation rate business rules ----
 
+names(fall_eoc)
+names(scores_raw)
+
 cdf_1 <- fall_eoc %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
+  bind_rows(
+    scores_raw %>%
+      mutate(across(c(district_number, school_number, usid, enrolled_grade), as.integer)) %>%
+      filter(enrolled_grade %in% 3:12) %>%
+      rename(
+        system = district_number,
+        school = school_number,
+        unique_student_id = usid,
+        grade = enrolled_grade,
+        attempted = attempt,
+        reason_not_tested = overall_snt,
+        raw_score = total_raw_score
+      )
+  ) %>%
   mutate(
     ri_status = if_else(reason_not_tested == 1 & ri_status == 6, 0, as.numeric(ri_status)),
     performance_level = if_else(performance_level == "On track", "On Track", performance_level),
@@ -309,10 +330,21 @@ cdf_1 <- fall_eoc %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
       content_area_code == "M3" ~ "Integrated Math III",
       content_area_code == "U1" ~ "US History"
     )
-  )
+  ) %>%
+  filter(!is.na(original_subject))
 
 partic <- cdf_1 %>%
-  filter(system == 10) %>%
+  filter(
+    as.numeric(system) <= 986,
+    as.numeric(school) < 9000,
+    # For now, just test code with one small district.
+    system == 10
+  ) %>%
+  # Drop records from CTE, Alternative, or Adult HS.
+  anti_join(
+    cte_alt_adult,
+    by = c('system', 'school')
+  ) %>%
   mutate(
     content_area_code_2 = case_when(
       content_area_code == 'A1' ~ 'TNMATAL1',
@@ -366,7 +398,8 @@ partic <- cdf_1 %>%
       'unique_student_id' = 'usid',
       'content_area_code_2' = 'test_code_2',
       'semester'
-    )
+    ),
+    suffix = c("", "_regis")
   ) %>%
   # If the CDF indicates a reason not tested, use that. If not, but the
   # registration file does, use the reason from the registration file. Assign
@@ -374,13 +407,23 @@ partic <- cdf_1 %>%
   # registration file.
   mutate(
     reason_not_tested_2 = case_when(
-      !is.na(reason_not_tested) ~ reason_not_tested,
-      is.na(in_cdf) & is.na(overall_snt) ~ 1L,
-      T ~ as.integer(overall_snt)
+      !is.na(reason_not_tested) ~ as.numeric(reason_not_tested),
+      is.na(in_cdf) & is.na(overall_snt) ~ 1,
+      T ~ as.numeric(overall_snt)
     )
   )
 
-count(partic, test_code, test_code_2, test_name) %>% View()
+nrow(partic)
+nrow(distinct(partic))
+
+summarize(
+  partic,
+  n0 = n(),
+  n1 = n_distinct(unique_student_id),
+  n2 = n_distinct(unique_student_id, content_area_code, semester)
+)
+
+# count(partic, test_code, test_code_2, test_name) %>% View()
 
 # Confirm that the overall SNT code equals 1 anywhere at least one sub-part has
 # an SNT code of 1.
@@ -414,7 +457,10 @@ int_math_systems <- cdf %>%
   filter(n == temp, content_area_code == "M1") %>%
   magrittr::extract2("system")
 
-student_level <- bind_rows(cdf, filter(msaa, system == 10) %>% mutate(across(grade, as.integer))) %>% # bind_rows(cdf, msaa) %>%
+student_level <- bind_rows(
+  cdf,
+  filter(msaa, system == 10) %>% mutate(across(grade, as.integer))
+) %>% # bind_rows(cdf, msaa) %>%
   transmute(
     system,
     system_name,
@@ -492,9 +538,32 @@ student_level <- bind_rows(cdf, filter(msaa, system == 10) %>% mutate(across(gra
     )
   )
 
+nrow(student_level)
+nrow(distinct(student_level))
+
+summarize(
+  student_level,
+  n0 = n(),
+  n1 = n_distinct(state_student_id),
+  n2 = n_distinct(state_student_id, original_subject)
+)
+
+count(student_level, grade)
+
+student_level %>%
+  filter(is.na(grade)) %>%
+  count(test, semester, original_subject)
+
 # Records from Alternative, CTE, Adult HS are dropped from student level
 # cte_alt_adult <- read_csv("N:/ORP_accountability/data/2019_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
 #   transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
+
+# summarize(
+#   dedup,
+#   n0 = n(),
+#   n1 = n_distinct(state_student_id),
+#   n2 = n_distinct(state_student_id, original_subject)
+# )
 
 dedup <- student_level %>%
   anti_join(cte_alt_adult, by = c("system", "school")) %>%
@@ -545,26 +614,40 @@ dedup <- student_level %>%
   ungroup() %>%
   # For students with multiple test records with the same original subject, performance level, scale score
   # Deduplicate by missing race/ethnicity
-  group_by(state_student_id, original_subject, test, performance_level, scale_score, semester) %>%
-  mutate(
-    n = n(),                           # Tag duplicates by id, subject, test, performance level, scale score, semester
-    temp = mean(is.na(reported_race))  # Check whether one among duplicates has non-missing race/ethnicity
-  ) %>%
-  filter(!(n > 1 & temp != 0 & is.na(reported_race))) %>%
-  ungroup() %>%
-  select(-n, -temp) %>%
+  # group_by(state_student_id, original_subject, test, performance_level, scale_score, semester) %>%
+  # mutate(
+  #   n = n(),                           # Tag duplicates by id, subject, test, performance level, scale score, semester
+  #   temp = mean(is.na(reported_race))  # Check whether one among duplicates has non-missing race/ethnicity
+  # ) %>%
+  # filter(!(n > 1 & temp != 0 & is.na(reported_race))) %>%
+  # ungroup() %>%
+  # select(-n, -temp) %>%
   # For students multiple test records with the same original subject, performance level, scale score, demographics
   # Deduplicate for non-missing grade
-  group_by(state_student_id, original_subject, test, performance_level, scale_score, semester, reported_race) %>%
-  mutate(
-    n = n(),                   # Tag duplicates by id, subject, test, performance level, scale score, semester
-    temp = mean(is.na(grade))  # Check whether one among duplicates has non-missing race/ethnicity
-  ) %>%
-  filter(!(n > 1 & temp != 0 & is.na(grade))) %>%
-  ungroup() %>%
-  select(-n, -temp) %>%
+  # group_by(state_student_id, original_subject, test, performance_level, scale_score, semester, reported_race) %>%
+  # mutate(
+  #   n = n(),                   # Tag duplicates by id, subject, test, performance level, scale score, semester
+  #   temp = mean(is.na(grade))  # Check whether one among duplicates has non-missing race/ethnicity
+  # ) %>%
+  # filter(!(n > 1 & temp != 0 & is.na(grade))) %>%
+  # ungroup() %>%
+  # select(-n, -temp) %>%
   # Valid test if there is a proficiency level
   mutate(valid_test = as.integer(not_na(performance_level)))
+
+nrow(dedup)
+nrow(distinct(dedup))
+
+summarize(
+  dedup,
+  n0 = n(),
+  n1 = n_distinct(state_student_id),
+  n2 = n_distinct(state_student_id, original_subject),
+  n3 = n_distinct(
+    state_student_id, original_subject, test, performance_level, scale_score,
+    semester
+  )
+)
 
 # Reassigned schools for accountability
 enrollment <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv")
