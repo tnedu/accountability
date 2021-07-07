@@ -131,6 +131,12 @@ fall_eoc <- read_csv(
 #     semester = "Spring"
 #   )
 
+scores_eoc_raw <- read_csv("N:/Assessment_Data Returns/Student Registration file/SY2020-21/Raw Score/2021_TN_Spring_2021_EOC_RSF_20210607.csv") %>%
+  clean_names()
+
+scores_2_8_raw <- read_csv("N:/Assessment_Data Returns/Student Registration file/SY2020-21/Raw Score/2021_TN_Spring_2021_Grades_2_8_RSF_20210607.csv") %>%
+  clean_names()
+
 # Combine registration data sets ----
 
 regis_raw <- regis_fall_eoc_raw %>%
@@ -230,6 +236,45 @@ cdf_fall_eoc_raw %>%
     reason_not_tested, ri_status, raw_score_available, scale_score_available,
     performance_level_available
   )
+
+# Combine and explore raw score data sets ----
+
+count(scores_2_8_raw, administration)
+count(scores_eoc_raw, administration)
+
+count(scores_2_8_raw, s1op_max_pts_possible, sort = T)
+summary(scores_eoc_raw$s1op_max_pts_possible)
+
+scores_raw <- bind_rows(
+  scores_2_8_raw %>% mutate(across(s1op_raw_score:total_point_possible, as.numeric)),
+  scores_eoc_raw %>% mutate(across(s1op_raw_score:total_point_possible, as.numeric))
+)
+
+nrow(scores_raw)
+nrow(distinct(scores_raw))
+
+summarize(
+  scores_raw,
+  n0 = n(),
+  n1 = n_distinct(district_number),
+  n2 = n_distinct(district_number, school_number),
+  n3 = n_distinct(usid),
+  n4 = n_distinct(district_number, school_number, usid),
+  # n5: almost distinct
+  n5 = n_distinct(usid, content_area_code),
+  # n6: distinct (could substitute test grade or lithocode part 1 for local
+  # class number)
+  n6 = n_distinct(usid, content_area_code, local_class_number)
+)
+
+summary(as.numeric(scores_raw$district_number)) # Includes private districts
+count(scores_raw, enrolled_grade, test_grade) %>% View()
+summarize(scores_raw, m = mean(enrolled_grade == test_grade, na.rm = T))
+count(scores_raw, content_area_code)
+count(scores_raw, attempt)
+count(scores_raw, attempt, overall_snt, overall_ri_status, sort = T) %>% View()
+
+map(as.list(scores_raw), ~ mean(is.na(.x))) %>% keep(~ .x != 0)
 
 # Apply new participation rate business rules ----
 
