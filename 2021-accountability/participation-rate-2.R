@@ -150,6 +150,87 @@ regis_raw <- regis_fall_eoc_raw %>%
       )
   )
 
+# Explore registration data ----
+
+nrow(distinct(regis_raw))
+nrow(regis_raw)
+
+summarize(
+  regis_raw,
+  n0 = n(),
+  n1 = n_distinct(district_id), # Includes private schools
+  n2 = n_distinct(district_id, school_id),
+  n3 = n_distinct(usid),
+  n4 = n_distinct(district_id, school_id, usid),
+  n5 = n_distinct(usid, local_class_number),
+  n6 = n_distinct(usid, test_code),
+  n7 = n_distinct(usid, test_code, semester) # Distinct by student-test-semester
+)
+
+summary(regis_raw)
+map(as.list(regis_raw), ~mean(is.na(.x))) # No demographic data except gender
+
+map(
+  quos(gender, enrolled_grade, test_format), # Grades 0-12, test format = P
+  ~ count(regis_raw, !!.x, sort = T)
+)
+
+count(regis_raw, test_name, test_code, sort = T) %>% View()
+count(regis_raw, snt_subpart1)
+count(regis_raw, snt_subpart2)
+count(regis_raw, snt_subpart3)
+count(regis_raw, snt_subpart4)
+count(regis_raw, ri_subpart1)
+count(regis_raw, ri_subpart2)
+count(regis_raw, ri_subpart3)
+count(regis_raw, ri_subpart4)
+
+# Explore fall EOC CDF data ----
+
+nrow(distinct(cdf_fall_eoc_raw)) == nrow(cdf_fall_eoc_raw)
+
+# Distinct by student and content area, one school per student
+
+summarize(
+  cdf_fall_eoc_raw,
+  n0 = n(),
+  n1 = n_distinct(system),
+  n2 = n_distinct(system, school),
+  n3 = n_distinct(unique_student_id),
+  n4 = n_distinct(system, school, unique_student_id),
+  n5 = n_distinct(unique_student_id, content_area_code)
+)
+
+map(as.list(cdf_fall_eoc_raw), ~mean(is.na(.x)))
+
+count(cdf_fall_eoc_raw, grade)
+count(cdf_fall_eoc_raw, content_area_code)
+count(cdf_fall_eoc_raw, test_mode)
+count(cdf_fall_eoc_raw, attempted)
+count(cdf_fall_eoc_raw, modified_format)
+count(cdf_fall_eoc_raw, reason_not_tested)
+count(cdf_fall_eoc_raw, ri_status)
+
+# Why do 805 rows have zeroes for reason not tested and RI status but no raw
+# or scale scores?
+
+cdf_fall_eoc_raw %>%
+  mutate(raw_score_available = !is.na(raw_score)) %>%
+  count(reason_not_tested, ri_status, raw_score_available)
+
+# Why do 20,015 rows have raw scores but no scale scores?
+
+cdf_fall_eoc_raw %>%
+  mutate(
+    raw_score_available = !is.na(raw_score),
+    scale_score_available = !is.na(scale_score),
+    performance_level_available = !is.na(performance_level)
+  ) %>%
+  count(
+    reason_not_tested, ri_status, raw_score_available, scale_score_available,
+    performance_level_available
+  )
+
 # Apply new participation rate business rules ----
 
 cdf_1 <- fall_eoc %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
