@@ -10,6 +10,8 @@ library(tidyverse)
 
 setwd(str_c(Sys.getenv('tnshare_data_use'), 'team-members/josh-carson/accountability/2021-accountability'))
 
+test_district <- 830
+
 # Functions ----
 
 convert_date <- function(v) {
@@ -190,7 +192,7 @@ map(
 )
 
 # ELA and HS English tests have sub-parts.
-count(regis_raw, test_name, test_code, sort = T) %>% View()
+count(regis_raw, test_name, test_code) %>% View()
 
 count(regis_raw, semester)
 count(regis_raw, snt_subpart1)
@@ -217,6 +219,8 @@ regis <- regis_raw %>%
     district_id <= 986,
     school_id < 9000,
     enrolled_grade %in% 3:12,
+    # Exclude all Grade 2 assessments.
+    !str_detect(test_name, "Gr 2"),
     # Where the test is TN Ready, keep observations where the test grade and
     # enrolled grade match. Check student counts with and without this filter.
     # NOTE: This filter dropped eight students when it only needs to drop one
@@ -225,7 +229,7 @@ regis <- regis_raw %>%
     # and remove them as needed.
     # (test == "EOC" | str_detect(test_code, str_c("G", enrolled_grade))),
     # For now, just test code with one small district.
-    district_id == 10
+    district_id == test_district
   ) %>%
   # Drop records from CTE, Alternative, or Adult HS.
   anti_join(
@@ -242,8 +246,8 @@ regis <- regis_raw %>%
       # str_remove(test_code, '[:digit:]U[:digit:]$'),
       str_remove(test_code, 'U[:digit:]$'),
       test_code
-    ),
-    test_code_3 = str_remove(test_code_2, "G[:digit:]$")
+    )
+    # test_code_3 = str_remove(test_code_2, "G[:digit:]$")
   ) %>%
   mutate(across(starts_with('snt'), as.numeric)) %>%
   group_by(usid, test_code_2) %>%
@@ -252,13 +256,59 @@ regis <- regis_raw %>%
     overall_snt = if_else(overall_snt == Inf, NA_real_, overall_snt)
   ) %>%
   ungroup() %>%
+  mutate(
+    # Add Alt Social Studies (TNALTSS) once we have the file.
+    content_area_code = case_when(
+      # content_area_code == 'A1' ~ 'TNMATAL1',
+      test_code == 'TNMATAL1' ~ 'A1',
+      # content_area_code == 'A2' ~ 'TNMATAL2',
+      test_code == 'TNMATAL2' ~ 'A2',
+      # content_area_code == 'B1' ~ 'TNSCIEBI',
+      test_code %in% c('TNSCIEBI', 'TNALTSCBI') ~ 'B1',
+      # content_area_code == 'E1' & modified_format == 'BR' ~ 'TNBRELAEN1',
+      str_detect(test_code, 'ELAEN1') ~ 'E1',
+      # content_area_code == 'E1' ~ 'TNELAEN1',
+      # content_area_code == 'E2' & modified_format == 'BR' ~ 'TNBRELAEN2',
+      str_detect(test_code, 'ELAEN2') ~ 'E2',
+      # content_area_code == 'E2' ~ 'TNELAEN2',
+      # content_area_code == 'G1' ~ 'TNMATGEO',
+      test_code == 'TNMATGEO' ~ 'G1',
+      # content_area_code == 'M1' ~ 'TNMATIM1',
+      test_code == 'TNMATIM1' ~ 'M1',
+      # content_area_code == 'M2' ~ 'TNMATIM2',
+      test_code == 'TNMATIM2' ~ 'M2',
+      # content_area_code == 'M3' ~ 'TNMATIM3',
+      test_code == 'TNMATIM3' ~ 'M3',
+      # content_area_code == 'U1' & modified_format == 'BR' ~ 'TNBRSOCSUH',
+      # content_area_code == 'U1' ~ 'TNSOCSUH',
+      str_detect(test_code, 'SOCSUH') ~ 'U1',
+      # content_area_code == 'ENG' ~ 'TNELA',
+      str_detect(test_code, 'ELA') ~ 'ENG',
+      # content_area_code == 'MAT' ~ 'TNMAT',
+      str_detect(test_code, 'MAT') ~ 'MAT',
+      str_detect(test_code, 'SCIE|ALTSC') ~ 'SCI',
+      # content_area_code == 'SOC' ~ 'TNSOCS'
+      str_detect(test_code, 'SOCS|ALTSS') ~ 'SOC'
+    ),
+    modified_format = if_else(
+      str_detect(test_code, "BR"),
+      "BR",
+      NA_character_
+    )
+  ) %>%
+  # KEEP Science and Biology.
+  # filter(!is.na(content_area_code), !content_area_code %in% c("B1", "SCI")) %>%
   select(
     district_id, school_id, usid, enrolled_grade,
-    semester, test, test_code, test_code_2, test_code_3, test_name,
+    semester, test, test_code, test_code_2, content_area_code, modified_format, # test_code_3,
+    test_name,
     overall_snt,
     snt_subpart1:ri_subpart4
   ) %>%
   arrange_all()
+
+nrow(regis)
+nrow(distinct(regis))
 
 summarize(
   regis,
@@ -276,14 +326,22 @@ summarize(
   # Not distinct using test code 2 because the sub-part variable was removed
   # from test code
   n9 = n_distinct(usid, test_code_2, semester),
-  n10 = n_distinct(usid, test_code_3, semester)
+  # n10 = n_distinct(usid, test_code_3, semester)
+  n10 = n_distinct(usid, content_area_code, semester),
+  n11 = n_distinct(usid, content_area_code, modified_format, semester)
 )
 
 regis %>%
   filter(test_code != test_code_2) %>%
   count(test_code, test_code_2, test_name)
 
-count(regis, test_code, test_code_2, test_code_3, test_name) %>% View()
+count(regis, enrolled_grade)
+count(regis, semester)
+count(regis, test)
+# count(regis, test_code, test_code_2, test_code_3, test_name) %>% View()
+count(regis, test, test_code, content_area_code, modified_format) %>% View()
+count(regis, test_code_2, content_area_code) %>% View()
+count(regis, overall_snt)
 
 regis %>%
   group_by(usid, test_code_3, semester) %>%
@@ -300,13 +358,12 @@ regis %>%
 # format - excluding sub-part), and semester.
 
 regis_2 <- regis %>%
-  # Drop Science and Biology.
-  filter(!str_detect(test_code, "ALTSC|SCIE")) %>%
-  distinct(usid, test_code_2, semester, .keep_all = T) %>%
+  # distinct(usid, test_code_2, semester, .keep_all = T) %>%
+  distinct(usid, content_area_code, test_code_2, semester, .keep_all = T) %>%
   select(-test_code, -(snt_subpart1:ri_subpart4)) %>%
   rename(
-    test_code = test_code_2,
-    content_area_code = test_code_3
+    test_code = test_code_2
+    # content_area_code = test_code_3
   ) %>%
   mutate(across(test_name, ~ str_remove_all(.x, " Subpart 1| Subparts 2-3| Subparts 2-4")))
 
@@ -322,10 +379,13 @@ summarize(
   # Distinct by student-test-semester: A few variables are embedded within test
   # code - subject, grade, and format (i.e., Braille).
   n7 = n_distinct(usid, test_code, semester),
-  n8 = n_distinct(usid, content_area_code, semester)
+  n8 = n_distinct(usid, content_area_code, modified_format, semester)
 )
 
-count(regis_2, test_code, content_area_code, test_name) %>% View()
+count(regis_2, enrolled_grade)
+count(regis_2, semester)
+count(regis_2, test)
+count(regis_2, test, test_code, content_area_code, modified_format) %>% View()
 count(regis_2, overall_snt)
 
 # Explore fall EOC CDF data ----
@@ -449,7 +509,7 @@ scores <- scores_raw %>%
     school_number < 9000,
     as.numeric(enrolled_grade) %in% 3:12,
     # For now, just test code with one small district.
-    district_number == 10
+    district_number == test_district
   ) %>%
   # Drop records from CTE, Alternative, or Adult HS.
   anti_join(
@@ -483,13 +543,15 @@ summarize(
 # 0.5% of records missing total raw score (Anderson County)
 summary(select(scores, where(~ !is.character(.x))))
 
+count(scores, test, content_area_code)
+
 # Apply new participation rate business rules ----
 
 names(cdf_fall_eoc_raw)
 names(scores)
 
 cdf <- cdf_fall_eoc_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
-  filter(system == 10) %>%
+  filter(system == test_district) %>%
   # Drop records from CTE, Alternative, or Adult HS.
   anti_join(
     cte_alt_adult,
@@ -508,7 +570,7 @@ cdf <- cdf_fall_eoc_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) 
         ri_status = overall_ri_status,
         raw_score = total_raw_score
       )
-  ) %>%
+  )
   # mutate(
   #   original_subject = case_when(
   #     content_area_code == "ENG" ~ "ELA",
@@ -525,8 +587,8 @@ cdf <- cdf_fall_eoc_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) 
   #     content_area_code == "U1" ~ "US History"
   #   )
   # ) %>%
-  # Drop Science and Biology.
-  filter(!content_area_code %in% c("B1", "SCI"))
+  # KEEP Science and Biology.
+  # filter(!content_area_code %in% c("B1", "SCI"))
 
 nrow(cdf)
 nrow(distinct(cdf))
@@ -553,31 +615,31 @@ cdf %>%
   arrange(unique_student_id) %>%
   View()
 
-count(cdf, content_area_code)
+count(cdf, test, content_area_code)
 
 # Join CDF and registration.
 
 cdf_2 <- cdf %>%
   mutate(
-    # Add Alt Social Studies (TNALTSS) once we have the file.
-    content_area_code_2 = case_when(
-      content_area_code == 'A1' ~ 'TNMATAL1',
-      content_area_code == 'A2' ~ 'TNMATAL2',
-      content_area_code == 'B1' ~ 'TNSCIEBI',
-      content_area_code == 'E1' & modified_format == 'BR' ~ 'TNBRELAEN1',
-      content_area_code == 'E1' ~ 'TNELAEN1',
-      content_area_code == 'E2' & modified_format == 'BR' ~ 'TNBRELAEN2',
-      content_area_code == 'E2' ~ 'TNELAEN2',
-      content_area_code == 'ENG' ~ 'TNELA',
-      content_area_code == 'G1' ~ 'TNMATGEO',
-      content_area_code == 'M1' ~ 'TNMATIM1',
-      content_area_code == 'M2' ~ 'TNMATIM2',
-      content_area_code == 'M3' ~ 'TNMATIM3',
-      content_area_code == 'MAT' ~ 'TNMAT',
-      content_area_code == 'SOC' ~ 'TNSOCS',
-      content_area_code == 'U1' & modified_format == 'BR' ~ 'TNBRSOCSUH',
-      content_area_code == 'U1' ~ 'TNSOCSUH'
-    ),
+    # # Add Alt Social Studies (TNALTSS) once we have the file.
+    # content_area_code_2 = case_when(
+    #   content_area_code == 'A1' ~ 'TNMATAL1',
+    #   content_area_code == 'A2' ~ 'TNMATAL2',
+    #   content_area_code == 'B1' ~ 'TNSCIEBI',
+    #   content_area_code == 'E1' & modified_format == 'BR' ~ 'TNBRELAEN1',
+    #   content_area_code == 'E1' ~ 'TNELAEN1',
+    #   content_area_code == 'E2' & modified_format == 'BR' ~ 'TNBRELAEN2',
+    #   content_area_code == 'E2' ~ 'TNELAEN2',
+    #   content_area_code == 'ENG' ~ 'TNELA',
+    #   content_area_code == 'G1' ~ 'TNMATGEO',
+    #   content_area_code == 'M1' ~ 'TNMATIM1',
+    #   content_area_code == 'M2' ~ 'TNMATIM2',
+    #   content_area_code == 'M3' ~ 'TNMATIM3',
+    #   content_area_code == 'MAT' ~ 'TNMAT',
+    #   content_area_code == 'SOC' ~ 'TNSOCS',
+    #   content_area_code == 'U1' & modified_format == 'BR' ~ 'TNBRSOCSUH',
+    #   content_area_code == 'U1' ~ 'TNSOCSUH'
+    # ),
     in_cdf = T
   ) %>%
   full_join(
@@ -586,7 +648,9 @@ cdf_2 <- cdf %>%
       'system' = 'district_id',
       'school' = 'school_id',
       'unique_student_id' = 'usid',
-      'content_area_code_2' = 'content_area_code',
+      # 'content_area_code_2' = 'content_area_code',
+      'content_area_code',
+      'modified_format',
       'test',
       'semester'
     ),
@@ -596,9 +660,11 @@ cdf_2 <- cdf %>%
     original_subject = case_when(
       content_area_code == "ENG" ~ "ELA",
       content_area_code == "MAT" ~ "Math",
+      content_area_code == "SCI" ~ "Science",
       content_area_code == "SOC" ~ "Social Studies",
       content_area_code == "A1" ~ "Algebra I",
       content_area_code == "A2" ~ "Algebra II",
+      content_area_code == "B1" ~ "Biology",
       content_area_code == "E1" ~ "English I",
       content_area_code == "E2" ~ "English II",
       content_area_code == "G1" ~ "Geometry",
@@ -655,10 +721,14 @@ summarize(
   n1 = n_distinct(unique_student_id),
   # Two variables are embedded within content area code 2: content area code
   # and modified format (Braille).
-  n2 = n_distinct(unique_student_id, content_area_code_2, semester),
-  n3 = n_distinct(unique_student_id, content_area_code_2, test_code, semester)
+  # n2 = n_distinct(unique_student_id, content_area_code_2, semester),
+  # n3 = n_distinct(unique_student_id, content_area_code_2, test_code, semester)
+  n2 = n_distinct(unique_student_id, content_area_code, semester),
+  # Test code entails two variables: test and grade.
+  n3 = n_distinct(unique_student_id, content_area_code, test_code, semester)
 )
 
+count(cdf_2, original_subject, test)
 count(cdf_2, test_code) %>% View()
 
 # count(partic, test_code, test_code_2, test_name) %>% View()
@@ -697,14 +767,14 @@ int_math_systems <- cdf_2 %>%
 
 student_level <- bind_rows(
   cdf_2,
-  filter(msaa, system == 10) %>% mutate(across(grade, as.integer)) %>% mutate(in_msaa = T)
+  filter(msaa, system == test_district) %>% mutate(across(grade, as.integer)) %>% mutate(in_msaa = T)
 ) %>% # bind_rows(cdf, msaa) %>%
   # This transmute creates perfect duplicates by removing two fields: content
   # area code 2 (which entails content area and modified format) and test code
   # (which entails content area, grade, and Braille format).
   transmute(
     in_cdf, in_regis, in_msaa,
-    content_area_code, content_area_code_2, test_code,
+    # content_area_code, test_code, # content_area_code_2
     system,
     system_name,
     school,
@@ -785,14 +855,14 @@ student_level <- bind_rows(
 nrow(student_level)
 nrow(distinct(student_level))
 
-perfect_dups <- student_level %>%
+dups <- student_level %>%
   group_by(across(system:did_not_submit)) %>%
   filter(n() > 1) %>%
   ungroup() %>%
   arrange(state_student_id)
 
 summarize(
-  perfect_dups,
+  dups,
   n0 = n(),
   n1 = n_distinct(state_student_id),
   # Two variables are embedded within content area code 2: content area code
@@ -802,14 +872,16 @@ summarize(
   n4 = n_distinct(state_student_id, original_subject)
 )
 
-summary(select(perfect_dups, where(~ !is.character(.x))))
-keep(map(as.list(perfect_dups), ~ mean(is.na(.x))), ~ .x != 0)
+summary(select(dups, where(~ !is.character(.x))))
+keep(map(as.list(dups), ~ mean(is.na(.x))), ~ .x != 0)
+count(dups, test_code, content_area_code, original_subject) %>% View()
 
 summarize(
   student_level,
   n0 = n(),
   n1 = n_distinct(state_student_id),
-  n2 = n_distinct(state_student_id, original_subject)
+  n2 = n_distinct(state_student_id, original_subject),
+  n3 = n_distinct(state_student_id, original_subject, semester, test)
 )
 
 count(student_level, grade)
@@ -984,6 +1056,8 @@ summarize(
   n2 = n_distinct(state_student_id, subject),
   n3 = n_distinct(state_student_id, subject, semester)
 )
+
+count(student_level_2, test, original_subject)
 
 partic_dist <- student_level_2 %>%
   group_by(system) %>%
