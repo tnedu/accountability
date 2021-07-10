@@ -10,7 +10,7 @@ library(tidyverse)
 
 setwd(str_c(Sys.getenv('tnshare_data_use'), 'team-members/josh-carson/accountability/2021-accountability'))
 
-test_district <- 830
+test_district <- 10
 
 # Functions ----
 
@@ -141,6 +141,8 @@ scores_2_8_raw <- read_csv("N:/Assessment_Data Returns/Student Registration file
 
 # Combine and explore registration data sets ----
 
+Sys.time()
+
 regis_raw <- regis_fall_eoc_raw %>%
   mutate(test = 'EOC', semester = 'Fall') %>%
   bind_rows(regis_spring_eoc_raw %>% mutate(test = 'EOC', semester = 'Spring')) %>%
@@ -229,7 +231,7 @@ regis <- regis_raw %>%
     # and remove them as needed.
     # (test == "EOC" | str_detect(test_code, str_c("G", enrolled_grade))),
     # For now, just test code with one small district.
-    # district_id == test_district
+    # , district_id == test_district
   ) %>%
   # Drop records from CTE, Alternative, or Adult HS.
   anti_join(
@@ -490,7 +492,7 @@ scores <- scores_raw %>%
     school_number < 9000,
     as.numeric(enrolled_grade) %in% 3:12
     # For now, just test code with one small district.
-    # district_number == test_district
+    # , district_number == test_district
   ) %>%
   # Drop records from CTE, Alternative, or Adult HS.
   anti_join(
@@ -690,7 +692,8 @@ int_math_systems <- cdf_2 %>%
 
 student_level <- bind_rows(
   cdf_2,
-  msaa %>% # filter(msaa, system == test_district) %>%
+  msaa %>%
+    # filter(system == test_district) %>%
     mutate(across(grade, as.integer)) %>%
     mutate(in_msaa = T)
 ) %>% # bind_rows(cdf, msaa) %>%
@@ -985,8 +988,19 @@ summarize(
 count(student_level_2, test, original_subject)
 
 partic_dist <- student_level_2 %>%
+  # arrange(state_student_id, subject, semester, desc(enrolled), desc(tested)) %>%
+  # distinct(state_student_id, subject, semester, .keep_all = T) %>%
   group_by(system) %>%
   summarize(across(c(enrolled, tested), sum)) %>%
   ungroup()
 
-# View(partic_dist)
+partic_dist <- partic_dist %>%
+  mutate(participation_rate = round(100 * tested / enrolled, 1))
+
+summary(partic_dist)
+
+partic_dist %>% arrange(participation_rate) %>% View()
+
+Sys.time()
+
+write_csv(partic_dist, str_c("participation-rate-district-", today(), ".csv"))
