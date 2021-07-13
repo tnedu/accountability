@@ -58,3 +58,5 @@ vignettes/*.pdf
 *.knit.md
 *.docx
 .Rproj.user
+
+2021-accountability/archive
