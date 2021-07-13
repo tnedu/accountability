@@ -10,6 +10,15 @@ library(tidyverse)
 
 setwd(str_c(Sys.getenv('tnshare_data_use'), 'team-members/josh-carson/accountability/2021-accountability'))
 
+connection_eis <- dbConnect(
+  RJDBC::JDBC(
+    "oracle.jdbc.OracleDriver",
+    classPath = Sys.getenv("jar_path")
+  ),
+  Sys.getenv("eis_connection_string"),
+  "EIS_MGR", Sys.getenv("eis_password")
+)
+
 # Start with small districts: 542, 171, 274, 690, 92, 151, 880, 371, 11, 480.
 # Then move on to larger districts: 10, 190.
 test_district <- 542
@@ -49,7 +58,47 @@ access_summative_raw <- clean_names(
 cte_alt_adult <- read_csv("N:/ORP_accountability/data/2021_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
   transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
 
-demos_raw <- read_csv("N:/TNReady/2020-21/spring/demographics/student_demographics_06082021.csv")
+# enr_el_raw <- dbGetQuery(
+#   connection_eis,
+#   "
+#   SELECT isp.school_year,
+#   isp.student_key as student_id,
+#   s.district_no as system,
+#   s.school_no as school,
+#   isp.first_name,
+#   isp.last_name,
+#   --sn.gender,
+#   isp.begin_date,
+#   isp.end_date,
+#   isp.withdrawal_reason,
+#   isp.english_language_background,
+#   EIS_MGR.FN_GET_IG(isp.ISP_ID) as grade
+#   FROM isp
+#   LEFT JOIN school s on isp.school_bu_id = s.school_bu_id
+#   LEFT JOIN (
+#     SELECT DISTINCT student_key,
+#             gender
+#     FROM  student_new
+#   ) sn ON sn.student_key = isp.student_key
+#   WHERE school_year = 2020
+#     AND english_language_background IN ('L', 'W')
+#     AND begin_date <= DATE '2021-02-01'
+#     AND (end_date IS NULL OR end_date > begin_date)
+#     AND (end_date IS NULL OR end_date >= DATE '2021-04-15')
+#     AND type_of_service = 'P'
+#     AND EIS_MGR.FN_GET_IG(isp.ISP_ID) NOT IN ('P3', 'P4')
+#   "
+# ) %>% 
+#   as_tibble() %>% 
+#   janitor::clean_names() %>% 
+#   mutate(
+#     last_name = str_to_upper(last_name),
+#     first_name = str_to_upper(first_name)
+#   ) %>% 
+#   arrange(system, school) %>%
+#   write_csv(str_c("enrollment-el-", today(), ".csv"))
+
+enr_el_raw <- read_csv(last(list.files(pattern = "enrollment-el")))
 
 ## TODO: School Numbers for 964/964 and 970/970
 msaa <- read_csv("N:/ORP_accountability/data/2021_cdf/2021_msaa_cdf.csv") %>% # read.xlsx("2021_TN_StateStudentResults.xlsx") %>%
@@ -1051,33 +1100,27 @@ access_summative_raw %>%
   arrange(district_number, school_number, state_student_id) %>%
   View()
 
-keep(map(as.list(access_alt_raw), ~mean(is.na(.x))), ~ .x != 0)
-keep(map(as.list(access_summative_raw), ~mean(is.na(.x))), ~ .x != 0)
-
-count(
-  access_alt_raw,
-  ethnicity_hispanic_latino, race_american_indian_alaskan_native, race_asian,
-  race_black_african_american, race_pacific_islander_hawaiian, race_white,
-  sort = T
-)
-
-count(
-  access_summative_raw,
-  ethnicity_hispanic_latino, race_american_indian_alaskan_native, race_asian,
-  race_black_african_american, race_pacific_islander_hawaiian, race_white,
-  sort = T
-)
-
-count(access_alt_raw, native_language, sort = T)
-count(access_summative_raw, native_language, sort = T)
-
-count(access_alt_raw, migrant)
-count(access_summative_raw, migrant)
-
 map(list(access_alt_raw, access_summative_raw), ~ count(.x, listening_status))
 map(list(access_alt_raw, access_summative_raw), ~ count(.x, reading_status))
 map(list(access_alt_raw, access_summative_raw), ~ count(.x, speaking_status))
 map(list(access_alt_raw, access_summative_raw), ~ count(.x, writing_status))
+
+map(list(access_alt_raw, access_summative_raw), ~ count(.x, cluster_listening))
+map(list(access_alt_raw, access_summative_raw), ~ count(.x, cluster_reading))
+map(list(access_alt_raw, access_summative_raw), ~ count(.x, cluster_speaking))
+map(list(access_alt_raw, access_summative_raw), ~ count(.x, cluster_writing))
+
+map(
+  list(access_alt_raw, access_summative_raw),
+  ~ .x %>%
+    select(
+      composite_overall_scale_score,
+      literacy_scale_score,
+      reading_scale_score
+    ) %>%
+    mutate(across(everything(), as.numeric)) %>%
+    summary()
+)
 
 access <- list(access_alt_raw, access_summative_raw) %>%
   map2(
@@ -1091,10 +1134,16 @@ access <- list(access_alt_raw, access_summative_raw) %>%
         state_student_id, grade,
         starts_with("cluster"),
         ends_with("tier"),
-        listening_status:writing_status
+        listening_status:writing_status,
+        composite_overall_scale_score,
+        literacy_scale_score,
+        reading_scale_score
       )
   ) %>%
-  bind_rows()
+  bind_rows() %>%
+  # Eliminate leading zeroes in student ID strings.
+  mutate(across(state_student_id, as.numeric)) %>%
+  filter(!is.na(state_student_id))
 
 names(access)
 nrow(access)
@@ -1111,11 +1160,161 @@ summarize(
   # alone)
   n4 = n_distinct(unique_drc_student_id, test),
   n5 = n_distinct(district_number, school_number, state_student_id),
-  # Almost distinct by district, school, student, and grade: Some students have
+  # Almost distinct by district, school, student, and grade: Some students had
   # NA for state student ID, and some students have results for multiple
   # domains split across multiple observations.
   n6 = n_distinct(district_number, school_number, state_student_id, grade)
 )
+
+map(as.list(access), ~ mean(is.na(.x)))
+count(access, reported_record) # Equals 1 for all rows
+count(access, grade) # Grades 0-12
+count(access, test, tier) # Equals "T" for all Alt records
+count(access, test, reported_tier)
+
+# Explore demographic data ----
+
+# names(demos_raw)
+# nrow(demos_raw)
+# nrow(distinct(demos_raw))
+# 
+# summarize(
+#   demos_raw,
+#   n0 = n(),
+#   n1 = n_distinct(district_no),
+#   n2 = n_distinct(district_no, school_no),
+#   n3 = n_distinct(student_key),
+#   # Distinct by district, school, student
+#   n4 = n_distinct(district_no, school_no, student_key)
+# )
+# 
+# keep(map(as.list(demos_raw), ~ mean(is.na(.x))), ~ .x != 0)
+# count(demos_raw, grade) %>% View()
+# count(demos_raw, limitedenglishproficiency)
+# 
+# demos <- demos_raw %>%
+#   filter(
+#     !is.na(grade),
+#     (as.numeric(grade) %in% 3:12 | grade %in% str_c("T", 3:12))
+#   ) %>%
+#   select()
+
+# Explore EL enrollment data ----
+
+nrow(enr_el_raw)
+nrow(distinct(enr_el_raw))
+
+summarize(
+  enr_el_raw,
+  n0 = n(),
+  n1 = n_distinct(system),
+  n2 = n_distinct(system, school),
+  # Distinct by state student ID
+  n3 = n_distinct(student_id)
+)
+
+summary(select(enr_el_raw, where(~ !is.character(.x))))
+map(as.list(enr_el_raw), ~ mean(is.na(.x)))
+count(enr_el_raw, english_language_background)
+count(enr_el_raw, grade) # Grades K-12
+
+# Apply WIDA participation rate business rules ----
+
+partic_access <- access %>%
+  mutate(in_file = T) %>%
+  full_join(
+    enr_el_raw %>%
+      # mutate(across(student_id, as.character)) %>%
+      mutate(in_eis = T),
+    by = c("state_student_id" = "student_id"),
+    suffix = c("_file", "_eis")
+  ) %>%
+  # Only grades 3 and up are being used for 80% participation rate check
+  filter(as.numeric(grade_file) %in% 3:12 | as.numeric(grade_eis) %in% 3:12)
+
+nrow(partic_access)
+nrow(distinct(partic_access))
+
+summarize(
+  partic_access,
+  n0 = n(),
+  n1 = n_distinct(district_number),
+  n2 = n_distinct(district_number, school_number),
+  # Almost distinct by state student ID
+  n3 = n_distinct(state_student_id),
+  # Distinct by DRC student ID, test, state student ID
+  n4 = n_distinct(unique_drc_student_id, test, state_student_id),
+  # Fewer than 0.1% of students appear in multiple schools or districts.
+  n5 = n_distinct(district_number, school_number, state_student_id),
+  # Almost distinct by district, school, student, and grade: Some students have
+  # NA for state student ID, and some students have results for multiple
+  # domains split across multiple observations.
+  n6 = n_distinct(district_number, school_number, state_student_id, grade_file)
+)
+
+map(as.list(partic_access), ~ mean(is.na(.x)))
+
+partic_access %>%
+  count(in_file, in_eis, sort = T) %>%
+  mutate(pct = n / nrow(partic_access))
+
+partic_access %>%
+  mutate(
+    same_district_no = as.numeric(str_remove(district_number, "TN")) == system,
+    same_school_no = as.numeric(school_number) == school
+  ) %>%
+  count(same_district_no, same_school_no, sort = T) %>%
+  mutate(pct = n / nrow(partic_access))
+
+count(partic_access, grade_file, grade_eis) %>% View()
+
+partic_access %>%
+  mutate(same_grade = grade_file == grade_eis) %>%
+  count(same_grade, sort = T) %>%
+  mutate(pct = n / nrow(partic_access))
+
+students_who_took_alt <- partic_access %>%
+  filter(test == "ACCESS Alt") %>%
+  extract2("state_student_id")
+
+partic_access_2 <- partic_access %>%
+  select(test:in_file, english_language_background, grade_eis, in_eis) %>%
+  # Alt test is kept if there are both Alt and regular records
+  filter(
+    is.na(test)
+    | test == "ACCESS Alt"
+    | !state_student_id %in% students_who_took_alt
+  ) %>%
+  # Within each district-student combination, de-duplicate with the following
+  # hierarchy:
+  # 1) Keep the record with maximum composite score.
+  # 2) Keep the record with maximum literacy score.
+  # 3) Keep the record with maximum reading score.
+  arrange(
+    district_number, state_student_id,
+    desc(composite_overall_scale_score),
+    desc(literacy_scale_score),
+    desc(reading_scale_score)
+  ) %>%
+  distinct(district_number, state_student_id, .keep_all = T)
+
+# All students in this data set should count in the denominator. Every student
+# either is in the ACCESS file or has English language background L or W.
+count(partic_access_2, in_file, english_language_background)
+
+partic_access_3 <- partic_access_2 %>%
+  mutate(
+    tested = listening_status %in% c("C", "P") |
+      reading_status %in% c("C", "P") |
+      speaking_status %in% c("C", "P") |
+      writing_status %in% c("C", "P")
+  ) %>%
+  group_by(district_number) %>%
+  summarize(
+    enrolled = n(),
+    tested = sum(tested)
+  ) %>%
+  ungroup()
 
 # Compare output with Andrew's ----
 
