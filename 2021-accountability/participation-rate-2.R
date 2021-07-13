@@ -1230,7 +1230,14 @@ partic_access <- access %>%
     suffix = c("_file", "_eis")
   ) %>%
   # Only grades 3 and up are being used for 80% participation rate check
-  filter(as.numeric(grade_file) %in% 3:12 | as.numeric(grade_eis) %in% 3:12)
+  filter(as.numeric(grade_file) %in% 3:12 | as.numeric(grade_eis) %in% 3:12) %>%
+  mutate(
+    district_number = if_else(
+      is.na(in_file),
+      system,
+      as.numeric(str_remove(district_number, "TN"))
+    )
+  )
 
 nrow(partic_access)
 nrow(distinct(partic_access))
@@ -1304,6 +1311,7 @@ count(partic_access_2, in_file, english_language_background)
 
 partic_access_3 <- partic_access_2 %>%
   mutate(
+    # district_number = as.numeric(str_remove(district_number, "TN")),
     tested = listening_status %in% c("C", "P") |
       reading_status %in% c("C", "P") |
       speaking_status %in% c("C", "P") |
@@ -1312,7 +1320,8 @@ partic_access_3 <- partic_access_2 %>%
   group_by(district_number) %>%
   summarize(
     enrolled = n(),
-    tested = sum(tested)
+    tested = sum(tested),
+    participation_rate = round(100 * tested / enrolled, 1)
   ) %>%
   ungroup()
 
