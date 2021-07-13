@@ -10,7 +10,9 @@ library(tidyverse)
 
 setwd(str_c(Sys.getenv('tnshare_data_use'), 'team-members/josh-carson/accountability/2021-accountability'))
 
-test_district <- 10
+# Start with small districts: 542, 171, 274, 690, 92, 151, 880, 371, 11, 480.
+# Then move on to larger districts: 10, 190.
+test_district <- 542
 
 # Functions ----
 
@@ -44,19 +46,10 @@ access_summative_raw <- clean_names(
   )
 )
 
-access_css_raw <- clean_names(
-  read_csv(
-    'N:/Assessment_Data Returns/WIDA/2021/Cumulative_Status/Cumulative_Student_Status_21.csv',
-    col_types = glue::glue_collapse(rep('c', 22)),
-    skip = 5
-  )
-)
-
 cte_alt_adult <- read_csv("N:/ORP_accountability/data/2021_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
   transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
 
-enr_raw <- read_csv('N:/Data Mgmt and Reporting/DU_Data/Student_Enrollment_Demographics/Student_Enrollment_Demographics/Cleaned_Data/student_enrollment_Oct1_2021/2021-05-25/school_enrollment_Oct1_2021.csv') %>%
-  mutate(across(ends_with('_date'), convert_date))
+demos_raw <- read_csv("N:/TNReady/2020-21/spring/demographics/student_demographics_06082021.csv")
 
 ## TODO: School Numbers for 964/964 and 970/970
 msaa <- read_csv("N:/ORP_accountability/data/2021_cdf/2021_msaa_cdf.csv") %>% # read.xlsx("2021_TN_StateStudentResults.xlsx") %>%
@@ -1005,6 +998,125 @@ Sys.time()
 
 write_csv(partic_dist, str_c("participation-rate-district-", today(), ".csv"))
 
+# Combine and explore WIDA ACCESS summative files ----
+
+names(access_alt_raw)
+names(access_summative_raw)
+
+nrow(access_alt_raw)
+nrow(distinct(access_alt_raw))
+
+nrow(access_summative_raw)
+nrow(distinct(access_summative_raw))
+
+summarize(
+  access_alt_raw,
+  n0 = n(),
+  n1 = n_distinct(district_number),
+  n2 = n_distinct(district_number, school_number),
+  # Almost distinct by student
+  n3 = n_distinct(state_student_id),
+  # Distinct by DRC student ID
+  n4 = n_distinct(unique_drc_student_id),
+  # Distinct by district, school, and student
+  n5 = n_distinct(district_number, school_number, state_student_id)
+)
+
+summarize(
+  access_summative_raw,
+  n0 = n(),
+  n1 = n_distinct(district_number),
+  n2 = n_distinct(district_number, school_number),
+  # Almost distinct by student
+  n3 = n_distinct(state_student_id),
+  # Distinct by DRC student ID
+  n4 = n_distinct(unique_drc_student_id),
+  n5 = n_distinct(district_number, school_number, state_student_id),
+  # Almost distinct by district, school, student, and grade: Some students have
+  # NA for state student ID, and some students have results for multiple
+  # domains split across multiple observations.
+  n6 = n_distinct(district_number, school_number, state_student_id, grade)
+)
+
+# 67 district-school-student combinations appear multiple times. Most of them
+# have test results split across multiple rows: Usually the writing cluster is
+# separate from the other clusters. Some of the student information (e.g.,
+# middle initial, spelling of name, date of birth) also differs across
+# duplicates.
+
+access_summative_raw %>%
+  group_by(district_number, school_number, state_student_id) %>%
+  filter(n() > 1) %>%
+  ungroup() %>%
+  arrange(district_number, school_number, state_student_id) %>%
+  View()
+
+keep(map(as.list(access_alt_raw), ~mean(is.na(.x))), ~ .x != 0)
+keep(map(as.list(access_summative_raw), ~mean(is.na(.x))), ~ .x != 0)
+
+count(
+  access_alt_raw,
+  ethnicity_hispanic_latino, race_american_indian_alaskan_native, race_asian,
+  race_black_african_american, race_pacific_islander_hawaiian, race_white,
+  sort = T
+)
+
+count(
+  access_summative_raw,
+  ethnicity_hispanic_latino, race_american_indian_alaskan_native, race_asian,
+  race_black_african_american, race_pacific_islander_hawaiian, race_white,
+  sort = T
+)
+
+count(access_alt_raw, native_language, sort = T)
+count(access_summative_raw, native_language, sort = T)
+
+count(access_alt_raw, migrant)
+count(access_summative_raw, migrant)
+
+map(list(access_alt_raw, access_summative_raw), ~ count(.x, listening_status))
+map(list(access_alt_raw, access_summative_raw), ~ count(.x, reading_status))
+map(list(access_alt_raw, access_summative_raw), ~ count(.x, speaking_status))
+map(list(access_alt_raw, access_summative_raw), ~ count(.x, writing_status))
+
+access <- list(access_alt_raw, access_summative_raw) %>%
+  map2(
+    .y = c("ACCESS Alt", "ACCESS"),
+    ~ .x %>%
+      mutate(test = .y) %>%
+      select(
+        test,
+        unique_drc_student_id, reported_record,
+        district_number, school_number,
+        state_student_id, grade,
+        starts_with("cluster"),
+        ends_with("tier"),
+        listening_status:writing_status
+      )
+  ) %>%
+  bind_rows()
+
+names(access)
+nrow(access)
+nrow(distinct(access))
+
+summarize(
+  access,
+  n0 = n(),
+  n1 = n_distinct(district_number),
+  n2 = n_distinct(district_number, school_number),
+  # Almost distinct by state student ID
+  n3 = n_distinct(state_student_id),
+  # Distinct by DRC student ID and test (no longer distinct by DRC student ID
+  # alone)
+  n4 = n_distinct(unique_drc_student_id, test),
+  n5 = n_distinct(district_number, school_number, state_student_id),
+  # Almost distinct by district, school, student, and grade: Some students have
+  # NA for state student ID, and some students have results for multiple
+  # domains split across multiple observations.
+  n6 = n_distinct(district_number, school_number, state_student_id, grade)
+)
+
 # Compare output with Andrew's ----
 
 partic_dist <- read_csv(last(list.files(pattern = "participation-rate-district")))
@@ -1025,3 +1137,4 @@ comp <- partic_dist %>%
 comp %>% filter(!complete.cases(.))
 comp %>% arrange(ratio_partic) %>% View()
 comp %>% arrange(participation_rate) %>% View()
+comp %>% arrange(enrolled) %>% View()
