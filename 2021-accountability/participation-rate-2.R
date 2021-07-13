@@ -1004,3 +1004,24 @@ partic_dist %>% arrange(participation_rate) %>% View()
 Sys.time()
 
 write_csv(partic_dist, str_c("participation-rate-district-", today(), ".csv"))
+
+# Compare output with Andrew's ----
+
+partic_dist <- read_csv(last(list.files(pattern = "participation-rate-district")))
+
+partic_dist_am <- read_csv("N:/ORP_accountability/projects/Andrew/Data Requests/2021/data/district_participation_rate_MSAA_TNReady_EOC_06182021.csv")
+
+summary(partic_dist)
+summary(partic_dist_am)
+
+comp <- partic_dist %>%
+  full_join(partic_dist_am, by = "system", suffix = c("", "_am")) %>%
+  mutate(
+    ratio_enrolled = enrolled / n_enrolled,
+    ratio_tested = tested / n_tested,
+    ratio_partic = participation_rate / participation_rate_am
+  )
+
+comp %>% filter(!complete.cases(.))
+comp %>% arrange(ratio_partic) %>% View()
+comp %>% arrange(participation_rate) %>% View()
