@@ -801,25 +801,27 @@ student_level <- bind_rows(
     last_name,
     first_name,
     grade,
-    gender,
-    reported_race,
-    bhn_group = reported_race %in% c("Black or African American", "Hispanic/Latino", "American Indian/Alaska Native"),
-    economically_disadvantaged,
-    el,
-    el_recently_arrived = (el_arrived_year_1 == 1 | el_arrived_year_2 == 1),
-    t1234 = t1234 %in% 1:4,
-    special_ed,
-    functionally_delayed,
-    gifted,
-    migrant,
-    enrolled_50_pct_district,
-    enrolled_50_pct_school,
+    # gender,
+    # reported_race,
+    # bhn_group = reported_race %in% c("Black or African American", "Hispanic/Latino", "American Indian/Alaska Native"),
+    # economically_disadvantaged,
+    # el,
+    # el_recently_arrived = (el_arrived_year_1 == 1 | el_arrived_year_2 == 1),
+    # t1234 = t1234 %in% 1:4,
+    # special_ed,
+    # functionally_delayed,
+    # gifted,
+    # migrant,
+    # enrolled_50_pct_district,
+    # enrolled_50_pct_school,
     teacher_of_record_tln,
     reporting_status,
     reason_not_tested_2,
     breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness,
     absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit
   ) %>%
+  left_join(demos_filtered, by = c("system", "school", "state_student_id" = "unique_student_id")) %>%
+  mutate(el_recently_arrived = (el_arrived_year_1 == 1 | el_arrived_year_2 == 1)) %>%
   mutate_at(vars(bhn_group, t1234, el_recently_arrived), as.integer) %>%
   rowwise() %>%
   # Apply testing flag hierarchy
@@ -912,6 +914,54 @@ student_level %>%
 #   n2 = n_distinct(state_student_id, original_subject)
 # )
 
+demographics <- read_csv("N:/TNReady/2020-21/spring/demographics/student_demographics_06082021.csv")
+
+demos_filtered <- demographics%>% 
+  filter(str_length(student_key) == 7) %>% 
+  transmute(
+    unique_student_id = student_key,
+    system = district_no,
+    school = school_no,
+    gender, 
+    hispanic = if_else(ethnicity == 'H', 'Y', 'N'),
+    economically_disadvantaged = case_when(
+      codeab == 1 ~ 'Y',
+      codeab == 2 ~ 'N',
+      TRUE ~ NA_character_
+    ),
+    reported_race = reportedrace,
+    title_1 = title1,
+    gifted = isgifted,
+    functionally_delayed = isfunctionallydelayed,
+    # foster = isfostercare,
+    migrant = ismigrant,
+    # foster = isfostercare,
+    el_arrived_year_1 = elrecentlyarrivedyearone,
+    el_arrived_year_2 = elrecentlyarrivedyeartwo,
+    el = isel,
+    t1234 = t1t2,
+    special_ed = specialeducation,
+    enrolled_50_pct_district = district50percent,
+    enrolled_50_pct_school = school50percent
+  ) %>% 
+  mutate(
+    native_american = if_else(reported_race == 1, 'Y', 'N'),
+    asian = if_else(reported_race == 2, 'Y', 'N'),
+    black = if_else(reported_race == 3, 'Y', 'N'),
+    hawaiian_pi = if_else(reported_race == 5, 'Y', 'N'),
+    white = if_else(reported_race == 6, 'Y', 'N'),
+    reported_race = case_when(
+      reported_race == 1 ~ 'American Indian/Alaska Native',
+      reported_race == 2 ~ 'Asian',
+      reported_race == 3 ~ 'Black or African American',
+      reported_race == 4 ~ 'Hispanic/Latino',
+      reported_race == 5 ~ 'Native Hawaiian/Pac. Islander',
+      reported_race == 6 ~ 'White',
+      TRUE ~ 'Unknown'
+    ),
+    bhn_group = if_else(!reported_race %in% c('American Indian/Alaska Native','Black or African American','Hispanic/Latino') | is.na(reported_race), 0, 1)
+  )
+
 dedup <- student_level %>%
   anti_join(cte_alt_adult, by = c("system", "school")) %>%
   # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
@@ -961,24 +1011,31 @@ dedup <- student_level %>%
   ungroup() %>%
   # For students with multiple test records with the same original subject, performance level, scale score
   # Deduplicate by missing race/ethnicity
-  # group_by(state_student_id, original_subject, test, performance_level, scale_score, semester) %>%
-  # mutate(
-  #   n = n(),                           # Tag duplicates by id, subject, test, performance level, scale score, semester
-  #   temp = mean(is.na(reported_race))  # Check whether one among duplicates has non-missing race/ethnicity
-  # ) %>%
-  # filter(!(n > 1 & temp != 0 & is.na(reported_race))) %>%
-  # ungroup() %>%
-  # select(-n, -temp) %>%
+  mutate(
+    demo_priority = case_when(
+      reported_race %in% c("American Indian/Alaska Native", "Asian", "Black or African American", "Native Hawaiian/Pac. Islander",
+                           "Hispanic/Latino", "White") ~ 2,
+      reported_race == 'Unknown' | is.na(reported_race) ~ 1
+    )
+  ) %>%
+  group_by(state_student_id, original_subject, test, performance_level, scale_score, semester) %>%
+  mutate(
+    n = n(),                           # Tag duplicates by id, subject, test, performance level, scale score, semester
+    temp = mean(is.na(reported_race))  # Check whether one among duplicates has non-missing race/ethnicity
+  ) %>%
+  filter(!(n > 1 & temp != 0 & is.na(reported_race))) %>%
+  ungroup() %>%
+  select(-n, -temp) %>%
   # For students multiple test records with the same original subject, performance level, scale score, demographics
   # Deduplicate for non-missing grade
-  # group_by(state_student_id, original_subject, test, performance_level, scale_score, semester, reported_race) %>%
-  # mutate(
-  #   n = n(),                   # Tag duplicates by id, subject, test, performance level, scale score, semester
-  #   temp = mean(is.na(grade))  # Check whether one among duplicates has non-missing race/ethnicity
-  # ) %>%
-  # filter(!(n > 1 & temp != 0 & is.na(grade))) %>%
-  # ungroup() %>%
-  # select(-n, -temp) %>%
+  group_by(state_student_id, original_subject, test, performance_level, scale_score, semester, reported_race) %>%
+  mutate(
+    n = n(),                   # Tag duplicates by id, subject, test, performance level, scale score, semester
+    temp = mean(is.na(grade))  # Check whether one among duplicates has non-missing race/ethnicity
+  ) %>%
+  filter(!(n > 1 & temp != 0 & is.na(grade))) %>%
+  ungroup() %>%
+  select(-n, -temp) %>%
   # Valid test if there is a proficiency level
   mutate(valid_test = as.integer(not_na(performance_level)))
 
