@@ -100,8 +100,7 @@ cte_alt_adult <- read_csv("N:/ORP_accountability/data/2021_tdoe_provided_files/c
 
 enr_el_raw <- read_csv(last(list.files(pattern = "enrollment-el")))
 
-## TODO: School Numbers for 964/964 and 970/970
-msaa <- read_csv("N:/ORP_accountability/data/2021_cdf/2021_msaa_cdf.csv") %>% # read.xlsx("2021_TN_StateStudentResults.xlsx") %>%
+msaa <- read_csv("N:/ORP_accountability/data/2021_cdf/2021_msaa_cdf.csv") %>%
   filter(!(reporting_status %in% c("WDR", "NLE"))) %>%
   mutate(
     test = "MSAA",
@@ -196,7 +195,7 @@ regis_raw <- regis_fall_eoc_raw %>%
     regis_spring_alt_raw %>%
       mutate(
         test = case_when(
-          str_detect(test_name, 'Biology') ~ 'Alt-Biology',
+          str_detect(test_name, 'Biology') ~ 'Alt-Science',
           str_detect(test_name, 'English') ~ 'Alt-ELA',
           str_detect(test_name, 'Math') ~ 'Alt-Math',
           str_detect(test_name, 'Science') ~ 'Alt-Science',
@@ -248,7 +247,7 @@ map(
 )
 
 # ELA and HS English tests have sub-parts.
-count(regis_raw, test_name, test_code) %>% View()
+count(regis_raw, test_name, test_code, sort = T) %>% View()
 
 count(regis_raw, semester)
 count(regis_raw, snt_subpart1)
@@ -297,6 +296,21 @@ regis <- regis_raw %>%
   # tests are combined and the lowest SNT is kept between the two parts as the
   # overall SNT for English I and English II.
   mutate(
+    test_name = case_when(
+      str_detect(test_name, 'Social Studies') ~ 'Social Studies',
+      str_detect(test_name, 'Science') ~ 'Science',
+      str_detect(test_name, 'Gr \\d Math') ~ 'Math',
+      str_detect(test_name, 'English Lang Arts') ~ 'ELA',
+      str_detect(test_name, 'English I ') ~ 'English I',
+      str_detect(test_name, 'English II') ~ 'English II',
+      str_detect(test_name, 'U.S. History') ~ 'US History',
+      str_detect(test_name, 'Braille Algebra I') ~ 'Algebra I',
+      str_detect(test_name, 'Braille Algebra II') ~ 'Algebra II',
+      str_detect(test_name, 'Braille Biology') ~ 'Biology',
+      str_detect(test_name, 'Braille Geometry') ~ 'Geometry',
+      str_detect(test_name, 'Braille Integrated Math II') ~ 'Integrated Math II',
+      TRUE ~ test_name
+    ),
     test_code_2 = if_else(
       str_detect(test_name, 'Subpart'),
       # str_remove(test_code, '[:digit:]U[:digit:]$'),
@@ -306,7 +320,7 @@ regis <- regis_raw %>%
     # test_code_3 = str_remove(test_code_2, "G[:digit:]$")
   ) %>%
   mutate(across(starts_with('snt'), as.numeric)) %>%
-  group_by(usid, test_code_2) %>%
+  group_by(usid, test_name) %>%
   mutate(
     overall_snt = min(pmin(snt_subpart1, snt_subpart2, snt_subpart3, snt_subpart4, na.rm = T), na.rm = T),
     overall_snt = if_else(overall_snt == Inf, NA_real_, overall_snt)
@@ -422,7 +436,7 @@ summarize(
 count(regis_2, enrolled_grade)
 count(regis_2, semester)
 count(regis_2, test)
-count(regis_2, test, test_code, content_area_code, modified_format) %>% View()
+count(regis_2, test, test_code, content_area_code, modified_format, sort = T) %>% View()
 count(regis_2, overall_snt)
 
 # Explore fall EOC CDF data ----
@@ -636,6 +650,10 @@ cdf %>%
 
 count(cdf, test, content_area_code)
 
+cdf %>%
+  mutate(missing_raw_score = is.na(raw_score)) %>%
+  count(reason_not_tested, missing_raw_score)
+
 # Join CDF and registration.
 
 cdf_2 <- cdf %>%
@@ -677,21 +695,31 @@ cdf_2 <- cdf %>%
   # an SNT code of 1 if there is no record in the CDF and no SNT in the
   # registration file.
   mutate(
-    reason_not_tested_2 = case_when(
-      !is.na(reason_not_tested) ~ as.numeric(reason_not_tested),
-      is.na(in_cdf) & is.na(overall_snt) ~ 1,
-      # If the raw score is missing in the raw score file and there is no SNT
-      # or RI in either the raw score file or the registration file, then
-      # assign an SNT of 1 (absent) to that record. # NOTE: This code does not
-      # check if overall RI status is missing in the registration data because
-      # it's unclear how to calculate an overall RI status in the registration
-      # files.
-      !is.na(in_cdf) & in_cdf &
-        semester == "Spring" &
-        is.na(reason_not_tested) & is.na(ri_status) &
-        is.na(overall_snt) &
-        is.na(raw_score) ~ 1,
-      T ~ as.numeric(overall_snt)
+    # reason_not_tested_2 = case_when(
+    #   !is.na(reason_not_tested) ~ as.numeric(reason_not_tested),
+    #   is.na(in_cdf) & is.na(overall_snt) ~ 1,
+    #   # If the raw score is missing in the raw score file and there is no SNT
+    #   # or RI in either the raw score file or the registration file, then
+    #   # assign an SNT of 1 (absent) to that record. # NOTE: This code does not
+    #   # check if overall RI status is missing in the registration data because
+    #   # it's unclear how to calculate an overall RI status in the registration
+    #   # files.
+    #   !is.na(in_cdf) & in_cdf &
+    #     semester == "Spring" &
+    #     is.na(reason_not_tested) & is.na(ri_status) &
+    #     is.na(overall_snt) &
+    #     is.na(raw_score) ~ 1,
+    #   T ~ as.numeric(overall_snt)
+    # ),
+    reason_not_tested_2 = if_else(
+      (reason_not_tested == 0 | is.na(reason_not_tested)) & !is.na(overall_snt) & is.na(raw_score),
+      as.integer(overall_snt),
+      as.integer(reason_not_tested)
+    ),
+    reason_not_tested_2 = if_else(
+      (is.na(reason_not_tested_2) & is.na(raw_score) & is.na(scale_score)) | (reason_not_tested_2 == 0 & is.na(raw_score) & is.na(scale_score)),
+      1L,
+      reason_not_tested_2
     ),
     ri_status = if_else(reason_not_tested_2 == 1 & ri_status == 6, 0, as.numeric(ri_status)),
     performance_level = if_else(performance_level == "On track", "On Track", performance_level),
@@ -788,6 +816,7 @@ student_level <- bind_rows(
     enrolled_50_pct_school,
     teacher_of_record_tln,
     reporting_status,
+    reason_not_tested_2,
     breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness,
     absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit
   ) %>%
@@ -796,21 +825,21 @@ student_level <- bind_rows(
   # Apply testing flag hierarchy
   mutate(
     enrolled = case_when(
-      any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0,
+      reason_not_tested_2 == 0 & any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0,
       any(not_enrolled, not_scheduled) ~ 0,
       TRUE ~ 1
     ),
     # EL Recently Arrived students with missing proficiency are not considered tested
     tested = case_when(
       test == "MSAA" & reporting_status == "DNT" ~ 0,
-      any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0,
+      reason_not_tested_2 == 0 & any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0,
       any(absent, not_enrolled, not_scheduled) ~ 0,
       el_recently_arrived == 1L & is.na(original_performance_level) ~ 0,
       TRUE ~ 1
     ),
     # EL Recently Arrived students performance level are converted to missing
     performance_level = case_when(
-      any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ NA_character_,
+      reason_not_tested_2 == 0 & any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ NA_character_,
       any(absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, did_not_submit) ~ NA_character_,
       el_recently_arrived == 1 ~ NA_character_,
       TRUE ~ performance_level
@@ -888,7 +917,7 @@ dedup <- student_level %>%
   # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
   mutate(
     test_priority = case_when(
-      test %in% c("MSAA", "Alt-Social Studies") ~ 3,
+      test %in% c("MSAA", "Alt-Science", "Alt-Social Studies") ~ 3,
       test == "EOC" ~ 2,
       test == "TNReady" ~ 1
     )
@@ -1048,6 +1077,8 @@ partic_dist <- student_level_2 %>%
   summarize(across(c(enrolled, tested), sum)) %>%
   ungroup() %>%
   mutate(participation_rate = round(100 * tested / enrolled, 1))
+
+partic_dist
 
 summary(partic_dist)
 
