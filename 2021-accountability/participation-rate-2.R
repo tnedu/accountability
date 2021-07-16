@@ -185,20 +185,32 @@ scores_2_8_raw <- read_csv("N:/Assessment_Data Returns/Student Registration file
 
 Sys.time()
 
+names(regis_spring_alt_raw)
+count(regis_spring_alt_raw, test_name)
+
 regis_raw <- regis_fall_eoc_raw %>%
   mutate(test = 'EOC', semester = 'Fall') %>%
   bind_rows(regis_spring_eoc_raw %>% mutate(test = 'EOC', semester = 'Spring')) %>%
   bind_rows(regis_spring_3_8_raw %>% mutate(test = 'TNReady', semester = 'Spring')) %>%
   bind_rows(
     regis_spring_alt_raw %>%
-      mutate(test = 'Alt', semester = 'Spring') %>%
+      mutate(
+        test = case_when(
+          str_detect(test_name, 'Biology') ~ 'Alt-Biology',
+          str_detect(test_name, 'English') ~ 'Alt-ELA',
+          str_detect(test_name, 'Math') ~ 'Alt-Math',
+          str_detect(test_name, 'Science') ~ 'Alt-Science',
+          str_detect(test_name, 'Social Studies') ~ 'Alt-Social Studies'
+        ),
+        semester = 'Spring'
+      ) %>%
       rename(
-        snt_subpart2 = filler,
-        snt_subpart3 = filler_1,
-        snt_subpart4 = filler_2,
-        ri_subpart2 = filler_3,
-        ri_subpart3 = filler_4,
-        ri_subpart4 = filler_5
+        # snt_subpart2 = filler,
+        # snt_subpart3 = filler_1,
+        snt_subpart4 = filler,
+        ri_subpart2 = filler_1,
+        ri_subpart3 = filler_2,
+        ri_subpart4 = filler_3
       )
   )
 
@@ -273,7 +285,7 @@ regis <- regis_raw %>%
     # and remove them as needed.
     # (test == "EOC" | str_detect(test_code, str_c("G", enrolled_grade))),
     # For now, just test code with one small district.
-    # , district_id == test_district
+    , district_id %in% test_district
   ) %>%
   # Drop records from CTE, Alternative, or Adult HS.
   anti_join(
@@ -534,7 +546,7 @@ scores <- scores_raw %>%
     school_number < 9000,
     as.numeric(enrolled_grade) %in% 3:12
     # For now, just test code with one small district.
-    # , district_number == test_district
+    , district_number %in% test_district
   ) %>%
   # Drop records from CTE, Alternative, or Adult HS.
   anti_join(
@@ -576,7 +588,7 @@ names(cdf_fall_eoc_raw)
 names(scores)
 
 cdf <- cdf_fall_eoc_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
-  # filter(system == test_district) %>%
+  filter(system %in% test_district) %>%
   # Drop records from CTE, Alternative, or Adult HS.
   anti_join(
     cte_alt_adult,
@@ -735,7 +747,7 @@ int_math_systems <- cdf_2 %>%
 student_level <- bind_rows(
   cdf_2,
   msaa %>%
-    # filter(system == test_district) %>%
+    filter(system %in% test_district) %>%
     mutate(across(grade, as.integer)) %>%
     mutate(in_msaa = T)
 ) %>% # bind_rows(cdf, msaa) %>%
@@ -1034,9 +1046,7 @@ partic_dist <- student_level_2 %>%
   # distinct(state_student_id, subject, semester, .keep_all = T) %>%
   group_by(system) %>%
   summarize(across(c(enrolled, tested), sum)) %>%
-  ungroup()
-
-partic_dist <- partic_dist %>%
+  ungroup() %>%
   mutate(participation_rate = round(100 * tested / enrolled, 1))
 
 summary(partic_dist)
