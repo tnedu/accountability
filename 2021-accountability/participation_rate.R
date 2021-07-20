@@ -253,7 +253,7 @@ participation_3_8 <- raw_score_3_8 %>%
   mutate(temp = first(raw_score)) %>% 
   ungroup() %>% 
   filter(temp == raw_score | is.na(temp)) %>% 
-  arrange(unique_student_id, content_area_code, -reason_not_tested) %>% 
+  arrange(unique_student_id, content_area_code, reason_not_tested) %>% # -reason_not_tested
   group_by(unique_student_id, content_area_code) %>% 
   mutate(temp = first(reason_not_tested)) %>% 
   ungroup() %>% 
@@ -265,11 +265,22 @@ participation_3_8 <- raw_score_3_8 %>%
   mutate(
     # performance_level = if_else(performance_level == "On track", "On Track", performance_level),
     # If there is an SNT from registration, use that only if there is no score
-    reason_not_tested = if_else((reason_not_tested == 0 | is.na(reason_not_tested)) & !is.na(snt_reg) & is.na(raw_score), as.integer(snt_reg), as.integer(reason_not_tested)),
+    reason_not_tested = if_else(
+      (reason_not_tested == 0 | is.na(reason_not_tested)) &
+        !is.na(snt_reg) &
+        is.na(raw_score),
+      as.integer(snt_reg),
+      as.integer(reason_not_tested)
+    ),
     # reason_not_tested = if_else(is.na(reason_not_tested) & !is.na(snt_reg), as.integer(snt_reg), reason_not_tested),
     # If SNT is still missing, assign SNT of 1 (absent)
     # SNT missing at this point if they were registered with no SNT and they do not appear in the CDF
-    reason_not_tested = if_else(is.na(reason_not_tested) | (reason_not_tested == 0 & is.na(raw_score)), 1L, reason_not_tested),
+    reason_not_tested = if_else(
+      is.na(reason_not_tested) |
+        (reason_not_tested == 0 & is.na(raw_score)),
+      1L,
+      reason_not_tested
+    ),
     subject = case_when(
       content_area_code == "EN" ~ "ELA",
       content_area_code == "MA" ~ "Math",

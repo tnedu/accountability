@@ -21,7 +21,7 @@ connection_eis <- dbConnect(
 
 # Start with small districts: 542, 171, 274, 690, 92, 151, 880, 371, 11, 480.
 # Then move on to larger districts: 10, 190.
-test_district <- 542
+test_district <- 10 # c(542, 171)
 
 # Functions ----
 
@@ -32,6 +32,19 @@ convert_date <- function(v) {
           str_split(v, '/', simplify = T)[, 2],
           sep = '-')
   )
+}
+
+count_categories <- function(df, ...) {
+  q <- enquos(...)
+  map(q, ~ count(df, !!.x, sort = T))
+}
+
+summarize_missingness <- function(df) {
+  map(as.list(df), ~ mean(is.na(.x)))
+}
+
+summarize_numeric_vars <- function(df) {
+  summary(select(df, where(~ !is.character(.x))))
 }
 
 # Read input data ----
@@ -57,6 +70,8 @@ access_summative_raw <- clean_names(
 
 cte_alt_adult <- read_csv("N:/ORP_accountability/data/2021_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
   transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
+
+demographics <- read_csv("N:/TNReady/2020-21/spring/demographics/student_demographics_06082021.csv")
 
 # enr_el_raw <- dbGetQuery(
 #   connection_eis,
@@ -180,741 +195,7 @@ scores_eoc_raw <- read_csv("N:/Assessment_Data Returns/Student Registration file
 scores_2_8_raw <- read_csv("N:/Assessment_Data Returns/Student Registration file/SY2020-21/Raw Score/2021_TN_Spring_2021_Grades_2_8_RSF_20210607.csv") %>%
   clean_names()
 
-# Combine and explore registration data sets ----
-
-Sys.time()
-
-names(regis_spring_alt_raw)
-count(regis_spring_alt_raw, test_name)
-
-regis_raw <- regis_fall_eoc_raw %>%
-  mutate(test = 'EOC', semester = 'Fall') %>%
-  bind_rows(regis_spring_eoc_raw %>% mutate(test = 'EOC', semester = 'Spring')) %>%
-  bind_rows(regis_spring_3_8_raw %>% mutate(test = 'TNReady', semester = 'Spring')) %>%
-  bind_rows(
-    regis_spring_alt_raw %>%
-      mutate(
-        test = case_when(
-          str_detect(test_name, 'Biology') ~ 'Alt-Science',
-          str_detect(test_name, 'English') ~ 'Alt-ELA',
-          str_detect(test_name, 'Math') ~ 'Alt-Math',
-          str_detect(test_name, 'Science') ~ 'Alt-Science',
-          str_detect(test_name, 'Social Studies') ~ 'Alt-Social Studies'
-        ),
-        semester = 'Spring'
-      ) %>%
-      rename(
-        # snt_subpart2 = filler,
-        # snt_subpart3 = filler_1,
-        snt_subpart4 = filler,
-        ri_subpart2 = filler_1,
-        ri_subpart3 = filler_2,
-        ri_subpart4 = filler_3
-      )
-  )
-
-nrow(distinct(regis_raw))
-nrow(regis_raw)
-
-summarize(
-  regis_raw,
-  n0 = n(),
-  n1 = n_distinct(district_id),
-  n2 = n_distinct(district_id, school_id),
-  n3 = n_distinct(usid),
-  n4 = n_distinct(district_id, school_id, usid),
-  n5 = n_distinct(usid, enrolled_grade),
-  n6 = n_distinct(usid, local_class_number),
-  # Almost distinct by student and test
-  n7 = n_distinct(usid, test_code),
-  # Distinct by student-test-semester: A few variables are embedded within test
-  # code - subject, grade, sub-part, and format (i.e., Braille).
-  n8 = n_distinct(usid, test_code, semester)
-)
-
-# Includes private districts and schools
-# Includes grades 0-12
-summary(select(regis_raw, where(~ !is.character(.x))))
-
-# No demographic data except gender
-# SNT and RI fields mostly NA (no zeroes)
-map(as.list(regis_raw), ~mean(is.na(.x)))
-
-# Grades 0-12, test format = P
-map(
-  quos(gender, enrolled_grade, test_format),
-  ~ count(regis_raw, !!.x, sort = T)
-)
-
-# ELA and HS English tests have sub-parts.
-count(regis_raw, test_name, test_code, sort = T) %>% View()
-
-count(regis_raw, semester)
-count(regis_raw, snt_subpart1)
-count(regis_raw, snt_subpart2)
-count(regis_raw, snt_subpart3)
-count(regis_raw, snt_subpart4)
-count(regis_raw, ri_subpart1)
-count(regis_raw, ri_subpart2)
-count(regis_raw, ri_subpart3)
-count(regis_raw, ri_subpart4)
-
-# SNT and RI fields for sub-parts 2+ are empty for sub-part 1 (and vice versa).
-regis_raw %>%
-  filter(str_detect(test_name, "Subpart 1")) %>%
-  count(
-    test_code, test_name, snt_subpart2, snt_subpart3, snt_subpart4,
-    ri_subpart2, ri_subpart3, ri_subpart4,
-    sort = T
-  ) %>%
-  View()
-
-regis <- regis_raw %>%
-  filter(
-    district_id <= 986,
-    school_id < 9000,
-    enrolled_grade %in% 3:12,
-    # Exclude all Grade 2 assessments.
-    !str_detect(test_name, "Gr 2")
-    # Where the test is TN Ready, keep observations where the test grade and
-    # enrolled grade match. Check student counts with and without this filter.
-    # NOTE: This filter dropped eight students when it only needs to drop one
-    # to de-duplicate. Perhaps instead only use this filter for duplicates at
-    # the end. Maybe wait until AFTER joining with the CDF to explore duplicates
-    # and remove them as needed.
-    # (test == "EOC" | str_detect(test_code, str_c("G", enrolled_grade))),
-    # For now, just test code with one small district.
-    , district_id %in% test_district
-  ) %>%
-  # Drop records from CTE, Alternative, or Adult HS.
-  anti_join(
-    cte_alt_adult,
-    by = c('district_id' = 'system', 'school_id' = 'school')
-  ) %>%
-  # The lowest SNT among the sub-parts of the test in the registration file is
-  # used as the overall SNT for the registration. The two parts of the English
-  # tests are combined and the lowest SNT is kept between the two parts as the
-  # overall SNT for English I and English II.
-  mutate(
-    test_name = case_when(
-      str_detect(test_name, 'Social Studies') ~ 'Social Studies',
-      str_detect(test_name, 'Science') ~ 'Science',
-      str_detect(test_name, 'Gr \\d Math') ~ 'Math',
-      str_detect(test_name, 'English Lang Arts') ~ 'ELA',
-      str_detect(test_name, 'English I ') ~ 'English I',
-      str_detect(test_name, 'English II') ~ 'English II',
-      str_detect(test_name, 'U.S. History') ~ 'US History',
-      str_detect(test_name, 'Braille Algebra I') ~ 'Algebra I',
-      str_detect(test_name, 'Braille Algebra II') ~ 'Algebra II',
-      str_detect(test_name, 'Braille Biology') ~ 'Biology',
-      str_detect(test_name, 'Braille Geometry') ~ 'Geometry',
-      str_detect(test_name, 'Braille Integrated Math II') ~ 'Integrated Math II',
-      TRUE ~ test_name
-    ),
-    test_code_2 = if_else(
-      str_detect(test_name, 'Subpart'),
-      # str_remove(test_code, '[:digit:]U[:digit:]$'),
-      str_remove(test_code, 'U[:digit:]$'),
-      test_code
-    )
-    # test_code_3 = str_remove(test_code_2, "G[:digit:]$")
-  ) %>%
-  mutate(across(starts_with('snt'), as.numeric)) %>%
-  group_by(usid, test_name) %>%
-  mutate(
-    overall_snt = min(pmin(snt_subpart1, snt_subpart2, snt_subpart3, snt_subpart4, na.rm = T), na.rm = T),
-    overall_snt = if_else(overall_snt == Inf, NA_real_, overall_snt)
-  ) %>%
-  ungroup() %>%
-  mutate(
-    content_area_code = case_when(
-      test_code == 'TNMATAL1' ~ 'A1',
-      test_code == 'TNMATAL2' ~ 'A2',
-      test_code %in% c('TNSCIEBI', 'TNALTSCBI') ~ 'B1',
-      str_detect(test_code, 'ELAEN1') ~ 'E1',
-      str_detect(test_code, 'ELAEN2') ~ 'E2',
-      test_code == 'TNMATGEO' ~ 'G1',
-      test_code == 'TNMATIM1' ~ 'M1',
-      test_code == 'TNMATIM2' ~ 'M2',
-      test_code == 'TNMATIM3' ~ 'M3',
-      str_detect(test_code, 'SOCSUH') ~ 'U1',
-      str_detect(test_code, 'ELA') ~ 'ENG',
-      str_detect(test_code, 'MAT') ~ 'MAT',
-      str_detect(test_code, 'SCIE|ALTSC') ~ 'SCI',
-      str_detect(test_code, 'SOCS|ALTSS') ~ 'SOC'
-    ),
-    modified_format = if_else(
-      str_detect(test_code, "BR"),
-      "BR",
-      NA_character_
-    )
-  ) %>%
-  select(
-    district_id, school_id, usid, enrolled_grade,
-    semester, test, test_code, test_code_2, content_area_code, modified_format, # test_code_3,
-    test_name,
-    overall_snt,
-    snt_subpart1:ri_subpart4
-  ) %>%
-  arrange_all()
-
-nrow(regis)
-nrow(distinct(regis))
-
-summarize(
-  regis,
-  n0 = n(),
-  n1 = n_distinct(district_id),
-  n2 = n_distinct(district_id, school_id),
-  n3 = n_distinct(usid),
-  n4 = n_distinct(district_id, school_id, usid),
-  n5 = n_distinct(usid, enrolled_grade),
-  # Almost distinct by student and test
-  n7 = n_distinct(usid, test_code),
-  # Distinct by student-test-semester: A few variables are embedded within test
-  # code - subject, grade, sub-part, and format (i.e., Braille).
-  n8 = n_distinct(usid, test_code, semester),
-  # Not distinct using test code 2 because the sub-part variable was removed
-  # from test code
-  n9 = n_distinct(usid, test_code_2, semester),
-  # n10 = n_distinct(usid, test_code_3, semester)
-  n10 = n_distinct(usid, content_area_code, semester),
-  n11 = n_distinct(usid, content_area_code, modified_format, semester)
-)
-
-regis %>%
-  filter(test_code != test_code_2) %>%
-  count(test_code, test_code_2, test_name)
-
-count(regis, enrolled_grade)
-count(regis, semester)
-count(regis, test)
-# count(regis, test_code, test_code_2, test_code_3, test_name) %>% View()
-count(regis, test, test_code, content_area_code, modified_format) %>% View()
-count(regis, test_code_2, content_area_code) %>% View()
-count(regis, overall_snt)
-
-regis %>%
-  group_by(usid, test_code_3, semester) %>%
-  filter(n_distinct(test_code_2) > 1) %>%
-  ungroup() %>%
-  View()
-
-regis %>%
-  filter(test == "TNReady") %>%
-  count(enrolled_grade, test_code_2) %>%
-  View()
-
-# Make the data distinct by student, test code 2 (i.e., subject, grade, and
-# format - excluding sub-part), and semester.
-
-regis_2 <- regis %>%
-  # distinct(usid, test_code_2, semester, .keep_all = T) %>%
-  distinct(usid, content_area_code, test_code_2, semester, .keep_all = T) %>%
-  select(-test_code, -(snt_subpart1:ri_subpart4)) %>%
-  rename(
-    test_code = test_code_2
-    # content_area_code = test_code_3
-  ) %>%
-  mutate(across(test_name, ~ str_remove_all(.x, " Subpart 1| Subparts 2-3| Subparts 2-4")))
-
-summarize(
-  regis_2,
-  n0 = n(),
-  n1 = n_distinct(district_id),
-  n2 = n_distinct(district_id, school_id),
-  n3 = n_distinct(usid),
-  n4 = n_distinct(district_id, school_id, usid),
-  # Almost distinct by student and test
-  n6 = n_distinct(usid, test_code),
-  # Distinct by student-test-semester: A few variables are embedded within test
-  # code - subject, grade, and format (i.e., Braille).
-  n7 = n_distinct(usid, test_code, semester),
-  n8 = n_distinct(usid, content_area_code, modified_format, semester)
-)
-
-count(regis_2, enrolled_grade)
-count(regis_2, semester)
-count(regis_2, test)
-count(regis_2, test, test_code, content_area_code, modified_format, sort = T) %>% View()
-count(regis_2, overall_snt)
-
-# Explore fall EOC CDF data ----
-
-nrow(cdf_fall_eoc_raw)
-nrow(distinct(cdf_fall_eoc_raw))
-
-summarize(
-  cdf_fall_eoc_raw,
-  n0 = n(),
-  n1 = n_distinct(system),
-  n2 = n_distinct(system, school),
-  n3 = n_distinct(unique_student_id),
-  # One school per student
-  n4 = n_distinct(system, school, unique_student_id),
-  # Distinct by student and content area
-  n5 = n_distinct(unique_student_id, content_area_code)
-)
-
-summary(select(cdf_fall_eoc_raw, where(~ !is.character(.x))))
-
-# 5% of records missing raw score
-# 33% of records missing scale score and performance level
-map(as.list(cdf_fall_eoc_raw), ~mean(is.na(.x)))
-
-# In most instances where the raw score is missing, reason not tested and/or RI
-# status are non-zero. Where the raw score is missing, reason not tested is 0,
-# and RI status is 0, attempted equals "N".
-cdf_fall_eoc_raw %>%
-  filter(is.na(raw_score), reason_not_tested == 0, ri_status == 0) %>%
-  count(attempted, modified_format, sort = T)
-
-# Scale scores are missing where either raw scores are missing or the subject
-# is Biology or U.S. History (with a single English II exception). Standard-
-# setting is still underway for these subjects.
-cdf_fall_eoc_raw %>%
-  mutate(missing_raw_score = is.na(raw_score)) %>%
-  filter(is.na(scale_score)) %>%
-  count(content_area_code, missing_raw_score, sort = T)
-
-count(cdf_fall_eoc_raw, grade) # Grades 7-12 (mostly 9-11)
-count(cdf_fall_eoc_raw, content_area_code)
-count(cdf_fall_eoc_raw, test_mode) # Test mode = "P"
-count(cdf_fall_eoc_raw, attempted)
-count(cdf_fall_eoc_raw, modified_format)
-count(cdf_fall_eoc_raw, reason_not_tested) # Includes zeroes
-count(cdf_fall_eoc_raw, ri_status) # Includes zeroes
-count(cdf_fall_eoc_raw, enrolled_50_pct_district, enrolled_50_pct_school)
-
-# Combine and explore raw score data sets ----
-
-count(scores_2_8_raw, administration)
-count(scores_eoc_raw, administration)
-
-count(scores_2_8_raw, s1op_max_pts_possible, sort = T)
-summary(scores_eoc_raw$s1op_max_pts_possible)
-
-scores_raw <- bind_rows(
-  scores_2_8_raw %>%
-    mutate(across(s1op_raw_score:total_point_possible, as.numeric)) %>%
-    mutate(test = "TNReady", semester = "Spring"),
-  scores_eoc_raw %>%
-    mutate(across(s1op_raw_score:total_point_possible, as.numeric)) %>%
-    mutate(test = "EOC", semester = "Spring")
-) %>%
-  mutate(across(c(district_number, school_number, usid), as.numeric))
-
-nrow(scores_raw)
-nrow(distinct(scores_raw))
-
-summarize(
-  scores_raw,
-  n0 = n(),
-  n1 = n_distinct(district_number),
-  n2 = n_distinct(district_number, school_number),
-  n3 = n_distinct(usid),
-  n4 = n_distinct(district_number, school_number, usid),
-  # Almost distinct by student and subject
-  n5 = n_distinct(usid, content_area_code),
-  # Distinct by student-subject-class (could substitute test grade or lithocode
-  # part 1 for local class number)
-  n6 = n_distinct(usid, content_area_code, local_class_number)
-)
-
-# Explore student-subject duplicates.
-scores_raw %>%
-  group_by(usid, content_area_code) %>%
-  filter(n() > 1) %>%
-  ungroup() %>%
-  arrange(usid) %>%
-  View()
-
-# Includes private districts and schools
-summary(select(scores_raw, where(~ !is.character(.x))))
-
-# 19% of records missing test grade - unclear why, just use enrolled grade
-# 1% missing total raw score and total points possible
-map(as.list(scores_raw), ~ mean(is.na(.x)))
-
-# In most instances where the raw score is missing, SNT and/or RI status are
-# non-zero. Where the raw score is missing, reason not tested is 0, and RI
-# status is 0, attempt equals "N".
-scores_raw %>%
-  filter(is.na(total_raw_score), overall_snt == 0, overall_ri_status == 0) %>%
-  count(attempt, total_point_possible)
-
-count(scores_raw, enrolled_grade) # Grades 0-12
-count(scores_raw, content_area_code)
-count(scores_raw, attempt)
-count(scores_raw, test, semester)
-
-# What does attempt mean? Why do 9,000 records have "N" attempt but zeroes for
-# SNT and RI?
-count(scores_raw, attempt, overall_snt, overall_ri_status, sort = T) %>% View()
-
-map(as.list(scores_raw), ~ mean(is.na(.x)))
-
-scores <- scores_raw %>%
-  filter(
-    district_number <= 986,
-    school_number < 9000,
-    as.numeric(enrolled_grade) %in% 3:12
-    # For now, just test code with one small district.
-    , district_number %in% test_district
-  ) %>%
-  # Drop records from CTE, Alternative, or Adult HS.
-  anti_join(
-    cte_alt_adult,
-    by = c('district_number' = 'system', 'school_number' = 'school')
-  ) %>%
-  group_by(usid, content_area_code) %>%
-  # Drop records where total raw score is missing (unless total raw score is
-  # missing for every record within each student-subject).
-  filter(!is.na(total_raw_score) | mean(is.na(total_raw_score)) == 1) %>%
-  ungroup() %>%
-  select(
-    district_number, school_number, usid, enrolled_grade,
-    semester, test, content_area_code,
-    attempt, overall_snt, overall_ri_status,
-    total_raw_score
-  ) %>%
-  arrange_all()
-
-summarize(
-  scores,
-  n0 = n(),
-  n1 = n_distinct(district_number),
-  n2 = n_distinct(district_number, school_number),
-  n3 = n_distinct(usid),
-  n4 = n_distinct(district_number, school_number, usid),
-  # Distinct by student and subject
-  n5 = n_distinct(usid, content_area_code)
-)
-
-# 0.5% of records missing total raw score (Anderson County)
-summary(select(scores, where(~ !is.character(.x))))
-
-count(scores, test, content_area_code)
-
-# Apply new participation rate business rules ----
-
-names(cdf_fall_eoc_raw)
-names(scores)
-
-cdf <- cdf_fall_eoc_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
-  filter(system %in% test_district) %>%
-  # Drop records from CTE, Alternative, or Adult HS.
-  anti_join(
-    cte_alt_adult,
-    by = c('system', 'school')
-  ) %>%
-  bind_rows(
-    scores %>%
-      mutate(across(c(district_number, school_number, usid, enrolled_grade), as.integer)) %>%
-      rename(
-        system = district_number,
-        school = school_number,
-        unique_student_id = usid,
-        grade = enrolled_grade,
-        attempted = attempt,
-        reason_not_tested = overall_snt,
-        ri_status = overall_ri_status,
-        raw_score = total_raw_score
-      )
-  )
-
-nrow(cdf)
-nrow(distinct(cdf))
-
-summarize(
-  cdf,
-  n0 = n(),
-  n1 = n_distinct(system),
-  n2 = n_distinct(system, school),
-  n3 = n_distinct(unique_student_id),
-  # One school per student
-  n4 = n_distinct(system, school, unique_student_id),
-  # Almost distinct by student and subject
-  n5 = n_distinct(unique_student_id, content_area_code),
-  # Distinct by student-subject-semester
-  n6 = n_distinct(unique_student_id, content_area_code, semester)
-)
-
-# Explore student-subject duplicates.
-cdf %>%
-  group_by(unique_student_id, content_area_code) %>%
-  filter(n() > 1) %>%
-  ungroup() %>%
-  arrange(unique_student_id) %>%
-  View()
-
-count(cdf, test, content_area_code)
-
-cdf %>%
-  mutate(missing_raw_score = is.na(raw_score)) %>%
-  count(reason_not_tested, missing_raw_score)
-
-# Join CDF and registration.
-
-cdf_2 <- cdf %>%
-  mutate(in_cdf = T) %>%
-  full_join(
-    regis_2 %>% mutate(in_regis = T),
-    by = c(
-      'system' = 'district_id',
-      'school' = 'school_id',
-      'unique_student_id' = 'usid',
-      # 'content_area_code_2' = 'content_area_code',
-      'content_area_code',
-      'modified_format',
-      'test',
-      'semester'
-    ),
-    suffix = c("_cdf", "_regis")
-  ) %>%
-  mutate(
-    original_subject = case_when(
-      content_area_code == "ENG" ~ "ELA",
-      content_area_code == "MAT" ~ "Math",
-      content_area_code == "SCI" ~ "Science",
-      content_area_code == "SOC" ~ "Social Studies",
-      content_area_code == "A1" ~ "Algebra I",
-      content_area_code == "A2" ~ "Algebra II",
-      content_area_code == "B1" ~ "Biology",
-      content_area_code == "E1" ~ "English I",
-      content_area_code == "E2" ~ "English II",
-      content_area_code == "G1" ~ "Geometry",
-      content_area_code == "M1" ~ "Integrated Math I",
-      content_area_code == "M2" ~ "Integrated Math II",
-      content_area_code == "M3" ~ "Integrated Math III",
-      content_area_code == "U1" ~ "US History"
-    )
-  ) %>%
-  # If the CDF indicates a reason not tested, use that. If not, but the
-  # registration file does, use the reason from the registration file. Assign
-  # an SNT code of 1 if there is no record in the CDF and no SNT in the
-  # registration file.
-  mutate(
-    # reason_not_tested_2 = case_when(
-    #   !is.na(reason_not_tested) ~ as.numeric(reason_not_tested),
-    #   is.na(in_cdf) & is.na(overall_snt) ~ 1,
-    #   # If the raw score is missing in the raw score file and there is no SNT
-    #   # or RI in either the raw score file or the registration file, then
-    #   # assign an SNT of 1 (absent) to that record. # NOTE: This code does not
-    #   # check if overall RI status is missing in the registration data because
-    #   # it's unclear how to calculate an overall RI status in the registration
-    #   # files.
-    #   !is.na(in_cdf) & in_cdf &
-    #     semester == "Spring" &
-    #     is.na(reason_not_tested) & is.na(ri_status) &
-    #     is.na(overall_snt) &
-    #     is.na(raw_score) ~ 1,
-    #   T ~ as.numeric(overall_snt)
-    # ),
-    reason_not_tested_2 = if_else(
-      (reason_not_tested == 0 | is.na(reason_not_tested)) & !is.na(overall_snt) & is.na(raw_score),
-      as.integer(overall_snt),
-      as.integer(reason_not_tested)
-    ),
-    reason_not_tested_2 = if_else(
-      (is.na(reason_not_tested_2) & is.na(raw_score) & is.na(scale_score)) | (reason_not_tested_2 == 0 & is.na(raw_score) & is.na(scale_score)),
-      1L,
-      reason_not_tested_2
-    ),
-    ri_status = if_else(reason_not_tested_2 == 1 & ri_status == 6, 0, as.numeric(ri_status)),
-    performance_level = if_else(performance_level == "On track", "On Track", performance_level),
-    absent = reason_not_tested_2 == 1,
-    not_enrolled = reason_not_tested_2 == 2,
-    not_scheduled = reason_not_tested_2 == 3,
-    medically_exempt = reason_not_tested_2 == 4,
-    residential_facility = reason_not_tested_2 == 5,
-    tested_alt = reason_not_tested_2 == 6,
-    did_not_submit = reason_not_tested_2 == 7,
-    breach_adult = ri_status == 1,
-    breach_student = ri_status == 2,
-    irregular_admin = ri_status == 3,
-    incorrect_grade_subject = ri_status == 4,
-    refused_to_test = ri_status == 5,
-    failed_attemptedness = ri_status == 6,
-  )
-
-nrow(cdf_2)
-nrow(distinct(cdf_2))
-
-summarize(
-  cdf_2,
-  n0 = n(),
-  n1 = n_distinct(unique_student_id),
-  # Two variables are embedded within content area code 2: content area code
-  # and modified format (Braille).
-  # n2 = n_distinct(unique_student_id, content_area_code_2, semester),
-  # n3 = n_distinct(unique_student_id, content_area_code_2, test_code, semester)
-  n2 = n_distinct(unique_student_id, content_area_code, semester),
-  # Test code entails two variables: test and grade.
-  n3 = n_distinct(unique_student_id, content_area_code, test_code, semester)
-)
-
-count(cdf_2, original_subject, test)
-count(cdf_2, test_code) %>% View()
-
-# Apply remaining accountability business rules for excluding and counting
-# records in participation rates.
-
-math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
-english_eoc <- c("English I", "English II")
-
-# Integrated Math districts for reassigning MSAA subjects
-int_math_systems <- cdf_2 %>%
-  filter(content_area_code %in% c("A1", "M1")) %>%
-  count(system, content_area_code) %>%
-  group_by(system) %>%
-  mutate(temp = max(n)) %>%
-  filter(n == temp, content_area_code == "M1") %>%
-  magrittr::extract2("system")
-
-student_level <- bind_rows(
-  cdf_2,
-  msaa %>%
-    filter(system %in% test_district) %>%
-    mutate(across(grade, as.integer)) %>%
-    mutate(in_msaa = T)
-) %>% # bind_rows(cdf, msaa) %>%
-  # This transmute creates perfect duplicates by removing two fields: content
-  # area code 2 (which entails content area and modified format) and test code
-  # (which entails content area, grade, and Braille format).
-  transmute(
-    in_cdf, in_regis, in_msaa,
-    # content_area_code, test_code, # content_area_code_2
-    system,
-    system_name,
-    school,
-    school_name,
-    test,
-    semester,
-    original_subject,
-    subject = original_subject,
-    original_performance_level = performance_level,
-    performance_level,
-    # raw_score, # Add raw scores to eliminate perfect duplicates?
-    scale_score,
-    state_student_id = unique_student_id,
-    last_name,
-    first_name,
-    grade,
-    # gender,
-    # reported_race,
-    # bhn_group = reported_race %in% c("Black or African American", "Hispanic/Latino", "American Indian/Alaska Native"),
-    # economically_disadvantaged,
-    # el,
-    # el_recently_arrived = (el_arrived_year_1 == 1 | el_arrived_year_2 == 1),
-    # t1234 = t1234 %in% 1:4,
-    # special_ed,
-    # functionally_delayed,
-    # gifted,
-    # migrant,
-    # enrolled_50_pct_district,
-    # enrolled_50_pct_school,
-    teacher_of_record_tln,
-    reporting_status,
-    reason_not_tested_2,
-    breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness,
-    absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit
-  ) %>%
-  left_join(demos_filtered, by = c("system", "school", "state_student_id" = "unique_student_id")) %>%
-  mutate(el_recently_arrived = (el_arrived_year_1 == 1 | el_arrived_year_2 == 1)) %>%
-  mutate_at(vars(bhn_group, t1234, el_recently_arrived), as.integer) %>%
-  rowwise() %>%
-  # Apply testing flag hierarchy
-  mutate(
-    enrolled = case_when(
-      reason_not_tested_2 == 0 & any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0,
-      any(not_enrolled, not_scheduled) ~ 0,
-      TRUE ~ 1
-    ),
-    # EL Recently Arrived students with missing proficiency are not considered tested
-    tested = case_when(
-      test == "MSAA" & reporting_status == "DNT" ~ 0,
-      reason_not_tested_2 == 0 & any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0,
-      any(absent, not_enrolled, not_scheduled) ~ 0,
-      el_recently_arrived == 1L & is.na(original_performance_level) ~ 0,
-      TRUE ~ 1
-    ),
-    # EL Recently Arrived students performance level are converted to missing
-    performance_level = case_when(
-      reason_not_tested_2 == 0 & any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ NA_character_,
-      any(absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, did_not_submit) ~ NA_character_,
-      el_recently_arrived == 1 ~ NA_character_,
-      TRUE ~ performance_level
-    )
-  ) %>%
-  ungroup() %>%
-  mutate(
-    # Modify subject for MSAA tests in grades >= 9 (6.8)
-    subject = case_when(
-      original_subject == "Math" & test == "MSAA" & grade >= 9 & system %in% int_math_systems ~ "Integrated Math I",
-      original_subject == "Math" & test == "MSAA" & grade >= 9 & !(system %in% int_math_systems) ~ "Algebra I",
-      original_subject == "ELA" & test == "MSAA" & grade >= 9 ~ "English II",
-      TRUE ~ subject
-    ),
-    # Convert subjects per accountability rules
-    subject = case_when(
-      grade %in% 3:8 & original_subject %in% math_eoc ~ "Math",
-      grade %in% 3:8 & original_subject %in% english_eoc ~ "ELA",
-      grade %in% 3:8 & original_subject == "US History" ~ "Social Studies",
-      TRUE ~ subject
-    )
-  )
-
-nrow(student_level)
-nrow(distinct(student_level))
-
-dups <- student_level %>%
-  group_by(across(system:did_not_submit)) %>%
-  filter(n() > 1) %>%
-  ungroup() %>%
-  arrange(state_student_id)
-
-summarize(
-  dups,
-  n0 = n(),
-  n1 = n_distinct(state_student_id),
-  # Two variables are embedded within content area code 2: content area code
-  # and modified format (Braille).
-  # n2 = n_distinct(unique_student_id, content_area_code_2, semester),
-  # n3 = n_distinct(unique_student_id, content_area_code_2, test_code, semester)
-  n4 = n_distinct(state_student_id, original_subject)
-)
-
-summary(select(dups, where(~ !is.character(.x))))
-keep(map(as.list(dups), ~ mean(is.na(.x))), ~ .x != 0)
-count(dups, test_code, content_area_code, original_subject) %>% View()
-
-summarize(
-  student_level,
-  n0 = n(),
-  n1 = n_distinct(state_student_id),
-  n2 = n_distinct(state_student_id, original_subject),
-  n3 = n_distinct(state_student_id, original_subject, semester, test)
-)
-
-count(student_level, grade)
-
-student_level %>%
-  filter(is.na(grade)) %>%
-  count(test, semester, original_subject)
-
-# Records from Alternative, CTE, Adult HS are dropped from student level
-# cte_alt_adult <- read_csv("N:/ORP_accountability/data/2019_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
-#   transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
-
-# summarize(
-#   dedup,
-#   n0 = n(),
-#   n1 = n_distinct(state_student_id),
-#   n2 = n_distinct(state_student_id, original_subject)
-# )
-
-demographics <- read_csv("N:/TNReady/2020-21/spring/demographics/student_demographics_06082021.csv")
+# Clean demographic data ----
 
 demos_filtered <- demographics%>% 
   filter(str_length(student_key) == 7) %>% 
@@ -961,6 +242,613 @@ demos_filtered <- demographics%>%
     ),
     bhn_group = if_else(!reported_race %in% c('American Indian/Alaska Native','Black or African American','Hispanic/Latino') | is.na(reported_race), 0, 1)
   )
+
+# Combine and explore registration data sets ----
+
+regis_raw <- regis_fall_eoc_raw %>%
+  mutate(test = 'EOC', semester = 'Fall') %>%
+  bind_rows(regis_spring_eoc_raw %>% mutate(test = 'EOC', semester = 'Spring')) %>%
+  bind_rows(regis_spring_3_8_raw %>% mutate(test = 'TNReady', semester = 'Spring')) %>%
+  bind_rows(
+    regis_spring_alt_raw %>%
+      mutate(
+        test = case_when(
+          str_detect(test_name, 'Biology') ~ 'Alt-Science',
+          str_detect(test_name, 'English') ~ 'Alt-ELA',
+          str_detect(test_name, 'Math') ~ 'Alt-Math',
+          str_detect(test_name, 'Science') ~ 'Alt-Science',
+          str_detect(test_name, 'Social Studies') ~ 'Alt-Social Studies'
+        ),
+        semester = 'Spring'
+      ) %>%
+      rename(
+        snt_subpart4 = filler,
+        ri_subpart2 = filler_1,
+        ri_subpart3 = filler_2,
+        ri_subpart4 = filler_3
+      )
+  )
+
+summarize(
+  regis_raw,
+  n0 = n(),
+  n1 = nrow(distinct(regis_raw)),
+  n2 = n_distinct(district_id),
+  n3 = n_distinct(district_id, school_id),
+  n4 = n_distinct(usid),
+  n5 = n_distinct(district_id, school_id, usid),
+  n6 = n_distinct(usid, enrolled_grade),
+  n7 = n_distinct(usid, local_class_number),
+  # Almost distinct by student and test
+  n8 = n_distinct(usid, test_code),
+  # Distinct by student-test-semester: A few variables are embedded within test
+  # code - subject, grade, sub-part, and format (i.e., Braille).
+  n9 = n_distinct(usid, test_code, semester)
+)
+
+# Includes private districts and schools
+# Includes grades 0-12
+summarize_numeric_vars(regis_raw)
+
+# No demographic data except gender
+# SNT and RI fields mostly NA (no zeroes)
+summarize_missingness(regis_raw)
+
+# Test format = P
+count_categories(regis_raw, gender, enrolled_grade, test_format, test_name)
+count(regis_raw, test_name) %>% View()
+
+# SNT and RI fields for sub-parts 2+ are empty for sub-part 1 (and vice versa).
+regis_raw %>%
+  filter(str_detect(test_name, "Subpart 1")) %>%
+  count(
+    test_code, test_name, snt_subpart2, snt_subpart3, snt_subpart4,
+    ri_subpart2, ri_subpart3, ri_subpart4,
+    sort = T
+  ) %>%
+  View()
+
+regis <- regis_raw %>%
+  filter(
+    district_id <= 986,
+    school_id < 9000,
+    enrolled_grade %in% 3:12,
+    # Exclude all Grade 2 assessments.
+    !str_detect(test_name, "Gr 2")
+    , district_id %in% test_district
+  ) %>%
+  # Drop records from CTE, Alternative, or Adult HS.
+  anti_join(
+    cte_alt_adult,
+    by = c('district_id' = 'system', 'school_id' = 'school')
+  ) %>%
+  # ELA and HS English tests have sub-parts. The lowest SNT among the sub-parts
+  # of the test in the registration file is used as the overall SNT for the
+  # registration. The two parts of the English tests are combined and the
+  # lowest SNT is kept between the two parts as the overall SNT for English I
+  # and English II.
+  mutate(
+    test_name = case_when(
+      str_detect(test_name, 'Social Studies') ~ 'Social Studies',
+      str_detect(test_name, 'Science') ~ 'Science',
+      str_detect(test_name, 'Gr \\d Math') ~ 'Math',
+      str_detect(test_name, 'English Lang Arts') ~ 'ELA',
+      str_detect(test_name, 'English I ') ~ 'English I',
+      str_detect(test_name, 'English II') ~ 'English II',
+      str_detect(test_name, 'U.S. History') ~ 'US History',
+      str_detect(test_name, 'Braille Algebra I') ~ 'Algebra I',
+      str_detect(test_name, 'Braille Algebra II') ~ 'Algebra II',
+      str_detect(test_name, 'Braille Biology') ~ 'Biology',
+      str_detect(test_name, 'Braille Geometry') ~ 'Geometry',
+      str_detect(test_name, 'Braille Integrated Math II') ~ 'Integrated Math II',
+      TRUE ~ test_name
+    ),
+    content_area_code = case_when(
+      test_name == "ELA" ~ "EN",
+      test_name == "Math" ~ "MA",
+      test_name == "Science" ~ "SCI",
+      test_name == "Social Studies" ~ "SS",
+      test_name == "Algebra I" ~ "A1",
+      test_name == "Algebra II" ~ "A2",
+      test_name == "Biology" ~ "B1",
+      test_name == "Chemistry" ~ "C1", # Not used
+      test_name == "English I" ~ "E1",
+      test_name == "English II" ~ "E2",
+      test_name == "English III" ~ "E3", # Not used
+      test_name == "Geometry" ~ "G1",
+      test_name == "Integrated Math I" ~ "M1",
+      test_name == "Integrated Math II" ~ "M2",
+      test_name == "Integrated Math III" ~ "M3",
+      test_name == "US History" ~ "U1",
+      TRUE ~ NA_character_
+    ),
+    overall_snt_regis = pmin(
+      snt_subpart1, snt_subpart2, snt_subpart3, snt_subpart4,
+      na.rm = T
+    )
+  ) %>%
+  arrange(usid, semester, test, test_name, overall_snt_regis) %>%
+  group_by(usid, semester, test, test_name) %>%
+  filter(
+    overall_snt_regis == first(overall_snt_regis)
+    | mean(is.na(overall_snt_regis)) == 1
+  ) %>%
+  ungroup() %>%
+  select(
+    district_id, school_id, usid, enrolled_grade,
+    semester, test, test_name, content_area_code,
+    overall_snt_regis # , snt_subpart1:ri_subpart4
+  ) %>%
+  distinct() %>%
+  arrange_all()
+
+summarize(
+  regis,
+  n0 = n(),
+  n1 = nrow(distinct(regis)),
+  n2 = n_distinct(district_id),
+  n3 = n_distinct(district_id, school_id),
+  n4 = n_distinct(usid),
+  n5 = n_distinct(district_id, school_id, usid),
+  n6 = n_distinct(usid, enrolled_grade),
+  # Almost distinct by student and test name
+  n7 = n_distinct(usid, content_area_code),
+  # Distinct by student, semester, test, and content area code (or test name)
+  n8 = n_distinct(usid, semester, test, content_area_code)
+)
+
+count(regis, overall_snt_regis)
+
+# Explore fall EOC CDF data ----
+
+summarize(
+  cdf_fall_eoc_raw,
+  n0 = n(),
+  n1 = nrow(distinct(cdf_fall_eoc_raw)),
+  n2 = n_distinct(system),
+  n3 = n_distinct(system, school),
+  n4 = n_distinct(unique_student_id),
+  # One school per student
+  n5 = n_distinct(system, school, unique_student_id),
+  # Distinct by student and content area
+  n6 = n_distinct(unique_student_id, content_area_code)
+)
+
+summarize_numeric_vars(cdf_fall_eoc_raw)
+
+# 5% of records missing raw score
+# 33% of records missing scale score and performance level
+summarize_missingness(cdf_fall_eoc_raw)
+
+# In most instances where the raw score is missing, reason not tested and/or RI
+# status are non-zero. Where the raw score is missing, reason not tested is 0,
+# and RI status is 0, attempted equals "N".
+cdf_fall_eoc_raw %>%
+  filter(is.na(raw_score), reason_not_tested == 0, ri_status == 0) %>%
+  count(attempted, modified_format, sort = T)
+
+# Scale scores are missing where either raw scores are missing or the subject
+# is Biology or U.S. History (with a single English II exception). Standard-
+# setting is still underway for these subjects.
+cdf_fall_eoc_raw %>%
+  mutate(missing_raw_score = is.na(raw_score)) %>%
+  filter(is.na(scale_score)) %>%
+  count(content_area_code, missing_raw_score, sort = T)
+
+# Grades 7-12 (mostly 9-11)
+# Test mode = "P"
+# Reason not tested and RI status include zeroes
+count_categories(
+  cdf_fall_eoc_raw,
+  grade, content_area_code, test_mode, attempted, modified_format,
+  reason_not_tested, ri_status,
+  enrolled_50_pct_district, enrolled_50_pct_school
+)
+
+# Combine and explore raw score data sets ----
+
+scores_raw <- bind_rows(
+  scores_2_8_raw %>%
+    mutate(across(s1op_raw_score:total_point_possible, as.numeric)) %>%
+    mutate(test = "TNReady", semester = "Spring"),
+  scores_eoc_raw %>%
+    mutate(across(s1op_raw_score:total_point_possible, as.numeric)) %>%
+    mutate(test = "EOC", semester = "Spring")
+) %>%
+  mutate(across(c(district_number, school_number, usid), as.numeric))
+
+summarize(
+  scores_raw,
+  n0 = n(),
+  n1 = nrow(distinct(scores_raw)),
+  n2 = n_distinct(district_number),
+  n3 = n_distinct(district_number, school_number),
+  n4 = n_distinct(usid),
+  n5 = n_distinct(district_number, school_number, usid),
+  # Almost distinct by student and subject
+  n6 = n_distinct(usid, content_area_code),
+  # Distinct by student, subject, and raw score
+  n7 = n_distinct(usid, content_area_code, total_raw_score)
+)
+
+# Includes private districts and schools
+summarize_numeric_vars(scores_raw)
+
+# 19% of records missing test grade - unclear why, just use enrolled grade
+# 1% missing total raw score and total points possible
+summarize_missingness(scores_raw)
+
+# In most instances where the raw score is missing, SNT and/or RI status are
+# non-zero. Where the raw score is missing, reason not tested is 0, and RI
+# status is 0, attempt equals "N".
+scores_raw %>%
+  filter(is.na(total_raw_score), overall_snt == 0, overall_ri_status == 0) %>%
+  count(attempt, total_point_possible)
+
+# Grades 0-12
+count_categories(scores_raw, enrolled_grade, content_area_code, attempt)
+count(scores_raw, enrolled_grade, test_grade)
+
+# What does attempt mean? Why do 9,000 records have "N" attempt but zeroes for
+# SNT and RI?
+count(scores_raw, attempt, overall_snt, overall_ri_status, sort = T) %>% View()
+
+scores <- scores_raw %>%
+  filter(
+    district_number <= 986,
+    school_number < 9000,
+    as.numeric(enrolled_grade) %in% 3:12
+    , district_number %in% test_district
+  ) %>%
+  # Drop records from CTE, Alternative, or Adult HS.
+  anti_join(
+    cte_alt_adult,
+    by = c('district_number' = 'system', 'school_number' = 'school')
+  ) %>%
+  mutate(
+    content_area_code = case_when(
+      content_area_code == "ENG" ~ "EN",
+      content_area_code == "MAT" ~ "MA",
+      content_area_code == "SOC" ~ "SS",
+      TRUE ~ content_area_code
+    )
+  ) %>%
+  arrange(
+    district_number, school_number, usid,
+    content_area_code, -total_raw_score
+  ) %>%
+  group_by(district_number, school_number, usid, content_area_code) %>%
+  # Drop records where total raw score is missing (unless total raw score is
+  # missing for every record within each student-subject). Keep highest raw
+  # scores where possible.
+  filter(
+    (!is.na(total_raw_score) & total_raw_score == first(total_raw_score))
+    | mean(is.na(total_raw_score)) == 1
+  ) %>%
+  ungroup() %>%
+  arrange(
+    district_number, school_number, usid,
+    content_area_code, overall_snt
+  ) %>%
+  group_by(district_number, school_number, usid, content_area_code) %>%
+  filter(
+    (!is.na(overall_snt) & overall_snt == first(overall_snt))
+    | mean(is.na(overall_snt)) == 1
+  ) %>%
+  ungroup() %>%
+  select(
+    district_number, school_number, usid,
+    semester, test, content_area_code,
+    attempt, overall_snt, overall_ri_status,
+    total_raw_score
+  ) %>%
+  arrange_all()
+
+summarize(
+  scores,
+  n0 = n(),
+  n1 = nrow(distinct(scores)),
+  n2 = n_distinct(district_number),
+  n3 = n_distinct(district_number, school_number),
+  n4 = n_distinct(usid),
+  n5 = n_distinct(district_number, school_number, usid),
+  # Distinct by student and subject
+  n6 = n_distinct(usid, content_area_code)
+)
+
+summarize_numeric_vars(scores)
+
+count(scores, test, content_area_code)
+
+# Combine CDF and raw scores ----
+
+names(cdf_fall_eoc_raw)
+names(scores)
+
+cdf <- cdf_fall_eoc_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
+  filter(system %in% test_district) %>%
+  # Drop records from CTE, Alternative, or Adult HS.
+  anti_join(
+    cte_alt_adult,
+    by = c('system', 'school')
+  ) %>%
+  bind_rows(
+    scores %>%
+      left_join(
+        demos_filtered,
+        by = c(
+          'district_number' = 'system',
+          'school_number' = 'school',
+          'usid' = 'unique_student_id'
+        )
+      ) %>%
+      mutate(across(c(district_number, school_number, usid), as.integer)) %>%
+      mutate(
+        across(
+          economically_disadvantaged,
+          ~ as.integer(.x == 'Y')
+        )
+      ) %>%
+      rename(
+        system = district_number,
+        school = school_number,
+        unique_student_id = usid,
+        # grade = enrolled_grade,
+        attempted = attempt,
+        reason_not_tested = overall_snt,
+        ri_status = overall_ri_status,
+        raw_score = total_raw_score
+      )
+  )
+
+summarize(
+  cdf,
+  n0 = n(),
+  n1 = nrow(distinct(cdf)),
+  n2 = n_distinct(system),
+  n3 = n_distinct(system, school),
+  n4 = n_distinct(unique_student_id),
+  n5 = n_distinct(system, school, unique_student_id),
+  # Almost distinct by student and subject
+  n6 = n_distinct(unique_student_id, content_area_code),
+  # Distinct by student-subject-semester
+  n7 = n_distinct(unique_student_id, content_area_code, semester)
+)
+
+summarize_missingness(cdf)
+
+count(cdf, test, content_area_code)
+
+cdf %>%
+  mutate(missing_raw_score = is.na(raw_score)) %>%
+  count(reason_not_tested, missing_raw_score)
+
+# Join CDF and registration data ----
+
+cdf_2 <- cdf %>%
+  mutate(in_cdf = T) %>%
+  full_join(
+    regis %>% mutate(in_regis = T),
+    by = c(
+      'system' = 'district_id',
+      'school' = 'school_id',
+      'unique_student_id' = 'usid',
+      'semester',
+      'test',
+      'content_area_code'
+    ),
+    suffix = c("_cdf", "_regis")
+  ) %>%
+  mutate(
+    original_subject = case_when(
+      content_area_code == "EN" ~ "ELA",
+      content_area_code == "MA" ~ "Math",
+      content_area_code == "SCI" ~ "Science",
+      content_area_code == "SS" ~ "Social Studies",
+      content_area_code == "A1" ~ "Algebra I",
+      content_area_code == "A2" ~ "Algebra II",
+      content_area_code == "B1" ~ "Biology",
+      content_area_code == "E1" ~ "English I",
+      content_area_code == "E2" ~ "English II",
+      content_area_code == "G1" ~ "Geometry",
+      content_area_code == "M1" ~ "Integrated Math I",
+      content_area_code == "M2" ~ "Integrated Math II",
+      content_area_code == "M3" ~ "Integrated Math III",
+      content_area_code == "U1" ~ "US History"
+    )
+  ) %>%
+  # If the CDF indicates a reason not tested, use that. If not, but the
+  # registration file does, use the reason from the registration file. Assign
+  # an SNT code of 1 if there is no record in the CDF and no SNT in the
+  # registration file.
+  mutate(
+    reason_not_tested = case_when(
+      !is.na(reason_not_tested) ~ as.numeric(reason_not_tested),
+      is.na(in_cdf) & is.na(overall_snt_regis) ~ 1,
+      # If the raw score is missing in the raw score file and there is no SNT
+      # or RI in either the raw score file or the registration file, then
+      # assign an SNT of 1 (absent) to that record. # NOTE: This code does not
+      # check if overall RI status is missing in the registration data because
+      # it's unclear how to calculate an overall RI status in the registration
+      # files.
+      !is.na(in_cdf) & in_cdf &
+        semester == "Spring" &
+        is.na(reason_not_tested) & is.na(ri_status) &
+        is.na(overall_snt_regis) &
+        is.na(raw_score) ~ 1,
+      T ~ as.numeric(overall_snt_regis)
+    ),
+    # reason_not_tested = if_else(
+    #   (reason_not_tested == 0 | is.na(reason_not_tested)) & !is.na(overall_snt) & is.na(raw_score),
+    #   as.integer(overall_snt),
+    #   as.integer(reason_not_tested)
+    # ),
+    # reason_not_tested = if_else(
+    #   (is.na(reason_not_tested) & is.na(raw_score) & is.na(scale_score)) | (reason_not_tested == 0 & is.na(raw_score) & is.na(scale_score)),
+    #   1L,
+    #   reason_not_tested
+    # ),
+    ri_status = if_else(reason_not_tested == 1 & ri_status == 6, 0, as.numeric(ri_status)),
+    performance_level = if_else(performance_level == "On track", "On Track", performance_level),
+    absent = reason_not_tested == 1,
+    not_enrolled = reason_not_tested == 2,
+    not_scheduled = reason_not_tested == 3,
+    medically_exempt = reason_not_tested == 4,
+    residential_facility = reason_not_tested == 5,
+    tested_alt = reason_not_tested == 6,
+    did_not_submit = reason_not_tested == 7,
+    breach_adult = ri_status == 1,
+    breach_student = ri_status == 2,
+    irregular_admin = ri_status == 3,
+    incorrect_grade_subject = ri_status == 4,
+    refused_to_test = ri_status == 5,
+    failed_attemptedness = ri_status == 6,
+  )
+
+summarize(
+  cdf_2,
+  n0 = n(),
+  n1 = nrow(distinct(cdf_2)),
+  n2 = n_distinct(unique_student_id),
+  # Distinct by student, semester, test, and content area
+  n3 = n_distinct(unique_student_id, semester, test, content_area_code)
+)
+
+# Create student-level data set ----
+
+# Apply remaining accountability business rules for excluding and counting
+# records in participation rates.
+
+math_eoc <- c("Algebra I", "Algebra II", "Geometry", "Integrated Math I", "Integrated Math II", "Integrated Math III")
+english_eoc <- c("English I", "English II")
+
+# Integrated Math districts for reassigning MSAA subjects
+int_math_systems <- cdf_2 %>%
+  filter(content_area_code %in% c("A1", "M1")) %>%
+  count(system, content_area_code) %>%
+  group_by(system) %>%
+  mutate(temp = max(n)) %>%
+  filter(n == temp, content_area_code == "M1") %>%
+  magrittr::extract2("system")
+
+student_level <- cdf_2 %>%
+  bind_rows(
+    msaa %>%
+      filter(system %in% test_district) %>%
+      mutate(across(grade, as.integer)) %>%
+      mutate(in_msaa = T)
+  ) %>%
+  # This transmute creates perfect duplicates by removing two fields: content
+  # area code 2 (which entails content area and modified format) and test code
+  # (which entails content area, grade, and Braille format).
+  transmute(
+    in_cdf, in_regis, in_msaa,
+    # content_area_code, test_code, # content_area_code_2
+    system,
+    system_name,
+    school,
+    school_name,
+    test,
+    semester,
+    original_subject,
+    subject = original_subject,
+    original_performance_level = performance_level,
+    performance_level,
+    raw_score, # Add raw scores to eliminate perfect duplicates?
+    scale_score,
+    state_student_id = unique_student_id,
+    last_name,
+    first_name,
+    grade,
+    gender,
+    reported_race,
+    bhn_group = reported_race %in% c("Black or African American", "Hispanic/Latino", "American Indian/Alaska Native"),
+    economically_disadvantaged,
+    el,
+    el_recently_arrived = (el_arrived_year_1 == 1 | el_arrived_year_2 == 1),
+    t1234 = t1234 %in% 1:4,
+    special_ed,
+    functionally_delayed,
+    gifted,
+    migrant,
+    enrolled_50_pct_district,
+    enrolled_50_pct_school,
+    teacher_of_record_tln,
+    reporting_status,
+    reason_not_tested,
+    breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness,
+    absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit
+  ) %>%
+  # left_join(demos_filtered, by = c("system", "school", "state_student_id" = "unique_student_id")) %>%
+  # mutate(el_recently_arrived = (el_arrived_year_1 == 1 | el_arrived_year_2 == 1)) %>%
+  mutate_at(vars(bhn_group, t1234, el_recently_arrived), as.integer) %>%
+  rowwise() %>%
+  # Apply testing flag hierarchy
+  mutate(
+    enrolled = case_when(
+      reason_not_tested == 0 & any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0,
+      any(not_enrolled, not_scheduled) ~ 0,
+      TRUE ~ 1
+    ),
+    # EL Recently Arrived students with missing proficiency are not considered tested
+    tested = case_when(
+      test == "MSAA" & reporting_status == "DNT" ~ 0,
+      reason_not_tested == 0 & any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ 0,
+      any(absent, not_enrolled, not_scheduled) ~ 0,
+      el_recently_arrived == 1L & is.na(original_performance_level) ~ 0,
+      TRUE ~ 1
+    ),
+    # EL Recently Arrived students performance level are converted to missing
+    performance_level = case_when(
+      reason_not_tested == 0 & any(breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness) ~ NA_character_,
+      any(absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, did_not_submit) ~ NA_character_,
+      el_recently_arrived == 1 ~ NA_character_,
+      TRUE ~ performance_level
+    )
+  ) %>%
+  ungroup() %>%
+  mutate(
+    # Modify subject for MSAA tests in grades >= 9 (6.8)
+    subject = case_when(
+      original_subject == "Math" & test == "MSAA" & grade >= 9 & system %in% int_math_systems ~ "Integrated Math I",
+      original_subject == "Math" & test == "MSAA" & grade >= 9 & !(system %in% int_math_systems) ~ "Algebra I",
+      original_subject == "ELA" & test == "MSAA" & grade >= 9 ~ "English II",
+      TRUE ~ subject
+    ),
+    # Convert subjects per accountability rules
+    subject = case_when(
+      grade %in% 3:8 & original_subject %in% math_eoc ~ "Math",
+      grade %in% 3:8 & original_subject %in% english_eoc ~ "ELA",
+      grade %in% 3:8 & original_subject == "US History" ~ "Social Studies",
+      TRUE ~ subject
+    )
+  )
+
+summarize(
+  student_level,
+  n0 = n(),
+  n1 = nrow(distinct(student_level)),
+  n2 = n_distinct(state_student_id),
+  n3 = n_distinct(state_student_id, original_subject),
+  n4 = n_distinct(state_student_id, semester, test, original_subject)
+)
+
+summarize_missingness(student_level)
+
+count(student_level, grade)
+
+# Records from Alternative, CTE, Adult HS are dropped from student level
+# cte_alt_adult <- read_csv("N:/ORP_accountability/data/2019_tdoe_provided_files/cte_alt_adult_schools.csv") %>%
+#   transmute(system = as.numeric(DISTRICT_NUMBER), school = as.numeric(SCHOOL_NUMBER))
+
+# summarize(
+#   dedup,
+#   n0 = n(),
+#   n1 = n_distinct(state_student_id),
+#   n2 = n_distinct(state_student_id, original_subject)
+# )
+
+# De-duplicate student-level data ----
 
 dedup <- student_level %>%
   anti_join(cte_alt_adult, by = c("system", "school")) %>%
@@ -1039,17 +927,15 @@ dedup <- student_level %>%
   # Valid test if there is a proficiency level
   mutate(valid_test = as.integer(not_na(performance_level)))
 
-nrow(dedup)
-nrow(distinct(dedup))
-
 summarize(
   dedup,
   n0 = n(),
-  n1 = n_distinct(state_student_id),
-  n2 = n_distinct(state_student_id, original_subject),
-  n3 = n_distinct(
-    state_student_id, original_subject, test, performance_level, scale_score,
-    semester
+  n1 = nrow(distinct(dedup)),
+  n2 = n_distinct(state_student_id),
+  n3 = n_distinct(state_student_id, original_subject),
+  n4 = n_distinct(
+    state_student_id, semester, test, original_subject,
+    performance_level, scale_score
   )
 )
 
