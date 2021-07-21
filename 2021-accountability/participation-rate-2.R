@@ -310,8 +310,9 @@ regis_raw %>%
 
 regis <- regis_raw %>%
   filter(
-    district_id <= 986,
+    district_id < 990,
     school_id < 9000,
+    !school_id %in% c(981, 982, 999),
     enrolled_grade %in% 3:12,
     # Exclude all Grade 2 assessments.
     !str_detect(test_name, "Gr 2")
@@ -367,8 +368,8 @@ regis <- regis_raw %>%
       na.rm = T
     )
   ) %>%
-  arrange(usid, semester, test, test_name, overall_snt_regis) %>%
-  distinct(usid, semester, test, test_name, .keep_all = T) %>%
+  arrange(usid, enrolled_grade, semester, test, test_name, overall_snt_regis) %>%
+  distinct(usid, enrolled_grade, semester, test, test_name, .keep_all = T) %>%
   # group_by(usid, semester, test, test_name) %>%
   # filter(
   #   overall_snt_regis == first(overall_snt_regis)
@@ -392,11 +393,13 @@ summarize(
   n4 = n_distinct(usid),
   n5 = n_distinct(district_id, school_id, usid),
   n6 = n_distinct(usid, enrolled_grade),
-  # Almost distinct by student and test name
+  # Almost distinct by student and content area code (or test name)
   n7 = n_distinct(usid, content_area_code),
   # Distinct by student, semester, test, and content area code (or test name)
   n8 = n_distinct(usid, semester, test, content_area_code)
 )
+
+summarize_missingness(regis)
 
 count(regis, overall_snt_regis)
 
@@ -498,8 +501,9 @@ count(scores_raw, attempt, overall_snt, overall_ri_status, sort = T) %>% View()
 
 scores <- scores_raw %>%
   filter(
-    district_number <= 986,
+    district_number < 990,
     school_number < 9000,
+    !school_number %in% c(981, 982, 999),
     as.numeric(enrolled_grade) %in% 3:12
     # , district_number %in% test_district
   ) %>%
@@ -517,14 +521,16 @@ scores <- scores_raw %>%
     )
   ) %>%
   arrange(
-    district_number, school_number, usid,
+    # district_number, school_number,
+    usid,
     content_area_code, -total_raw_score, overall_snt
   ) %>%
   # Drop records where total raw score is missing (unless total raw score is
   # missing for every record within each student-subject). Keep highest raw
   # scores where possible.
   distinct(
-    district_number, school_number, usid, content_area_code,
+    # district_number, school_number,
+    usid, content_area_code,
     .keep_all = T
   ) %>%
   # group_by(district_number, school_number, usid, content_area_code) %>%
@@ -576,6 +582,11 @@ names(scores)
 
 cdf <- cdf_fall_eoc_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
   # filter(system %in% test_district) %>%
+  filter(
+    system < 990,
+    school < 9000,
+    !school %in% c(981, 982, 999)
+  ) %>%
   # Drop records from CTE, Alternative, or Adult HS.
   anti_join(
     cte_alt_adult,
@@ -623,9 +634,9 @@ summarize(
   n3 = n_distinct(system, school),
   n4 = n_distinct(unique_student_id),
   n5 = n_distinct(system, school, unique_student_id),
-  # Almost distinct by student and subject
+  # Previously distinct by student and subject
   n6 = n_distinct(unique_student_id, content_area_code),
-  # Distinct by student-subject-semester
+  # Now distinct by student, subject, and semester
   n7 = n_distinct(unique_student_id, content_area_code, semester)
 )
 
@@ -727,7 +738,8 @@ summarize(
   n2 = n_distinct(unique_student_id),
   # Distinct by system, school, student, semester, test, and content area
   n3 = n_distinct(
-    system, school, unique_student_id, grade, semester, test, content_area_code
+    system, school, unique_student_id, grade,
+    semester, test, content_area_code
   )
 )
 
@@ -757,12 +769,14 @@ student_level <- cdf_2 %>%
   ) %>%
   filter(
     !is.na(system),
-    grade %in% 3:12,
+    system < 990,
+    school < 9000,
     !school %in% c(981, 982, 999), # 981 is homeschool  residential_facility != 1 | is.na(residential_facility),
-    system < 990
+    grade %in% 3:12
     # Drop CTE/Alt/Adult
     # !(paste0(system, '/', school) %in% paste0(alt_cte_adult$system, '/', alt_cte_adult$school))#, # 981 is homeschool  residential_facility != 1 | is.na(residential_facility),
   ) %>%
+  anti_join(cte_alt_adult, by = c("system", "school")) %>%
   # This transmute creates perfect duplicates by removing two fields: content
   # area code 2 (which entails content area and modified format) and test code
   # (which entails content area, grade, and Braille format).
@@ -854,7 +868,10 @@ summarize(
   n1 = nrow(distinct(student_level)),
   n2 = n_distinct(state_student_id),
   n3 = n_distinct(state_student_id, original_subject),
-  n4 = n_distinct(system, school, state_student_id, grade, semester, test, original_subject)
+  n4 = n_distinct(
+    system, school, state_student_id, grade,
+    semester, test, original_subject
+  )
 )
 
 summarize_missingness(student_level)
