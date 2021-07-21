@@ -120,8 +120,11 @@ msaa <- read_csv("N:/ORP_accountability/data/2021_cdf/2021_msaa_cdf.csv") %>%
   mutate(
     test = "MSAA",
     semester = "Spring",
+    # All students who take the TCAP-Alternative Assessment are considered students with disabilities (SWD)
     special_ed = 1L,
-    performance_level = if_else(reporting_status != "TES", NA_character_, performance_level)
+    performance_level = if_else(reporting_status != "TES", NA_character_, performance_level),
+    grade = as.numeric(grade),
+    tested = if_else(reporting_status == "DNT", 0, 1)
   )
 
 # alt_ss <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_alt_ss_cdf.csv") %>%
@@ -166,21 +169,20 @@ regis_spring_alt_raw <- clean_names(
   )
 )
 
-cdf_fall_eoc_raw <- read_csv(
-  "N:/ORP_accountability/data/2021_cdf/2021_fall_eoc_cdf.csv", 
-  col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc"
-) %>%
-  mutate(
-    test = "EOC",
-    semester = "Fall"
+cdf_tcap_raw <- bind_rows(
+  pmap(
+    .l = list(
+      ..1 = c(
+        "N:/ORP_accountability/data/2021_cdf/2021_fall_eoc_cdf.csv",
+        "N:/ORP_accountability/data/2021_cdf/2021_spring_eoc_cdf.csv"
+      ),
+      ..2 = c("EOC", "EOC"),
+      ..3 = c("Fall", "Spring")
+    ),
+    .f = ~ read_csv(..1, col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
+      mutate(test = ..2, semester = ..3)
   )
-
-# cdf_spring_eoc_raw <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_spring_eoc_cdf.csv",
-#                        col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
-#   mutate(
-#     test = "EOC",
-#     semester = "Spring"
-#   )
+)
 
 # cdf_tn_ready_raw <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_3_8_cdf.csv",
 #                      col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
@@ -188,9 +190,6 @@ cdf_fall_eoc_raw <- read_csv(
 #     test = "TNReady",
 #     semester = "Spring"
 #   )
-
-scores_eoc_raw <- read_csv("N:/Assessment_Data Returns/Student Registration file/SY2020-21/Raw Score/2021_TN_Spring_2021_EOC_RSF_20210607.csv") %>%
-  clean_names()
 
 scores_2_8_raw <- read_csv("N:/Assessment_Data Returns/Student Registration file/SY2020-21/Raw Score/2021_TN_Spring_2021_Grades_2_8_RSF_20210607.csv") %>%
   clean_names()
@@ -405,47 +404,46 @@ count(regis, overall_snt_regis)
 
 rm(regis_fall_eoc_raw, regis_spring_3_8_raw, regis_spring_alt_raw, regis_spring_eoc_raw)
 
-# Explore fall EOC CDF data ----
+# Explore TCAP CDF data ----
 
 summarize(
-  cdf_fall_eoc_raw,
+  cdf_tcap_raw,
   n0 = n(),
-  n1 = nrow(distinct(cdf_fall_eoc_raw)),
+  n1 = nrow(distinct(cdf_tcap_raw)),
   n2 = n_distinct(system),
   n3 = n_distinct(system, school),
   n4 = n_distinct(unique_student_id),
-  # One school per student
   n5 = n_distinct(system, school, unique_student_id),
-  # Distinct by student and content area
-  n6 = n_distinct(unique_student_id, content_area_code)
+  # Distinct by student, content area, test, and semester
+  n6 = n_distinct(unique_student_id, content_area_code, test, semester)
 )
 
-summarize_numeric_vars(cdf_fall_eoc_raw)
+summarize_numeric_vars(cdf_tcap_raw)
 
-# 5% of records missing raw score
-# 33% of records missing scale score and performance level
-summarize_missingness(cdf_fall_eoc_raw)
+# 2% of records missing raw score
+# 6% of records missing scale score and performance level
+summarize_missingness(cdf_tcap_raw)
 
 # In most instances where the raw score is missing, reason not tested and/or RI
 # status are non-zero. Where the raw score is missing, reason not tested is 0,
 # and RI status is 0, attempted equals "N".
-cdf_fall_eoc_raw %>%
+cdf_tcap_raw %>%
   filter(is.na(raw_score), reason_not_tested == 0, ri_status == 0) %>%
   count(attempted, modified_format, sort = T)
 
 # Scale scores are missing where either raw scores are missing or the subject
 # is Biology or U.S. History (with a single English II exception). Standard-
 # setting is still underway for these subjects.
-cdf_fall_eoc_raw %>%
+cdf_tcap_raw %>%
   mutate(missing_raw_score = is.na(raw_score)) %>%
   filter(is.na(scale_score)) %>%
   count(content_area_code, missing_raw_score, sort = T)
 
-# Grades 7-12 (mostly 9-11)
+# Grades 4-12 (mostly 9-11)
 # Test mode = "P"
 # Reason not tested and RI status include zeroes
 count_categories(
-  cdf_fall_eoc_raw,
+  cdf_tcap_raw,
   grade, content_area_code, test_mode, attempted, modified_format,
   reason_not_tested, ri_status,
   enrolled_50_pct_district, enrolled_50_pct_school
@@ -453,14 +451,9 @@ count_categories(
 
 # Combine and explore raw score data sets ----
 
-scores_raw <- bind_rows(
-  scores_2_8_raw %>%
-    mutate(across(s1op_raw_score:total_point_possible, as.numeric)) %>%
-    mutate(test = "TNReady", semester = "Spring"),
-  scores_eoc_raw %>%
-    mutate(across(s1op_raw_score:total_point_possible, as.numeric)) %>%
-    mutate(test = "EOC", semester = "Spring")
-) %>%
+scores_raw <- scores_2_8_raw %>%
+  mutate(across(s1op_raw_score:total_point_possible, as.numeric)) %>%
+  mutate(test = "TNReady", semester = "Spring") %>%
   mutate(across(c(district_number, school_number, usid), as.numeric))
 
 summarize(
@@ -577,10 +570,10 @@ rm(scores_2_8_raw, scores_eoc_raw)
 
 # Combine CDF and raw scores ----
 
-names(cdf_fall_eoc_raw)
+names(cdf_tcap_raw)
 names(scores)
 
-cdf <- cdf_fall_eoc_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
+cdf <- cdf_tcap_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
   # filter(system %in% test_district) %>%
   filter(
     system < 990,
@@ -650,6 +643,10 @@ cdf %>%
 
 # Join CDF and registration data ----
 
+count_categories(cdf, reason_not_tested, ri_status)
+count(regis, overall_snt_regis)
+# count_categories(regis_raw, ri_subpart1, ri_subpart2, ri_subpart3, ri_subpart4)
+
 cdf_2 <- cdf %>%
   mutate(in_cdf = T) %>%
   full_join(
@@ -688,48 +685,64 @@ cdf_2 <- cdf %>%
   # an SNT code of 1 if there is no record in the CDF and no SNT in the
   # registration file.
   mutate(
-    reason_not_tested = case_when(
-      !is.na(reason_not_tested) ~ as.numeric(reason_not_tested),
-      is.na(in_cdf) & is.na(overall_snt_regis) ~ 1,
-      # If the raw score is missing in the raw score file and there is no SNT
-      # or RI in either the raw score file or the registration file, then
-      # assign an SNT of 1 (absent) to that record. # NOTE: This code does not
-      # check if overall RI status is missing in the registration data because
-      # it's unclear how to calculate an overall RI status in the registration
-      # files.
-      !is.na(in_cdf) & in_cdf &
-        semester == "Spring" &
-        is.na(reason_not_tested) & is.na(ri_status) &
-        is.na(overall_snt_regis) &
-        is.na(raw_score) ~ 1,
-      T ~ as.numeric(overall_snt_regis)
+    # reason_not_tested = case_when(
+    #   !is.na(reason_not_tested) ~ as.numeric(reason_not_tested),
+    #   !is.na(overall_snt_regis) ~ as.numeric(overall_snt_regis),
+    #   is.na(in_cdf) ~ 1,
+    #   # If the raw score is missing in the raw score file and there is no SNT
+    #   # or RI in either the raw score file or the registration file, then
+    #   # assign an SNT of 1 (absent) to that record. # NOTE: This code does not
+    #   # check if overall RI status is missing in the registration data because
+    #   # it's unclear how to calculate an overall RI status in the registration
+    #   # files.
+    #   !is.na(in_cdf) & in_cdf &
+    #     semester == "Spring" &
+    #     is.na(reason_not_tested) & is.na(ri_status) &
+    #     is.na(overall_snt_regis) &
+    #     is.na(raw_score) ~ 1,
+    #   T ~ as.numeric(overall_snt_regis)
+    # ),
+    reason_not_tested = if_else(
+      (reason_not_tested == 0 | is.na(reason_not_tested)) & !is.na(overall_snt_regis) & is.na(raw_score),
+      as.integer(overall_snt_regis),
+      as.integer(reason_not_tested)
     ),
-    # reason_not_tested = if_else(
-    #   (reason_not_tested == 0 | is.na(reason_not_tested)) & !is.na(overall_snt) & is.na(raw_score),
-    #   as.integer(overall_snt),
-    #   as.integer(reason_not_tested)
-    # ),
-    # reason_not_tested = if_else(
-    #   (is.na(reason_not_tested) & is.na(raw_score) & is.na(scale_score)) | (reason_not_tested == 0 & is.na(raw_score) & is.na(scale_score)),
-    #   1L,
-    #   reason_not_tested
-    # ),
+    reason_not_tested = if_else(
+      (is.na(reason_not_tested) & is.na(raw_score) & is.na(scale_score)) | (reason_not_tested == 0 & is.na(raw_score) & is.na(scale_score)),
+      1L,
+      reason_not_tested
+    ),
     ri_status = if_else(reason_not_tested == 1 & ri_status == 6, 0, as.numeric(ri_status)),
     performance_level = if_else(performance_level == "On track", "On Track", performance_level),
-    absent = reason_not_tested == 1,
-    not_enrolled = reason_not_tested == 2,
-    not_scheduled = reason_not_tested == 3,
-    medically_exempt = reason_not_tested == 4,
-    residential_facility = reason_not_tested == 5,
-    tested_alt = reason_not_tested == 6,
-    did_not_submit = reason_not_tested == 7,
-    breach_adult = ri_status == 1,
-    breach_student = ri_status == 2,
-    irregular_admin = ri_status == 3,
-    incorrect_grade_subject = ri_status == 4,
-    refused_to_test = ri_status == 5,
-    failed_attemptedness = ri_status == 6,
-  )
+    # absent = reason_not_tested == 1,
+    # not_enrolled = reason_not_tested == 2,
+    # not_scheduled = reason_not_tested == 3,
+    # medically_exempt = reason_not_tested == 4,
+    # residential_facility = reason_not_tested == 5,
+    # tested_alt = reason_not_tested == 6,
+    # did_not_submit = reason_not_tested == 7,
+    # breach_adult = ri_status == 1,
+    # breach_student = ri_status == 2,
+    # irregular_admin = ri_status == 3,
+    # incorrect_grade_subject = ri_status == 4,
+    # refused_to_test = ri_status == 5,
+    # failed_attemptedness = ri_status == 6
+    absent = if_else(reason_not_tested == 1, 1,0),
+    not_enrolled = if_else(reason_not_tested == 2, 1,0),
+    not_scheduled = if_else(reason_not_tested == 3, 1 ,0),
+    medically_exempt = if_else(reason_not_tested == 4, 1,0),
+    residential_facility = if_else(reason_not_tested == 5, 1,0),
+    # Not in AM's
+    tested_alt = if_else(reason_not_tested == 6, 1,0),
+    did_not_submit = if_else(reason_not_tested == 7, 1,0),
+    breach_adult = if_else(ri_status == 1, 1,0),
+    breach_student = if_else(ri_status == 2, 1,0),
+    irregular_admin = if_else(ri_status == 3, 1,0),
+    incorrect_grade_subject = if_else(ri_status == 4, 1,0),
+    refused_to_test = if_else(ri_status == 5, 1,0),
+    failed_attemptedness = if_else(ri_status == 6, 1,0)
+  ) %>%
+  mutate(across(absent:failed_attemptedness, as.logical))
 
 summarize(
   cdf_2,
@@ -760,12 +773,19 @@ int_math_systems <- cdf_2 %>%
   filter(n == temp, content_area_code == "M1") %>%
   magrittr::extract2("system")
 
+count(msaa, reporting_status)
+
+# DNT = no scale score
+msaa %>%
+  mutate(missing_scale_score = is.na(scale_score)) %>%
+  count(missing_scale_score, tested, reporting_status)
+
 student_level <- cdf_2 %>%
   bind_rows(
     msaa %>%
       # filter(system %in% test_district) %>%
       mutate(across(grade, as.integer)) %>%
-      mutate(in_msaa = T)
+      mutate(enrolled = 1, in_msaa = T)
   ) %>%
   filter(
     !is.na(system),
@@ -977,6 +997,17 @@ summarize(
   )
 )
 
+dedup %>%
+  mutate(has_raw_score = !is.na(raw_score)) %>%
+  count(
+    enrolled, tested,
+    has_raw_score, reason_not_tested,
+    breach_adult, breach_student, irregular_admin, incorrect_grade_subject,
+    refused_to_test, failed_attemptedness,
+    sort = T
+  ) %>%
+  View()
+
 # Each student should have a raw score, an SNT code, or an RI code.
 dedup %>%
   mutate(
@@ -985,6 +1016,11 @@ dedup %>%
     has_ri_code = breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness
   ) %>%
   count(has_raw_score, has_snt_code, has_ri_code, sort = T)
+
+# MSAA records
+dedup %>%
+  filter(is.na(raw_score), is.na(reason_not_tested), is.na(breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness)) %>%
+  count(test)
 
 # Compare de-duplicated data with Andrew's.
 
