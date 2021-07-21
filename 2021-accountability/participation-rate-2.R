@@ -952,6 +952,15 @@ summarize(
   )
 )
 
+# Each student should have a raw score, an SNT code, or an RI code.
+dedup %>%
+  mutate(
+    has_raw_score = !is.na(raw_score),
+    has_snt_code = !is.na(reason_not_tested) & reason_not_tested > 0,
+    has_ri_code = breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness
+  ) %>%
+  count(has_raw_score, has_snt_code, has_ri_code, sort = T)
+
 # Reassigned schools for accountability
 enrollment <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv")
 
