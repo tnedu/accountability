@@ -459,7 +459,7 @@ int_math_systems <- total_cdf %>%
 
 
 # ================================================ Student Level =====================================
-student_level <- bind_rows(total_cdf, msaa) %>% # , alt_science_ss , msaa
+student_level_am <- bind_rows(total_cdf, msaa) %>% # , alt_science_ss , msaa
   # total_cdf %>% 
   # Only grades 3-12
   filter(grade %in% 3:12) %>% 
@@ -539,7 +539,7 @@ student_level <- bind_rows(total_cdf, msaa) %>% # , alt_science_ss , msaa
 
 # Dedup ===================
 
-dedup <- student_level %>%
+dedup_am <- student_level_am %>%
   anti_join(alt_cte_adult, by = c("system", "school")) %>%
   mutate(
     # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
@@ -627,8 +627,11 @@ dedup <- student_level %>%
   # Valid test if there is a performance level
   mutate(valid_test = as.numeric(!is.na(performance_level)))
 
+dedup_am <- dedup_am %>%
+  mutate(across(original_subject, ~ if_else(.x == "Biology I", "Biology", .x)))
+
 # Output ========================
-output <- dedup %>%
+output <- dedup_am %>%
   select(-system_name, -school_name) %>% 
   # filter(!(original_subject == "Science" & grade %in% c("3", "4"))) %>%
   left_join(school_names, by = c("system", "school")) %>%

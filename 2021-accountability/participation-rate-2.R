@@ -755,6 +755,14 @@ student_level <- cdf_2 %>%
       mutate(across(grade, as.integer)) %>%
       mutate(in_msaa = T)
   ) %>%
+  filter(
+    !is.na(system),
+    grade %in% 3:12,
+    !school %in% c(981, 982, 999), # 981 is homeschool  residential_facility != 1 | is.na(residential_facility),
+    system < 990
+    # Drop CTE/Alt/Adult
+    # !(paste0(system, '/', school) %in% paste0(alt_cte_adult$system, '/', alt_cte_adult$school))#, # 981 is homeschool  residential_facility != 1 | is.na(residential_facility),
+  ) %>%
   # This transmute creates perfect duplicates by removing two fields: content
   # area code 2 (which entails content area and modified format) and test code
   # (which entails content area, grade, and Braille format).
@@ -961,6 +969,26 @@ dedup %>%
   ) %>%
   count(has_raw_score, has_snt_code, has_ri_code, sort = T)
 
+# Compare de-duplicated data with Andrew's.
+
+dedup_comp <- dedup %>%
+  filter(system == 531) %>%
+  mutate(in_mine = T) %>%
+  full_join(
+    dedup_am %>% filter(system == 531) %>% mutate(in_am = T),
+    by = c("state_student_id", "original_subject"),
+    suffix = c("", "_am")
+  )
+
+names(dedup_comp)
+
+dedup_comp %>%
+  filter(is.na(in_mine) | is.na(in_am)) %>%
+  # View()
+  # count(original_subject)
+  # count(original_subject, in_mine, in_am)
+  count(school)
+
 # Reassigned schools for accountability
 enrollment <- read_csv("N:/ORP_accountability/data/2019_final_accountability_files/enrollment.csv")
 
@@ -1029,7 +1057,7 @@ summarize(
   student_level_2,
   n0 = n(),
   n1 = n_distinct(state_student_id),
-  n2 = n_distinct(state_student_id, subject),
+  n2 = n_distinct(state_student_id, original_subject),
   n3 = n_distinct(state_student_id, subject, semester)
 )
 
