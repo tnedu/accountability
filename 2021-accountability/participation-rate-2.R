@@ -326,6 +326,7 @@ regis <- regis_raw %>%
   # lowest SNT is kept between the two parts as the overall SNT for English I
   # and English II.
   mutate(
+    test_grade = str_remove(str_extract(test_name, 'Gr \\d'), 'Gr '),
     test_name = case_when(
       str_detect(test_name, 'Social Studies') ~ 'Social Studies',
       str_detect(test_name, 'Science') ~ 'Science',
@@ -370,10 +371,10 @@ regis <- regis_raw %>%
     )
   ) %>%
   arrange(
-    usid, enrolled_grade, semester, test, test_name,
+    usid, semester, test, test_name, test_grade,
     overall_snt_regis, overall_ri_regis
   ) %>%
-  distinct(usid, enrolled_grade, semester, test, test_name, .keep_all = T) %>%
+  distinct(usid, semester, test, test_name, test_grade, .keep_all = T) %>%
   # group_by(usid, semester, test, test_name) %>%
   # filter(
   #   overall_snt_regis == first(overall_snt_regis)
@@ -381,8 +382,8 @@ regis <- regis_raw %>%
   # ) %>%
   # ungroup() %>%
   select(
-    district_id, school_id, usid, enrolled_grade,
-    semester, test, test_name, content_area_code,
+    district_id, school_id, usid,
+    semester, test, test_name, test_grade, content_area_code,
     overall_snt_regis, overall_ri_regis
   ) %>%
   distinct() %>%
@@ -519,14 +520,14 @@ scores <- scores_raw %>%
   arrange(
     # district_number, school_number,
     usid,
-    content_area_code, -total_raw_score, overall_snt
+    content_area_code, test_grade, -total_raw_score, overall_snt
   ) %>%
   # Drop records where total raw score is missing (unless total raw score is
   # missing for every record within each student-subject). Keep highest raw
   # scores where possible.
   distinct(
     # district_number, school_number,
-    usid, content_area_code,
+    usid, content_area_code, test_grade,
     .keep_all = T
   ) %>%
   # group_by(district_number, school_number, usid, content_area_code) %>%
@@ -546,8 +547,8 @@ scores <- scores_raw %>%
   # ) %>%
   # ungroup() %>%
   select(
-    district_number, school_number, usid, enrolled_grade,
-    semester, test, content_area_code,
+    district_number, school_number, usid,
+    semester, test, content_area_code, test_grade,
     attempt, overall_snt, overall_ri_status,
     total_raw_score
   ) %>%
@@ -600,7 +601,7 @@ cdf <- cdf_tcap_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
       ) %>%
       mutate(
         across(
-          c(district_number, school_number, usid, enrolled_grade),
+          c(district_number, school_number, usid, test_grade),
           as.integer
         )
       ) %>%
@@ -614,7 +615,7 @@ cdf <- cdf_tcap_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
         system = district_number,
         school = school_number,
         unique_student_id = usid,
-        grade = enrolled_grade,
+        grade = test_grade,
         attempted = attempt,
         reason_not_tested = overall_snt,
         ri_status = overall_ri_status,
@@ -661,7 +662,10 @@ count(regis, overall_snt_regis)
 cdf_2 <- cdf %>%
   mutate(in_cdf = T) %>%
   full_join(
-    regis %>% mutate(in_regis = T) %>% rename(grade = enrolled_grade),
+    regis %>%
+      mutate(in_regis = T) %>%
+      rename(grade = test_grade) %>%
+      mutate(across(grade, as.integer)),
     by = c(
       'system' = 'district_id',
       'school' = 'school_id',
@@ -1436,6 +1440,8 @@ partic_dist_w_wida <- partic_dist %>%
   summarize(across(c(enrolled, tested), sum)) %>%
   ungroup() %>%
   mutate(participation_rate = round(100 * tested / enrolled, 1))
+
+partic_dist_w_wida
 
 partic_dist_w_wida %>% arrange(participation_rate) %>% View()
 
