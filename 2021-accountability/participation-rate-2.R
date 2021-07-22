@@ -641,7 +641,8 @@ summarize_missingness(cdf)
 count(cdf, test, content_area_code)
 count_categories(cdf, reason_not_tested, ri_status)
 
-# About 14,000 records lack raw scores but have reason not tested equal to 0.
+# About 14,000 records (across all tests/semesters) lack raw scores but have
+# reason not tested equal to 0.
 cdf %>%
   mutate(missing_raw_score = is.na(raw_score)) %>%
   count(reason_not_tested, missing_raw_score)
@@ -1065,7 +1066,14 @@ dedup %>%
     has_snt_code = !is.na(reason_not_tested) & reason_not_tested > 0,
     has_ri_code = breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness
   ) %>%
-  count(has_score, has_snt_code, has_ri_code, sort = T)
+  # count(has_score, has_snt_code, has_ri_code, sort = T)
+  # count(enrolled, tested, has_score, has_snt_code, has_ri_code, sort = T)
+  filter(has_score, tested == 0) %>%
+  # count(test, semester) # Stems from spring TNReady raw scores - wait and see if switch to CDF fixes it
+  count(el_recently_arrived, performance_level) # All RAEL
+  # filter(has_snt_code, tested == 1) %>% # 4, 5, 6
+  # count(reason_not_tested)
+  # View()
   # filter(!has_raw_score, !has_snt_code, !has_ri_code) %>%
   # count(test)
 
@@ -1439,7 +1447,7 @@ partic_dist <- read_csv(last(list.files(pattern = "participation-rate-district")
 
 partic_dist_am <- read_csv("N:/ORP_accountability/projects/Andrew/Data Requests/2021/data/Participation Rate/district_participation_rate_MSAA_TNReady_EOC_06182021.csv")
 
-partic_dist_w_wida_am <- read_csv("N:/ORP_accountability/projects/Andrew/Data Requests/2021/data/Participation Rate/district_participation_rate_MSAA_TNReady_EOC_WIDA_06242021.csv")
+partic_dist_w_wida_am <- read_csv("N:/ORP_accountability/projects/Andrew/Data Requests/2021/data/Participation Rate/district_participation_rate_MSAA_TNReady_EOC_WIDA_07212021.csv")
 
 summary(partic_dist)
 summary(partic_dist_am)
