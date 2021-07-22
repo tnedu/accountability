@@ -169,30 +169,21 @@ regis_spring_alt_raw <- clean_names(
   )
 )
 
-cdf_tcap_raw <- bind_rows(
+cdf_raw <- bind_rows(
   pmap(
     .l = list(
       ..1 = c(
         "N:/ORP_accountability/data/2021_cdf/2021_fall_eoc_cdf.csv",
-        "N:/ORP_accountability/data/2021_cdf/2021_spring_eoc_cdf.csv"
+        "N:/ORP_accountability/data/2021_cdf/2021_spring_eoc_cdf.csv",
+        "N:/ORP_accountability/data/2021_cdf/2021_3_8_cdf.csv"
       ),
-      ..2 = c("EOC", "EOC"),
-      ..3 = c("Fall", "Spring")
+      ..2 = c("EOC", "EOC", "TNReady"),
+      ..3 = c("Fall", "Spring", "Spring")
     ),
     .f = ~ read_csv(..1, col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
       mutate(test = ..2, semester = ..3)
   )
 )
-
-# cdf_tn_ready_raw <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_3_8_cdf.csv",
-#                      col_types = "iciccccdiccccdiiiiciiciiciiciiiiiicc") %>%
-#   mutate(
-#     test = "TNReady",
-#     semester = "Spring"
-#   )
-
-scores_2_8_raw <- read_csv("N:/Assessment_Data Returns/Student Registration file/SY2020-21/Raw Score/2021_TN_Spring_2021_Grades_2_8_RSF_20210607.csv") %>%
-  clean_names()
 
 # Clean demographic data ----
 
@@ -242,7 +233,7 @@ demos_filtered <- demographics %>%
     bhn_group = if_else(!reported_race %in% c('American Indian/Alaska Native','Black or African American','Hispanic/Latino') | is.na(reported_race), 0, 1)
   )
 
-# Combine and explore registration data sets ----
+# Clean and explore registration data ----
 
 regis_raw <- regis_fall_eoc_raw %>%
   mutate(test = 'EOC', semester = 'Fall') %>%
@@ -326,7 +317,11 @@ regis <- regis_raw %>%
   # lowest SNT is kept between the two parts as the overall SNT for English I
   # and English II.
   mutate(
-    test_grade = str_remove(str_extract(test_name, 'Gr \\d'), 'Gr '),
+    grade = if_else(
+      test == 'TNReady',
+      as.numeric(str_extract(test_name, '\\d')),
+      enrolled_grade
+    ),
     test_name = case_when(
       str_detect(test_name, 'Social Studies') ~ 'Social Studies',
       str_detect(test_name, 'Science') ~ 'Science',
@@ -371,7 +366,7 @@ regis <- regis_raw %>%
     )
   ) %>%
   arrange(
-    usid, semester, test, test_name, test_grade,
+    usid, semester, test, test_name,
     overall_snt_regis, overall_ri_regis
   ) %>%
   distinct(usid, semester, test, test_name, test_grade, .keep_all = T) %>%
@@ -410,218 +405,62 @@ count_categories(regis, overall_snt_regis, overall_ri_regis)
 
 rm(regis_fall_eoc_raw, regis_spring_3_8_raw, regis_spring_alt_raw, regis_spring_eoc_raw)
 
-# Explore TCAP CDF data ----
+# Clean and explore CDF data ----
 
 summarize(
-  cdf_tcap_raw,
+  cdf_raw,
   n0 = n(),
-  n1 = nrow(distinct(cdf_tcap_raw)),
+  n1 = nrow(distinct(cdf_raw)),
   n2 = n_distinct(system),
   n3 = n_distinct(system, school),
   n4 = n_distinct(unique_student_id),
   n5 = n_distinct(system, school, unique_student_id),
   n6 = n_distinct(unique_student_id, content_area_code),
-  # Distinct by student, content area, test, and semester
-  n7 = n_distinct(unique_student_id, content_area_code, test, semester)
+  # Distinct by student, content area, test, semester, and raw score
+  n7 = n_distinct(unique_student_id, content_area_code, test, semester, raw_score)
 )
 
-summarize_numeric_vars(cdf_tcap_raw)
+summarize_numeric_vars(cdf_raw)
 
-# 2% of records missing raw score
-# 2% of records missing scale score and performance level
-summarize_missingness(cdf_tcap_raw)
+# 1% of records missing raw score
+# 1% of records missing scale score and performance level
+summarize_missingness(cdf_raw)
 
 # In most instances where the raw score is missing, reason not tested and/or RI
 # status are non-zero. Where the raw score is missing, reason not tested is 0,
 # and RI status is 0, attempted equals "N".
-cdf_tcap_raw %>%
+cdf_raw %>%
   filter(is.na(raw_score), reason_not_tested == 0, ri_status == 0) %>%
   count(attempted, modified_format, sort = T)
 
 # Scale scores are missing where raw scores are missing.
-cdf_tcap_raw %>%
-  mutate(missing_raw_score = is.na(raw_score)) %>%
-  filter(is.na(scale_score)) %>%
-  count(missing_raw_score, sort = T)
+cdf_raw %>%
+  mutate(
+    missing_raw_score = is.na(raw_score),
+    missing_scale_score = is.na(scale_score)
+  ) %>%
+  count(missing_raw_score, missing_scale_score)
 
-# Grades 4-12 (mostly 9-11)
+# Grades 2-12
 # Test mode = "P"
-# Reason not tested and RI status include zeroes
+# Reason not tested and RI status include zeroes, not NAs.
 count_categories(
-  cdf_tcap_raw,
+  cdf_raw,
   grade, content_area_code, test_mode, attempted, modified_format,
   reason_not_tested, ri_status,
   enrolled_50_pct_district, enrolled_50_pct_school
 )
 
-# Combine and explore raw score data sets ----
-
-scores_raw <- scores_2_8_raw %>%
-  mutate(across(s1op_raw_score:total_point_possible, as.numeric)) %>%
-  mutate(test = "TNReady", semester = "Spring") %>%
-  mutate(across(c(district_number, school_number, usid), as.numeric))
-
-summarize(
-  scores_raw,
-  n0 = n(),
-  n1 = nrow(distinct(scores_raw)),
-  n2 = n_distinct(district_number),
-  n3 = n_distinct(district_number, school_number),
-  n4 = n_distinct(usid),
-  n5 = n_distinct(district_number, school_number, usid),
-  # Almost distinct by student and subject
-  n6 = n_distinct(usid, content_area_code),
-  # Distinct by student, subject, and raw score
-  n7 = n_distinct(usid, content_area_code, total_raw_score)
-)
-
-# Includes private districts and schools
-summarize_numeric_vars(scores_raw)
-
-# 1% missing total raw score and total points possible
-summarize_missingness(scores_raw)
-
-# In most instances where the raw score is missing, SNT and/or RI status are
-# non-zero. Where the raw score is missing, reason not tested is 0, and RI
-# status is 0, attempt equals "N".
-scores_raw %>%
-  filter(is.na(total_raw_score), overall_snt == 0, overall_ri_status == 0) %>%
-  count(attempt, total_point_possible)
-
-# Grades 0-12
-count_categories(scores_raw, enrolled_grade, content_area_code, attempt)
-count(scores_raw, enrolled_grade, test_grade, sort = T) %>% View()
-
-# What does attempt mean? Why do 9,000 records have "N" attempt but zeroes for
-# SNT and RI?
-count(scores_raw, attempt, overall_snt, overall_ri_status, sort = T) %>% View()
-
-scores <- scores_raw %>%
-  filter(
-    district_number < 990,
-    school_number < 9000,
-    !school_number %in% c(981, 982, 999),
-    as.numeric(enrolled_grade) %in% 3:12
-    # , district_number %in% test_district
-  ) %>%
-  # Drop records from CTE, Alternative, or Adult HS.
-  anti_join(
-    cte_alt_adult,
-    by = c('district_number' = 'system', 'school_number' = 'school')
-  ) %>%
-  mutate(
-    content_area_code = case_when(
-      content_area_code == "ENG" ~ "EN",
-      content_area_code == "MAT" ~ "MA",
-      content_area_code == "SOC" ~ "SS",
-      TRUE ~ content_area_code
-    )
-  ) %>%
-  arrange(
-    # district_number, school_number,
-    usid,
-    content_area_code, test_grade, -total_raw_score, overall_snt
-  ) %>%
-  # Drop records where total raw score is missing (unless total raw score is
-  # missing for every record within each student-subject). Keep highest raw
-  # scores where possible.
-  distinct(
-    # district_number, school_number,
-    usid, content_area_code, test_grade,
-    .keep_all = T
-  ) %>%
-  # group_by(district_number, school_number, usid, content_area_code) %>%
-  # filter(
-  #   (!is.na(total_raw_score) & total_raw_score == first(total_raw_score))
-  #   | mean(is.na(total_raw_score)) == 1
-  # ) %>%
-  # ungroup() %>%
-  # arrange(
-  #   district_number, school_number, usid,
-  #   content_area_code, overall_snt
-  # ) %>%
-  # group_by(district_number, school_number, usid, content_area_code) %>%
-  # filter(
-  #   (!is.na(overall_snt) & overall_snt == first(overall_snt))
-  #   | mean(is.na(overall_snt)) == 1
-  # ) %>%
-  # ungroup() %>%
-  select(
-    district_number, school_number, usid,
-    semester, test, content_area_code, test_grade,
-    attempt, overall_snt, overall_ri_status,
-    total_raw_score
-  ) %>%
-  arrange_all()
-
-summarize(
-  scores,
-  n0 = n(),
-  n1 = nrow(distinct(scores)),
-  n2 = n_distinct(district_number),
-  n3 = n_distinct(district_number, school_number),
-  n4 = n_distinct(usid),
-  n5 = n_distinct(district_number, school_number, usid),
-  # Distinct by student and subject
-  n6 = n_distinct(usid, content_area_code)
-)
-
-summarize_numeric_vars(scores)
-
-count(scores, test, content_area_code)
-
-rm(scores_2_8_raw, scores_eoc_raw)
-
-# Combine CDF and raw scores ----
-
-names(cdf_tcap_raw)
-names(scores)
-
-cdf <- cdf_tcap_raw %>% # bind_rows(fall_eoc, spring_eoc, tn_ready, alt_ss) %>%
+cdf <- cdf_raw %>%
   # filter(system %in% test_district) %>%
   filter(
     system < 990,
     school < 9000,
-    !school %in% c(981, 982, 999)
+    !school %in% c(981, 982, 999),
+    grade %in% 3:12
   ) %>%
   # Drop records from CTE, Alternative, or Adult HS.
-  anti_join(
-    cte_alt_adult,
-    by = c('system', 'school')
-  ) %>%
-  bind_rows(
-    scores %>%
-      left_join(
-        demos_filtered,
-        by = c(
-          'district_number' = 'system',
-          'school_number' = 'school',
-          'usid' = 'unique_student_id'
-        )
-      ) %>%
-      mutate(
-        across(
-          c(district_number, school_number, usid, test_grade),
-          as.integer
-        )
-      ) %>%
-      mutate(
-        across(
-          economically_disadvantaged,
-          ~ as.integer(.x == 'Y')
-        )
-      ) %>%
-      rename(
-        system = district_number,
-        school = school_number,
-        unique_student_id = usid,
-        grade = test_grade,
-        attempted = attempt,
-        reason_not_tested = overall_snt,
-        ri_status = overall_ri_status,
-        raw_score = total_raw_score
-      )
-  )
+  anti_join(cte_alt_adult, by = c('system', 'school'))
 
 summarize(
   cdf,
@@ -633,8 +472,8 @@ summarize(
   n5 = n_distinct(system, school, unique_student_id),
   # Previously distinct by student and subject
   n6 = n_distinct(unique_student_id, content_area_code),
-  # Now distinct by student, subject, and semester
-  n7 = n_distinct(unique_student_id, content_area_code, semester)
+  # Now distinct by student, subject, semester, and raw score
+  n7 = n_distinct(unique_student_id, content_area_code, semester, raw_score)
 )
 
 summarize_missingness(cdf)
