@@ -157,7 +157,7 @@ regis_spring_eoc_raw <- clean_names(
 
 regis_spring_3_8_raw <- clean_names(
   read_csv(
-    "N:/Assessment_Data Returns/Student Registration file/SY2020-21/ACH Student Registration Export 2021-06-15.csv",
+    "N:/Assessment_Data Returns/Student Registration file/SY2020-21/ACH Student Registration Export 2021-07-20.csv",
     col_types = 'nnncccccncccncnnccccccccccccccnnnnnnnn'
   )
 )
@@ -262,9 +262,7 @@ regis_raw <- regis_fall_eoc_raw %>%
       ) %>%
       rename(
         snt_subpart4 = filler,
-        ri_subpart2 = filler_1,
-        ri_subpart3 = filler_2,
-        ri_subpart4 = filler_3
+        ri_subpart4 = filler_1
       )
   )
 
@@ -365,9 +363,16 @@ regis <- regis_raw %>%
     overall_snt_regis = pmin(
       snt_subpart1, snt_subpart2, snt_subpart3, snt_subpart4,
       na.rm = T
+    ),
+    overall_ri_regis = pmin(
+      ri_subpart1, ri_subpart2, ri_subpart3, ri_subpart4,
+      na.rm = T
     )
   ) %>%
-  arrange(usid, enrolled_grade, semester, test, test_name, overall_snt_regis) %>%
+  arrange(
+    usid, enrolled_grade, semester, test, test_name,
+    overall_snt_regis, overall_ri_regis
+  ) %>%
   distinct(usid, enrolled_grade, semester, test, test_name, .keep_all = T) %>%
   # group_by(usid, semester, test, test_name) %>%
   # filter(
@@ -378,7 +383,7 @@ regis <- regis_raw %>%
   select(
     district_id, school_id, usid, enrolled_grade,
     semester, test, test_name, content_area_code,
-    overall_snt_regis # , snt_subpart1:ri_subpart4
+    overall_snt_regis, overall_ri_regis
   ) %>%
   distinct() %>%
   arrange_all()
@@ -400,7 +405,7 @@ summarize(
 
 summarize_missingness(regis)
 
-count(regis, overall_snt_regis)
+count_categories(regis, overall_snt_regis, overall_ri_regis)
 
 rm(regis_fall_eoc_raw, regis_spring_3_8_raw, regis_spring_alt_raw, regis_spring_eoc_raw)
 
@@ -414,8 +419,9 @@ summarize(
   n3 = n_distinct(system, school),
   n4 = n_distinct(unique_student_id),
   n5 = n_distinct(system, school, unique_student_id),
+  n6 = n_distinct(unique_student_id, content_area_code),
   # Distinct by student, content area, test, and semester
-  n6 = n_distinct(unique_student_id, content_area_code, test, semester)
+  n7 = n_distinct(unique_student_id, content_area_code, test, semester)
 )
 
 summarize_numeric_vars(cdf_tcap_raw)
