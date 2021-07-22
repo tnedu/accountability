@@ -427,7 +427,7 @@ summarize(
 summarize_numeric_vars(cdf_tcap_raw)
 
 # 2% of records missing raw score
-# 6% of records missing scale score and performance level
+# 2% of records missing scale score and performance level
 summarize_missingness(cdf_tcap_raw)
 
 # In most instances where the raw score is missing, reason not tested and/or RI
@@ -437,13 +437,11 @@ cdf_tcap_raw %>%
   filter(is.na(raw_score), reason_not_tested == 0, ri_status == 0) %>%
   count(attempted, modified_format, sort = T)
 
-# Scale scores are missing where either raw scores are missing or the subject
-# is Biology or U.S. History (with a single English II exception). Standard-
-# setting is still underway for these subjects.
+# Scale scores are missing where raw scores are missing.
 cdf_tcap_raw %>%
   mutate(missing_raw_score = is.na(raw_score)) %>%
   filter(is.na(scale_score)) %>%
-  count(content_area_code, missing_raw_score, sort = T)
+  count(missing_raw_score, sort = T)
 
 # Grades 4-12 (mostly 9-11)
 # Test mode = "P"
@@ -479,7 +477,6 @@ summarize(
 # Includes private districts and schools
 summarize_numeric_vars(scores_raw)
 
-# 19% of records missing test grade - unclear why, just use enrolled grade
 # 1% missing total raw score and total points possible
 summarize_missingness(scores_raw)
 
@@ -492,7 +489,7 @@ scores_raw %>%
 
 # Grades 0-12
 count_categories(scores_raw, enrolled_grade, content_area_code, attempt)
-count(scores_raw, enrolled_grade, test_grade)
+count(scores_raw, enrolled_grade, test_grade, sort = T) %>% View()
 
 # What does attempt mean? Why do 9,000 records have "N" attempt but zeroes for
 # SNT and RI?
@@ -642,10 +639,17 @@ summarize(
 summarize_missingness(cdf)
 
 count(cdf, test, content_area_code)
+count_categories(cdf, reason_not_tested, ri_status)
 
+# About 14,000 records lack raw scores but have reason not tested equal to 0.
 cdf %>%
   mutate(missing_raw_score = is.na(raw_score)) %>%
   count(reason_not_tested, missing_raw_score)
+
+# About 21,000 records lack raw scores but have RI status equal to 0.
+cdf %>%
+  mutate(missing_raw_score = is.na(raw_score)) %>%
+  count(ri_status, missing_raw_score)
 
 # Join CDF and registration data ----
 
@@ -709,14 +713,25 @@ cdf_2 <- cdf %>%
     #   T ~ as.numeric(overall_snt_regis)
     # ),
     reason_not_tested = if_else(
+      # Use the registration SNT if it is non-zero, the CDF SNT is missing (or
+      # zero), and the raw score is missing. Otherwise, use the CDF SNT.
       (reason_not_tested == 0 | is.na(reason_not_tested)) & !is.na(overall_snt_regis) & is.na(raw_score),
       as.integer(overall_snt_regis),
       as.integer(reason_not_tested)
     ),
     reason_not_tested = if_else(
+      # Change the SNT to 1 if it is missing (or zero) BUT both raw score and
+      # scale score are missing.
       (is.na(reason_not_tested) & is.na(raw_score) & is.na(scale_score)) | (reason_not_tested == 0 & is.na(raw_score) & is.na(scale_score)),
       1L,
       reason_not_tested
+    ),
+    ri_status = if_else(
+      # Use the registration RI if it is non-zero, the CDF RI is missing (or
+      # zero), and the raw score is missing. Otherwise, use the CDF RI.
+      (ri_status == 0 | is.na(ri_status)) & !is.na(overall_ri_regis) & is.na(raw_score),
+      as.integer(overall_ri_regis),
+      as.integer(ri_status)
     ),
     ri_status = if_else(reason_not_tested == 1 & ri_status == 6, 0, as.numeric(ri_status)),
     performance_level = if_else(performance_level == "On track", "On Track", performance_level),
@@ -738,8 +753,7 @@ cdf_2 <- cdf %>%
     not_scheduled = if_else(reason_not_tested == 3, 1 ,0),
     medically_exempt = if_else(reason_not_tested == 4, 1,0),
     residential_facility = if_else(reason_not_tested == 5, 1,0),
-    # Not in AM's
-    tested_alt = if_else(reason_not_tested == 6, 1,0),
+    tested_alt = if_else(reason_not_tested == 6, 1,0), # Not in AM's
     did_not_submit = if_else(reason_not_tested == 7, 1,0),
     breach_adult = if_else(ri_status == 1, 1,0),
     breach_student = if_else(ri_status == 2, 1,0),
@@ -748,7 +762,12 @@ cdf_2 <- cdf %>%
     refused_to_test = if_else(ri_status == 5, 1,0),
     failed_attemptedness = if_else(ri_status == 6, 1,0)
   ) %>%
-  mutate(across(absent:failed_attemptedness, as.logical))
+  mutate(
+    across(
+      absent:failed_attemptedness,
+      ~ if_else(is.na(.x), F, as.logical(.x))
+    )
+  )
 
 summarize(
   cdf_2,
@@ -761,6 +780,9 @@ summarize(
     semester, test, content_area_code
   )
 )
+
+# No missing SNT codes, 7% missing RI codes
+summarize_missingness(cdf_2)
 
 # Create student-level data set ----
 
@@ -791,7 +813,25 @@ student_level <- cdf_2 %>%
     msaa %>%
       # filter(system %in% test_district) %>%
       mutate(across(grade, as.integer)) %>%
-      mutate(enrolled = 1, in_msaa = T)
+      mutate(
+        enrolled = 1,
+        reason_not_tested = if_else(reporting_status == "DNT", 1, 0),
+        ri_status = 0,
+        absent = if_else(reason_not_tested == 1, 1,0),
+        not_enrolled = if_else(reason_not_tested == 2, 1,0),
+        not_scheduled = if_else(reason_not_tested == 3, 1 ,0),
+        medically_exempt = if_else(reason_not_tested == 4, 1,0),
+        residential_facility = if_else(reason_not_tested == 5, 1,0),
+        tested_alt = if_else(reason_not_tested == 6, 1,0), # Not in AM's
+        did_not_submit = if_else(reason_not_tested == 7, 1,0),
+        breach_adult = if_else(ri_status == 1, 1,0),
+        breach_student = if_else(ri_status == 2, 1,0),
+        irregular_admin = if_else(ri_status == 3, 1,0),
+        incorrect_grade_subject = if_else(ri_status == 4, 1,0),
+        refused_to_test = if_else(ri_status == 5, 1,0),
+        failed_attemptedness = if_else(ri_status == 6, 1,0),
+        in_msaa = T
+      )
   ) %>%
   filter(
     !is.na(system),
@@ -842,7 +882,8 @@ student_level <- cdf_2 %>%
     reporting_status,
     reason_not_tested,
     breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness,
-    absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit
+    absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit,
+    enrolled, tested
   ) %>%
   # left_join(demos_filtered, by = c("system", "school", "state_student_id" = "unique_student_id")) %>%
   # mutate(el_recently_arrived = (el_arrived_year_1 == 1 | el_arrived_year_2 == 1)) %>%
@@ -850,13 +891,15 @@ student_level <- cdf_2 %>%
   # Apply testing flag hierarchy
   mutate(
     enrolled = case_when(
+      test == "MSAA" ~ enrolled,
       reason_not_tested == 0 & (breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness) ~ 0,
       not_enrolled | not_scheduled ~ 0,
       TRUE ~ 1
     ),
     # EL Recently Arrived students with missing proficiency are not considered tested
     tested = case_when(
-      test == "MSAA" & reporting_status == "DNT" ~ 0,
+      # test == "MSAA" & reporting_status == "DNT" ~ 0,
+      test == "MSAA" ~ tested,
       reason_not_tested == 0 & (breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness) ~ 0,
       absent | not_enrolled | not_scheduled ~ 0,
       el_recently_arrived == 1L & is.na(original_performance_level) ~ 0,
@@ -1014,14 +1057,17 @@ dedup %>%
   ) %>%
   View()
 
-# Each student should have a raw score, an SNT code, or an RI code.
+# Each student should have a raw score (scale score for MSAA), an SNT code, or
+# an RI code.
 dedup %>%
   mutate(
-    has_raw_score = !is.na(raw_score),
+    has_score = !is.na(raw_score) | (test == "MSAA" & !is.na(scale_score)),
     has_snt_code = !is.na(reason_not_tested) & reason_not_tested > 0,
     has_ri_code = breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness
   ) %>%
-  count(has_raw_score, has_snt_code, has_ri_code, sort = T)
+  count(has_score, has_snt_code, has_ri_code, sort = T)
+  # filter(!has_raw_score, !has_snt_code, !has_ri_code) %>%
+  # count(test)
 
 # MSAA records
 dedup %>%
