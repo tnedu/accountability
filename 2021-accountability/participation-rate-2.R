@@ -577,9 +577,15 @@ cdf_2 <- cdf %>%
       as.integer(reason_not_tested)
     ),
     reason_not_tested = if_else(
-      # Change the SNT to 1 if it is missing (or zero) BUT both raw score and
-      # scale score are missing.
-      (is.na(reason_not_tested) & is.na(raw_score) & is.na(scale_score)) | (reason_not_tested == 0 & is.na(raw_score) & is.na(scale_score)),
+      # Change the SNT to 1 (i.e., absent) if it is missing (or zero) BUT all
+      # three of the following conditions are true:
+      # 1) RI status is missing or zero.
+      # 2) Raw score is missing.
+      # 3) Scale score is missing.
+      (is.na(reason_not_tested) | reason_not_tested == 0) &
+        (is.na(ri_status) | ri_status == 0) &
+        is.na(raw_score) &
+        is.na(scale_score),
       1L,
       reason_not_tested
     ),
@@ -1096,6 +1102,10 @@ student_level_comp %>%
   arrange(state_student_id) %>%
   # count(reason_not_tested, reason_not_tested_am)
   View()
+
+View(filter(cdf, unique_student_id == 3601841))
+View(filter(regis, usid == 3601841))
+View(filter(student_level_2, state_student_id == 3601841))
 
 # # Split student level file
 # district_numbers <- sort(unique(student_level$system))
