@@ -762,7 +762,8 @@ student_level <- cdf_2 %>%
   mutate(
     enrolled = case_when(
       test == "MSAA" ~ enrolled,
-      reason_not_tested == 0 & (breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness) ~ 0,
+      (is.na(reason_not_tested) | reason_not_tested == 0) &
+        (breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness) ~ 0,
       not_enrolled | not_scheduled ~ 0,
       TRUE ~ 1
     ),
@@ -770,14 +771,16 @@ student_level <- cdf_2 %>%
     tested = case_when(
       # test == "MSAA" & reporting_status == "DNT" ~ 0,
       test == "MSAA" ~ tested,
-      reason_not_tested == 0 & (breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness) ~ 0,
+      (is.na(reason_not_tested) | reason_not_tested == 0) &
+        (breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness) ~ 0,
       absent | not_enrolled | not_scheduled ~ 0,
       el_recently_arrived == 1L & is.na(original_performance_level) ~ 0,
       TRUE ~ 1
     ),
     # EL Recently Arrived students performance level are converted to missing
     performance_level = case_when(
-      reason_not_tested == 0 & (breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness) ~ NA_character_,
+      (is.na(reason_not_tested) | reason_not_tested == 0) &
+        (breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness) ~ NA_character_,
       absent | not_enrolled | not_scheduled | medically_exempt | residential_facility | did_not_submit ~ NA_character_,
       el_recently_arrived == 1 ~ NA_character_,
       TRUE ~ performance_level
@@ -1098,14 +1101,17 @@ count(student_level_comp, enrolled, enrolled_am, sort = T)
 
 student_level_comp %>%
   filter(enrolled == 1, enrolled_am == 0) %>%
-  filter(reason_not_tested == 1, reason_not_tested_am == 0) %>%
-  arrange(state_student_id) %>%
-  # count(reason_not_tested, reason_not_tested_am)
-  View()
+  # filter(enrolled == 0, enrolled_am == 1) %>%
+  # filter(reason_not_tested == 1, reason_not_tested_am == 0) %>%
+  # filter(is.na(reason_not_tested), is.na(reason_not_tested_am)) %>%
+  # arrange(state_student_id) %>%
+  count(reason_not_tested, reason_not_tested_am)
+  # count(ri_status, ri_status_am)
+  # View()
 
-View(filter(cdf, unique_student_id == 3980994))
-View(filter(regis, usid == 3980994))
-View(filter(student_level_2, state_student_id == 3980994))
+student_level_2 %>% filter(enrolled == 0, reason_not_tested == 0) %>% View()
+
+sum(student_level_2$school == 999)
 
 # # Split student level file
 # district_numbers <- sort(unique(student_level$system))
