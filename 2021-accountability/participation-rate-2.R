@@ -369,7 +369,7 @@ regis <- regis_raw %>%
     usid, semester, test, test_name,
     overall_snt_regis, overall_ri_regis
   ) %>%
-  distinct(usid, semester, test, test_name, test_grade, .keep_all = T) %>%
+  distinct(usid, semester, test, test_name, .keep_all = T) %>%
   # group_by(usid, semester, test, test_name) %>%
   # filter(
   #   overall_snt_regis == first(overall_snt_regis)
@@ -378,7 +378,7 @@ regis <- regis_raw %>%
   # ungroup() %>%
   select(
     district_id, school_id, usid,
-    semester, test, test_name, test_grade, content_area_code,
+    semester, test, test_name, grade, content_area_code,
     overall_snt_regis, overall_ri_regis
   ) %>%
   distinct() %>%
@@ -460,7 +460,20 @@ cdf <- cdf_raw %>%
     grade %in% 3:12
   ) %>%
   # Drop records from CTE, Alternative, or Adult HS.
-  anti_join(cte_alt_adult, by = c('system', 'school'))
+  anti_join(cte_alt_adult, by = c('system', 'school')) %>%
+  mutate(
+    content_area_code = case_when(
+      content_area_code == "ENG" ~ "EN",
+      content_area_code == "MAT" ~ "MA",
+      content_area_code == "SOC" ~ "SS",
+      T ~ content_area_code
+    ),
+    performance_level = if_else(
+      performance_level == "On-Track",
+      "On Track",
+      performance_level
+    )
+  )
 
 summarize(
   cdf,
@@ -503,7 +516,7 @@ cdf_2 <- cdf %>%
   full_join(
     regis %>%
       mutate(in_regis = T) %>%
-      rename(grade = test_grade) %>%
+      # rename(grade = test_grade) %>%
       mutate(across(grade, as.integer)),
     by = c(
       'system' = 'district_id',
@@ -628,6 +641,12 @@ summarize(
 # No missing SNT codes, 7% missing RI codes
 summarize_missingness(cdf_2)
 
+count(cdf_2, original_subject)
+
+cdf_2 %>%
+  filter(is.na(original_subject)) %>%
+  View()
+
 # Create student-level data set ----
 
 # Apply remaining accountability business rules for excluding and counting
@@ -725,6 +744,7 @@ student_level <- cdf_2 %>%
     teacher_of_record_tln,
     reporting_status,
     reason_not_tested,
+    ri_status,
     breach_adult, breach_student, irregular_admin, incorrect_grade_subject, refused_to_test, failed_attemptedness,
     absent, not_enrolled, not_scheduled, medically_exempt, residential_facility, tested_alt, did_not_submit,
     enrolled, tested
@@ -958,7 +978,8 @@ student_level_2 <- dedup %>%
     original_performance_level, performance_level, scale_score, enrolled, tested, valid_test,
     state_student_id, last_name, first_name, grade, gender, reported_race, bhn_group, teacher_of_record_tln,
     functionally_delayed, special_ed, economically_disadvantaged, gifted, migrant, el, t1234, el_recently_arrived,
-    enrolled_50_pct_district, enrolled_50_pct_school, absent, refused_to_test, residential_facility
+    enrolled_50_pct_district, enrolled_50_pct_school, absent, refused_to_test, residential_facility, reason_not_tested,
+    ri_status
   ) %>%
   mutate_at(vars(absent, refused_to_test, residential_facility), as.integer) %>%
   # Percentiles by grade and original subject for 3-8
@@ -989,8 +1010,93 @@ student_level_2 <- dedup %>%
     el = if_else(state_student_id %in% elpa$student_id, 1, el)
   )
 
-# write_csv(student_level, "N:/ORP_accountability/projects/2019_student_level_file/2019_student_level_file.csv", na = "")
-#     
+count_categories(student_level_2, test, original_subject, semester, enrolled, tested)
+
+# write_csv(student_level_2, "student-level-file.csv", na = "")
+
+student_level_am <- read_csv("N:/ORP_accountability/projects/2021_student_level_file/2021_student_level_file.csv")
+
+names(student_level_2)
+names(student_level_am)
+
+summarize(
+  student_level_2,
+  n0 = n(),
+  n1 = nrow(distinct(student_level_2)),
+  n2 = n_distinct(state_student_id),
+  n3 = n_distinct(state_student_id, original_subject),
+  n4 = n_distinct(
+    state_student_id, semester, test, original_subject,
+    performance_level, scale_score
+  )
+)
+
+summarize(
+  student_level_am,
+  n0 = n(),
+  n1 = nrow(distinct(student_level_am)),
+  n2 = n_distinct(state_student_id),
+  n3 = n_distinct(state_student_id, original_subject),
+  n4 = n_distinct(
+    state_student_id, semester, test, original_subject,
+    performance_level, scale_score,
+    enrolled, tested,
+    teacher_of_record_tln,
+    reason_not_tested
+  )
+)
+
+student_level_comp <- list(student_level_2, student_level_am) %>%
+  map(
+    ~ .x %>%
+      transmute(
+        present = T,
+        system, school,
+        test = if_else(test %in% c("Alt-Science", "Alt-Social Studies"), "Alt-Science/Social Studies", test),
+        original_subject = if_else(original_subject == "Biology I", "Biology", original_subject),
+        subject, semester, scale_score,
+        enrolled, tested,
+        state_student_id, grade, reason_not_tested, absent,
+        ri_status, refused_to_test, residential_facility
+      )
+  ) %>%
+  reduce(
+    left_join,
+    by = c("state_student_id", "semester", "test", "original_subject"),
+    suffix = c("", "_am")
+  )
+
+count(student_level_comp, present, present_am)
+
+missing_in_am <- student_level_comp %>% filter(is.na(present_am))
+
+count_categories(
+  missing_in_am, 
+  test,
+  original_subject,
+  semester, enrolled, tested
+)
+
+count_categories(student_level_am, test, original_subject)
+
+missing_in_am %>%
+  distinct(state_student_id, original_subject) %>%
+  inner_join(
+    student_level_2,
+    by = c("state_student_id", "original_subject")
+  ) %>%
+  arrange(state_student_id) %>%
+  View()
+
+count(student_level_comp, enrolled, enrolled_am, sort = T)
+
+student_level_comp %>%
+  filter(enrolled == 1, enrolled_am == 0) %>%
+  filter(reason_not_tested == 1, reason_not_tested_am == 0) %>%
+  arrange(state_student_id) %>%
+  # count(reason_not_tested, reason_not_tested_am)
+  View()
+
 # # Split student level file
 # district_numbers <- sort(unique(student_level$system))
 # 
