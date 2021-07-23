@@ -569,6 +569,13 @@ cdf_2 <- cdf %>%
     #     is.na(raw_score) ~ 1,
     #   T ~ as.numeric(overall_snt_regis)
     # ),
+    ri_status = if_else(
+      # Use the registration RI if it is non-zero, the CDF RI is missing (or
+      # zero), and the raw score is missing. Otherwise, use the CDF RI.
+      (ri_status == 0 | is.na(ri_status)) & !is.na(overall_ri_regis) & is.na(raw_score),
+      as.integer(overall_ri_regis),
+      as.integer(ri_status)
+    ),
     reason_not_tested = if_else(
       # Use the registration SNT if it is non-zero, the CDF SNT is missing (or
       # zero), and the raw score is missing. Otherwise, use the CDF SNT.
@@ -588,13 +595,6 @@ cdf_2 <- cdf %>%
         is.na(scale_score),
       1L,
       reason_not_tested
-    ),
-    ri_status = if_else(
-      # Use the registration RI if it is non-zero, the CDF RI is missing (or
-      # zero), and the raw score is missing. Otherwise, use the CDF RI.
-      (ri_status == 0 | is.na(ri_status)) & !is.na(overall_ri_regis) & is.na(raw_score),
-      as.integer(overall_ri_regis),
-      as.integer(ri_status)
     ),
     ri_status = if_else(reason_not_tested == 1 & ri_status == 6, 0, as.numeric(ri_status)),
     performance_level = if_else(performance_level == "On track", "On Track", performance_level),
@@ -1103,9 +1103,9 @@ student_level_comp %>%
   # count(reason_not_tested, reason_not_tested_am)
   View()
 
-View(filter(cdf, unique_student_id == 3601841))
-View(filter(regis, usid == 3601841))
-View(filter(student_level_2, state_student_id == 3601841))
+View(filter(cdf, unique_student_id == 3980994))
+View(filter(regis, usid == 3980994))
+View(filter(student_level_2, state_student_id == 3980994))
 
 # # Split student level file
 # district_numbers <- sort(unique(student_level$system))
