@@ -1048,10 +1048,10 @@ summarize(
   n3 = n_distinct(state_student_id, original_subject),
   n4 = n_distinct(
     state_student_id, semester, test, original_subject,
-    performance_level, scale_score,
-    enrolled, tested,
-    teacher_of_record_tln,
-    reason_not_tested
+    performance_level, scale_score
+    # enrolled, tested,
+    # teacher_of_record_tln,
+    # reason_not_tested
   )
 )
 
@@ -1067,10 +1067,11 @@ student_level_comp <- list(student_level_2, student_level_am) %>%
         enrolled, tested,
         state_student_id, grade, reason_not_tested, absent,
         ri_status, refused_to_test, residential_facility
-      )
+      ) %>%
+      filter(grade %in% 3:12)
   ) %>%
   reduce(
-    left_join,
+    full_join,
     by = c("state_student_id", "semester", "test", "original_subject"),
     suffix = c("", "_am")
   )
@@ -1078,17 +1079,20 @@ student_level_comp <- list(student_level_2, student_level_am) %>%
 count(student_level_comp, present, present_am)
 
 missing_in_am <- student_level_comp %>% filter(is.na(present_am))
+missing_in_jc <- student_level_comp %>% filter(is.na(present))
 
 count_categories(
-  missing_in_am, 
-  test,
+  # missing_in_am, 
+  missing_in_jc,
+  system_am, school_am, test, grade_am,
   original_subject,
-  semester, enrolled, tested
+  semester, enrolled_am, tested_am
 )
 
 count_categories(student_level_am, test, original_subject)
 
-missing_in_am %>%
+# missing_in_am %>%
+missing_in_jc %>%
   distinct(state_student_id, original_subject) %>%
   inner_join(
     student_level_2,
@@ -1097,16 +1101,29 @@ missing_in_am %>%
   arrange(state_student_id) %>%
   View()
 
-count(student_level_comp, enrolled, enrolled_am, sort = T)
+count(
+  student_level_comp %>% filter(!str_detect(test, "WIDA")),
+  enrolled, enrolled_am, sort = T
+)
 
 student_level_comp %>%
-  filter(enrolled == 1, enrolled_am == 0) %>%
-  # filter(enrolled == 0, enrolled_am == 1) %>%
+  filter(!str_detect(test, "WIDA")) %>%
+  # filter(enrolled == 1, enrolled_am == 0) %>%
+  filter(enrolled == 0, enrolled_am == 1) %>%
   # filter(reason_not_tested == 1, reason_not_tested_am == 0) %>%
   # filter(is.na(reason_not_tested), is.na(reason_not_tested_am)) %>%
-  # arrange(state_student_id) %>%
-  count(reason_not_tested, reason_not_tested_am)
+  # count(reason_not_tested, reason_not_tested_am, ri_status, ri_status_am, sort = T)
+  filter(reason_not_tested == 0, ri_status == 3) %>%
+  # count(test)
   # count(ri_status, ri_status_am)
+  arrange(state_student_id) %>%
+  View()
+
+count(student_level_comp, tested, tested_am, sort = T)
+
+student_level_comp %>%
+  filter(tested == 0, tested_am == 1) %>%
+  count(reason_not_tested, reason_not_tested_am, ri_status, ri_status_am, sort = T)
   # View()
 
 student_level_2 %>% filter(enrolled == 0, reason_not_tested == 0) %>% View()
