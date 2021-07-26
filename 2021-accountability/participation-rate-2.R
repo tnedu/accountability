@@ -903,7 +903,7 @@ dedup <- student_level %>%
   # ungroup() %>%
   # select(-n, -temp) %>%
   arrange(
-    state_student_id, subject, -test_priority, -prof_priority, -scale_score,
+    state_student_id, subject, -test_priority, original_subject, -prof_priority, -scale_score,
     -semester_priority, -demo_priority, -grade_priority
   ) %>%
   distinct(state_student_id, subject, .keep_all = T) %>%
@@ -1025,6 +1025,7 @@ student_level_2 <- dedup %>%
 count_categories(student_level_2, test, original_subject, semester, enrolled, tested)
 
 # write_csv(student_level_2, "student-level-file.csv", na = "")
+# write_csv(student_level_2, "N:/ORP_accountability/projects/2021_student_level_file/student-level-file-jc.csv")
 
 student_level_am <- read_csv("N:/ORP_accountability/projects/2021_student_level_file/2021_student_level_file.csv")
 
@@ -1061,6 +1062,7 @@ summarize(
 student_level_comp <- list(student_level_2, student_level_am) %>%
   map(
     ~ .x %>%
+      filter(semester == "Spring", test %in% c("TNReady", "EOC")) %>%
       transmute(
         present = T,
         system, school,
@@ -1078,16 +1080,21 @@ student_level_comp <- list(student_level_2, student_level_am) %>%
   ) %>%
   reduce(
     full_join,
-    by = c("state_student_id", "semester", "test", "original_subject"),
+    by = c("system", "school", "state_student_id", "semester", "test", "original_subject"),
     suffix = c("", "_am")
   )
 
 count(student_level_comp, present, present_am)
 
-missing_in_am <- student_level_comp %>% filter(is.na(present_am))
-missing_in_jc <- student_level_comp %>% filter(is.na(present))
+missing_in_am <- student_level_comp %>% filter(is.na(present_am)) %>% arrange(state_student_id)
+missing_in_jc <- student_level_comp %>% filter(is.na(present)) %>% arrange(state_student_id)
 
-student_level_2 %>% filter(state_student_id == 4095848) %>% View()
+# write.xlsx(
+#   list("missing-in-am" = missing_in_am, "missing-in-jc" = missing_in_jc),
+#   str_c("mismatches-", today(), ".xlsx"),
+#   colWidths = "auto",
+#   overwrite = T
+# )
 
 count_categories(
   missing_in_am, 
@@ -1120,25 +1127,34 @@ count(
   enrolled, enrolled_am, sort = T
 )
 
+count(
+  student_level_comp %>% filter(!str_detect(test, "WIDA")),
+  tested, tested_am, sort = T
+)
+
 student_level_comp %>%
   filter(!str_detect(test, "WIDA")) %>%
   # filter(enrolled == 1, enrolled_am == 0) %>%
-  filter(enrolled == 0, enrolled_am == 1) %>%
+  filter(enrolled == 1 & enrolled_am == 0 | enrolled == 0 & enrolled_am == 1) %>%
   # filter(reason_not_tested == 1, reason_not_tested_am == 0) %>%
   # filter(is.na(reason_not_tested), is.na(reason_not_tested_am)) %>%
   # count(reason_not_tested, reason_not_tested_am, ri_status, ri_status_am, sort = T)
-  filter(reason_not_tested == 0, ri_status == 3) %>%
+  # filter(reason_not_tested == 0, ri_status == 3) %>%
   # count(test)
   # count(ri_status, ri_status_am)
   arrange(state_student_id) %>%
   View()
 
-count(student_level_comp, tested, tested_am, sort = T)
+x <- student_level_comp %>%
+  # filter(tested == 0, tested_am == 1) %>%
+  filter(tested == 0 & tested_am == 1 | tested == 1 & tested_am == 0) %>%
+  # count(reason_not_tested, reason_not_tested_am, ri_status, ri_status_am, sort = T)
+  arrange(state_student_id)
 
-student_level_comp %>%
-  filter(tested == 0, tested_am == 1) %>%
-  count(reason_not_tested, reason_not_tested_am, ri_status, ri_status_am, sort = T)
-  # View()
+View(x)
+
+# x2 <- x$state_student_id
+x2 <- missing_in_am$state_student_id
 
 student_level_2 %>% filter(enrolled == 0, reason_not_tested == 0) %>% View()
 
@@ -1186,7 +1202,7 @@ summary(partic_dist)
 
 partic_dist %>% arrange(participation_rate) %>% View()
 
-write_csv(partic_dist, str_c("participation-rate-district-", today(), ".csv"))
+# write_csv(partic_dist, str_c("participation-rate-district-", today(), ".csv"))
 
 # Combine and explore WIDA ACCESS summative files ----
 
