@@ -284,7 +284,7 @@ summarize_missingness(regis_raw)
 
 # Test format = P
 count_categories(regis_raw, gender, enrolled_grade, test_format, test_name)
-count(regis_raw, test_name) %>% View()
+count(regis_raw, test, test_name) %>% View()
 
 # SNT and RI fields for sub-parts 2+ are empty for sub-part 1 (and vice versa).
 regis_raw %>%
@@ -301,7 +301,6 @@ regis <- regis_raw %>%
     district_id < 990,
     school_id < 9000,
     !school_id %in% c(981, 982, 999),
-    enrolled_grade %in% 3:12,
     # Exclude all Grade 2 assessments.
     !str_detect(test_name, "Gr 2")
     # , district_id %in% test_district
@@ -318,7 +317,7 @@ regis <- regis_raw %>%
   # and English II.
   mutate(
     grade = if_else(
-      test == 'TNReady',
+      str_detect(test_name, 'Gr \\d'),
       as.numeric(str_extract(test_name, '\\d')),
       enrolled_grade
     ),
@@ -367,7 +366,8 @@ regis <- regis_raw %>%
   ) %>%
   arrange(
     usid, semester, test, test_name,
-    overall_snt_regis, overall_ri_regis
+    overall_snt_regis, overall_ri_regis,
+    -grade
   ) %>%
   distinct(usid, semester, test, test_name, .keep_all = T) %>%
   # group_by(usid, semester, test, test_name) %>%
@@ -392,7 +392,7 @@ summarize(
   n3 = n_distinct(district_id, school_id),
   n4 = n_distinct(usid),
   n5 = n_distinct(district_id, school_id, usid),
-  n6 = n_distinct(usid, enrolled_grade),
+  n6 = n_distinct(usid, grade),
   # Almost distinct by student and content area code (or test name)
   n7 = n_distinct(usid, content_area_code),
   # Distinct by student, semester, test, and content area code (or test name)
@@ -402,6 +402,7 @@ summarize(
 summarize_missingness(regis)
 
 count_categories(regis, overall_snt_regis, overall_ri_regis)
+count(regis, test, grade) %>% View()
 
 rm(regis_fall_eoc_raw, regis_spring_3_8_raw, regis_spring_alt_raw, regis_spring_eoc_raw)
 
@@ -450,6 +451,8 @@ count_categories(
   reason_not_tested, ri_status,
   enrolled_50_pct_district, enrolled_50_pct_school
 )
+
+count(cdf_raw %>% filter(test == "EOC"), grade)
 
 cdf <- cdf_raw %>%
   # filter(system %in% test_district) %>%
@@ -670,7 +673,7 @@ int_math_systems <- cdf_2 %>%
   filter(n == temp, content_area_code == "M1") %>%
   magrittr::extract2("system")
 
-count(msaa, reporting_status)
+count_categories(msaa, grade, reporting_status)
 
 # DNT = no scale score
 msaa %>%
@@ -681,6 +684,7 @@ student_level <- cdf_2 %>%
   bind_rows(
     msaa %>%
       # filter(system %in% test_district) %>%
+      filter(grade %in% 3:12) %>%
       mutate(across(grade, as.integer)) %>%
       mutate(
         enrolled = 1,
@@ -706,8 +710,7 @@ student_level <- cdf_2 %>%
     !is.na(system),
     system < 990,
     school < 9000,
-    !school %in% c(981, 982, 999), # 981 is homeschool  residential_facility != 1 | is.na(residential_facility),
-    grade %in% 3:12
+    !school %in% c(981, 982, 999) # 981 is homeschool  residential_facility != 1 | is.na(residential_facility),
     # Drop CTE/Alt/Adult
     # !(paste0(system, '/', school) %in% paste0(alt_cte_adult$system, '/', alt_cte_adult$school))#, # 981 is homeschool  residential_facility != 1 | is.na(residential_facility),
   ) %>%
@@ -938,11 +941,11 @@ dedup %>%
     has_snt_code = !is.na(reason_not_tested) & reason_not_tested > 0,
     has_ri_code = breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness
   ) %>%
-  # count(has_score, has_snt_code, has_ri_code, sort = T)
+  count(has_score, has_snt_code, has_ri_code, sort = T)
   # count(enrolled, tested, has_score, has_snt_code, has_ri_code, sort = T)
-  filter(has_score, tested == 0) %>%
+  # filter(has_score, tested == 0) %>%
   # count(test, semester) # Stems from spring TNReady raw scores - wait and see if switch to CDF fixes it
-  count(el_recently_arrived, performance_level) # All RAEL
+  # count(el_recently_arrived, performance_level) # All RAEL
   # filter(has_snt_code, tested == 1) %>% # 4, 5, 6
   # count(reason_not_tested)
   # View()
@@ -1036,7 +1039,7 @@ summarize(
   n3 = n_distinct(state_student_id, original_subject),
   n4 = n_distinct(
     state_student_id, semester, test, original_subject,
-    performance_level, scale_score
+    performance_level, scale_score, grade
   )
 )
 
@@ -1068,7 +1071,10 @@ student_level_comp <- list(student_level_2, student_level_am) %>%
         state_student_id, grade, reason_not_tested, absent,
         ri_status, refused_to_test, residential_facility
       ) %>%
-      filter(grade %in% 3:12)
+      filter(
+        # (is.na(grade) | grade %in% 3:12),
+        !str_detect(test, "WIDA")
+      )
   ) %>%
   reduce(
     full_join,
@@ -1081,8 +1087,16 @@ count(student_level_comp, present, present_am)
 missing_in_am <- student_level_comp %>% filter(is.na(present_am))
 missing_in_jc <- student_level_comp %>% filter(is.na(present))
 
+student_level_2 %>% filter(state_student_id == 4095848) %>% View()
+
 count_categories(
-  # missing_in_am, 
+  missing_in_am, 
+  system, school, test, grade,
+  original_subject,
+  semester, enrolled, tested
+)
+
+count_categories(
   missing_in_jc,
   system_am, school_am, test, grade_am,
   original_subject,
