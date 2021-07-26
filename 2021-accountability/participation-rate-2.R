@@ -803,6 +803,7 @@ student_level <- cdf_2 %>%
       grade %in% 3:8 & original_subject %in% math_eoc ~ "Math",
       grade %in% 3:8 & original_subject %in% english_eoc ~ "ELA",
       grade %in% 3:8 & original_subject == "US History" ~ "Social Studies",
+      grade %in% 3:8 & original_subject == "Biology" ~ "Science",
       TRUE ~ subject
     )
   )
@@ -829,6 +830,7 @@ dedup <- student_level %>%
   anti_join(cte_alt_adult, by = c("system", "school")) %>%
   # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
   mutate(
+    prof_not_missing = if_else(is.na(performance_level), 1, 2),
     test_priority = case_when(
       test %in% c("MSAA", "Alt-Science", "Alt-Social Studies") ~ 3,
       test == "EOC" ~ 2,
@@ -903,7 +905,7 @@ dedup <- student_level %>%
   # ungroup() %>%
   # select(-n, -temp) %>%
   arrange(
-    state_student_id, subject, -test_priority, original_subject, -prof_priority, -scale_score,
+    state_student_id, subject, -prof_not_missing, -test_priority, original_subject, -prof_priority, -scale_score,
     -semester_priority, -demo_priority, -grade_priority
   ) %>%
   distinct(state_student_id, subject, .keep_all = T) %>%
@@ -1025,6 +1027,7 @@ student_level_2 <- dedup %>%
 
 count_categories(student_level_2, test, original_subject, semester, enrolled, tested)
 count(student_level_2, grade)
+count(student_level_2, test)
 
 # write_csv(student_level_2, "student-level-file.csv", na = "")
 # write_csv(student_level_2, "N:/ORP_accountability/projects/2021_student_level_file/student-level-file-jc.csv")
@@ -1188,9 +1191,12 @@ summarize(
   n3 = n_distinct(state_student_id, subject, semester)
 )
 
+View(student_level_2 %>% group_by(state_student_id, original_subject) %>% filter(n() > 1))
+
 count(student_level_2, test, original_subject)
 
 partic_dist <- student_level_2 %>%
+  filter(semester == "Spring", test %in% c("TNReady", "EOC")) %>% # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   # arrange(state_student_id, subject, semester, desc(enrolled), desc(tested)) %>%
   # distinct(state_student_id, subject, semester, .keep_all = T) %>%
   group_by(system) %>%
@@ -1205,6 +1211,7 @@ summary(partic_dist)
 partic_dist %>% arrange(participation_rate) %>% View()
 
 # write_csv(partic_dist, str_c("participation-rate-district-", today(), ".csv"))
+# write_csv(partic_dist, str_c("participation-rate-district-spring-tnready-eoc-", today(), ".csv"))
 
 # Combine and explore WIDA ACCESS summative files ----
 
