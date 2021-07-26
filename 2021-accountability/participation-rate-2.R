@@ -1021,9 +1021,10 @@ student_level_2 <- dedup %>%
   mutate(
     el = if_else(state_student_id %in% elpa$student_id, 1, el)
   ) %>%
-  filter(grade %in% 3:12)
+  filter(grade %in% c(0, 3:12))
 
 count_categories(student_level_2, test, original_subject, semester, enrolled, tested)
+count(student_level_2, grade)
 
 # write_csv(student_level_2, "student-level-file.csv", na = "")
 # write_csv(student_level_2, "N:/ORP_accountability/projects/2021_student_level_file/student-level-file-jc.csv")
