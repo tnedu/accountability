@@ -300,9 +300,9 @@ regis <- regis_raw %>%
   filter(
     district_id < 990,
     school_id < 9000,
-    !school_id %in% c(981, 982, 999),
+    !school_id %in% c(981, 982, 999)
     # Exclude all Grade 2 assessments.
-    !str_detect(test_name, "Gr 2")
+    # !str_detect(test_name, "Gr 2")
     # , district_id %in% test_district
   ) %>%
   # Drop records from CTE, Alternative, or Adult HS.
@@ -459,8 +459,8 @@ cdf <- cdf_raw %>%
   filter(
     system < 990,
     school < 9000,
-    !school %in% c(981, 982, 999),
-    grade %in% 3:12
+    !school %in% c(981, 982, 999)
+    # grade %in% 3:12
   ) %>%
   # Drop records from CTE, Alternative, or Adult HS.
   anti_join(cte_alt_adult, by = c('system', 'school')) %>%
@@ -684,7 +684,7 @@ student_level <- cdf_2 %>%
   bind_rows(
     msaa %>%
       # filter(system %in% test_district) %>%
-      filter(grade %in% 3:12) %>%
+      # filter(grade %in% 3:12) %>%
       mutate(across(grade, as.integer)) %>%
       mutate(
         enrolled = 1,
@@ -1020,7 +1020,8 @@ student_level_2 <- dedup %>%
   # Assign EL = 1 if student tested ELPA
   mutate(
     el = if_else(state_student_id %in% elpa$student_id, 1, el)
-  )
+  ) %>%
+  filter(grade %in% 3:12)
 
 count_categories(student_level_2, test, original_subject, semester, enrolled, tested)
 
