@@ -770,14 +770,15 @@ student_level <- cdf_2 %>%
       not_enrolled | not_scheduled ~ 0,
       TRUE ~ 1
     ),
-    # EL Recently Arrived students with missing proficiency are not considered tested
     tested = case_when(
       # test == "MSAA" & reporting_status == "DNT" ~ 0,
       test == "MSAA" ~ tested,
       (is.na(reason_not_tested) | reason_not_tested == 0) &
         (breach_adult | breach_student | irregular_admin | incorrect_grade_subject | refused_to_test | failed_attemptedness) ~ 0,
       absent | not_enrolled | not_scheduled ~ 0,
-      el_recently_arrived == 1L & is.na(original_performance_level) ~ 0,
+      # Recently Arrived English Learners who tested but lack proficiency
+      # levels do not count as tested.
+      el_recently_arrived == 1L & is.na(original_performance_level) & (is.na(reason_not_tested) | reason_not_tested == 0) ~ 0,
       TRUE ~ 1
     ),
     # EL Recently Arrived students performance level are converted to missing
@@ -1032,6 +1033,8 @@ count(student_level_2, test)
 # write_csv(student_level_2, "student-level-file.csv", na = "")
 # write_csv(student_level_2, "N:/ORP_accountability/projects/2021_student_level_file/student-level-file-jc.csv")
 
+# Compare student-level data with Andrew's ----
+
 student_level_am <- read_csv("N:/ORP_accountability/projects/2021_student_level_file/2021_student_level_file.csv")
 
 names(student_level_2)
@@ -1067,7 +1070,7 @@ summarize(
 student_level_comp <- list(student_level_2, student_level_am) %>%
   map(
     ~ .x %>%
-      filter(semester == "Spring", test %in% c("TNReady", "EOC")) %>%
+      # filter(semester == "Spring", test %in% c("TNReady", "EOC")) %>%
       transmute(
         present = T,
         system, school,
