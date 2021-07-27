@@ -829,9 +829,14 @@ count_categories(student_level, test, grade, reported_race)
 
 dedup <- student_level %>%
   anti_join(cte_alt_adult, by = c("system", "school")) %>%
+  mutate(prof_not_missing = if_else(is.na(performance_level), 1, 2)) %>%
+  # group_by(state_student_id, subject) %>%
+  # mutate(temp = max(prof_not_missing, na.rm = TRUE)) %>%
+  # filter(prof_not_missing == temp | temp == -Inf) %>%
+  # select(-prof_not_missing, -temp) %>%
+  # ungroup() %>%
   # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
   mutate(
-    prof_not_missing = if_else(is.na(performance_level), 1, 2),
     test_priority = case_when(
       test %in% c("MSAA", "Alt-Science", "Alt-Social Studies") ~ 3,
       test == "EOC" ~ 2,
@@ -887,29 +892,35 @@ dedup <- student_level %>%
     )
   ) %>%
   # group_by(state_student_id, original_subject, test, performance_level, scale_score, semester) %>%
-  # mutate(
-  #   n = n(),                           # Tag duplicates by id, subject, test, performance level, scale score, semester
-  #   temp = mean(is.na(reported_race))  # Check whether one among duplicates has non-missing race/ethnicity
-  # ) %>%
-  # filter(!(n > 1 & temp != 0 & is.na(reported_race))) %>%
+  # # mutate(
+  # #   n = n(),                           # Tag duplicates by id, subject, test, performance level, scale score, semester
+  # #   temp = mean(is.na(reported_race))  # Check whether one among duplicates has non-missing race/ethnicity
+  # # ) %>%
+  # # filter(!(n > 1 & temp != 0 & is.na(reported_race))) %>%
+  # mutate(temp = max(demo_priority, na.rm = TRUE)) %>%
+  # filter(demo_priority == temp | temp == -Inf) %>%
+  # select(-demo_priority, -temp) %>%
   # ungroup() %>%
   # select(-n, -temp) %>%
   # For students multiple test records with the same original subject, performance level, scale score, demographics
   # Deduplicate for non-missing grade
   mutate(grade_priority = if_else(is.na(grade), 1, 2)) %>%
   # group_by(state_student_id, original_subject, test, performance_level, scale_score, semester, reported_race) %>%
-  # mutate(
-  #   n = n(),                   # Tag duplicates by id, subject, test, performance level, scale score, semester
-  #   temp = mean(is.na(grade))  # Check whether one among duplicates has non-missing race/ethnicity
-  # ) %>%
-  # filter(!(n > 1 & temp != 0 & is.na(grade))) %>%
+  # # mutate(
+  # #   n = n(),                   # Tag duplicates by id, subject, test, performance level, scale score, semester
+  # #   temp = mean(is.na(grade))  # Check whether one among duplicates has non-missing race/ethnicity
+  # # ) %>%
+  # # filter(!(n > 1 & temp != 0 & is.na(grade))) %>%
+  # mutate(temp = max(grade_priority, na.rm = TRUE)) %>%
+  # filter(grade_priority == temp | temp == -Inf) %>%
+  # select(-grade_priority, -temp) %>%
   # ungroup() %>%
   # select(-n, -temp) %>%
   arrange(
-    state_student_id, subject, -prof_not_missing, -test_priority, original_subject, -prof_priority, -scale_score,
+    state_student_id, subject, -prof_not_missing, -test_priority, -prof_priority, -scale_score,
     -semester_priority, -demo_priority, -grade_priority
   ) %>%
-  distinct(state_student_id, subject, .keep_all = T) %>%
+  distinct(state_student_id, subject, .keep_all = T) %>% # original_subject
   # Valid test if there is a proficiency level
   mutate(valid_test = as.integer(not_na(performance_level)))
 
