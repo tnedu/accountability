@@ -815,7 +815,8 @@ summarize(
   n1 = nrow(distinct(student_level)),
   n2 = n_distinct(state_student_id),
   n3 = n_distinct(state_student_id, original_subject),
-  n4 = n_distinct(
+  n4 = n_distinct(state_student_id, original_subject, subject),
+  n5 = n_distinct(
     system, school, state_student_id, grade,
     semester, test, original_subject
   )
@@ -827,12 +828,25 @@ count_categories(student_level, test, grade, reported_race)
 
 # De-duplicate student-level data ----
 
-dedup <- student_level %>%
+duplicates <- student_level %>%
+  group_by(state_student_id, original_subject) %>%
+  filter(n() > 1) %>%
+  ungroup() %>%
+  bind_rows(
+    student_level %>%
+      group_by(state_student_id, subject) %>%
+      filter(n() > 1) %>%
+      ungroup()
+  ) %>%
+  distinct()
+
+dedup <- duplicates %>%
   anti_join(cte_alt_adult, by = c("system", "school")) %>%
   mutate(prof_not_missing = if_else(is.na(performance_level), 1, 2)) %>%
-  # group_by(state_student_id, subject) %>%
+  group_by(state_student_id, subject) %>%
   # mutate(temp = max(prof_not_missing, na.rm = TRUE)) %>%
   # filter(prof_not_missing == temp | temp == -Inf) %>%
+  filter(prof_not_missing == max(prof_not_missing)) %>% # mean(is.na(prof_not_missing)) == 1 |
   # select(-prof_not_missing, -temp) %>%
   # ungroup() %>%
   # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
@@ -846,6 +860,7 @@ dedup <- student_level %>%
   # group_by(state_student_id, subject) %>%
   # mutate(temp = max(test_priority, na.rm = TRUE)) %>%
   # filter(test_priority == temp | temp == -Inf) %>%
+  filter(mean(is.na(test_priority)) == 1 | test_priority == max(test_priority, na.rm = T)) %>%
   # select(-test_priority, -temp) %>%
   # ungroup() %>%
   # For students with multiple records within the same test, take highest performance level
@@ -857,15 +872,17 @@ dedup <- student_level %>%
       performance_level %in% c("Mastered", "Advanced") ~ 4
     )
   ) %>%
-  # group_by(state_student_id, original_subject, test) %>%
+  group_by(state_student_id, original_subject, test) %>%
   # mutate(temp = max(prof_priority, na.rm = TRUE)) %>%
   # filter(prof_priority == temp | temp == -Inf) %>%
+  filter(mean(is.na(prof_priority)) == 1 | prof_priority == max(prof_priority, na.rm = T)) %>%
   # select(-prof_priority, -temp) %>%
   # ungroup() %>%
   # For students with multiple records within the same performance level, take highest scale score
-  # group_by(state_student_id, original_subject, test, performance_level) %>%
+  group_by(state_student_id, original_subject, test, performance_level) %>%
   # mutate(temp = max(scale_score, na.rm = TRUE)) %>%
   # filter(scale_score == temp | temp == -Inf) %>%
+  filter(mean(is.na(scale_score)) == 1 | scale_score == max(scale_score, na.rm = T)) %>%
   # select(-temp) %>%
   # ungroup() %>%
   # For students with multiple test records with the same proficiency across administrations, take the most recent
@@ -875,9 +892,10 @@ dedup <- student_level %>%
       test == "EOC" & semester == "Fall" ~ 1
     )
   ) %>%
-  # group_by(state_student_id, original_subject, test) %>%
+  group_by(state_student_id, original_subject, test) %>%
   # mutate(temp = max(semester_priority, na.rm = TRUE)) %>%
   # filter(semester_priority == temp | temp == -Inf) %>%
+  filter(mean(is.na(semester_priority)) == 1 | semester_priority == max(semester_priority, na.rm = T)) %>%
   # select(-semester_priority, -temp) %>%
   # ungroup() %>%
   # For students with multiple test records with the same original subject, performance level, scale score
@@ -891,7 +909,7 @@ dedup <- student_level %>%
       reported_race == 'Unknown' | is.na(reported_race) ~ 1
     )
   ) %>%
-  # group_by(state_student_id, original_subject, test, performance_level, scale_score, semester) %>%
+  group_by(state_student_id, original_subject, test, performance_level, scale_score, semester) %>%
   # # mutate(
   # #   n = n(),                           # Tag duplicates by id, subject, test, performance level, scale score, semester
   # #   temp = mean(is.na(reported_race))  # Check whether one among duplicates has non-missing race/ethnicity
@@ -899,13 +917,14 @@ dedup <- student_level %>%
   # # filter(!(n > 1 & temp != 0 & is.na(reported_race))) %>%
   # mutate(temp = max(demo_priority, na.rm = TRUE)) %>%
   # filter(demo_priority == temp | temp == -Inf) %>%
+  filter(demo_priority == max(demo_priority, na.rm = T)) %>%
   # select(-demo_priority, -temp) %>%
   # ungroup() %>%
   # select(-n, -temp) %>%
   # For students multiple test records with the same original subject, performance level, scale score, demographics
   # Deduplicate for non-missing grade
   mutate(grade_priority = if_else(is.na(grade), 1, 2)) %>%
-  # group_by(state_student_id, original_subject, test, performance_level, scale_score, semester, reported_race) %>%
+  group_by(state_student_id, original_subject, test, performance_level, scale_score, semester, reported_race) %>%
   # # mutate(
   # #   n = n(),                   # Tag duplicates by id, subject, test, performance level, scale score, semester
   # #   temp = mean(is.na(grade))  # Check whether one among duplicates has non-missing race/ethnicity
@@ -913,14 +932,15 @@ dedup <- student_level %>%
   # # filter(!(n > 1 & temp != 0 & is.na(grade))) %>%
   # mutate(temp = max(grade_priority, na.rm = TRUE)) %>%
   # filter(grade_priority == temp | temp == -Inf) %>%
+  filter(grade_priority == max(grade_priority, na.rm = T)) %>%
   # select(-grade_priority, -temp) %>%
-  # ungroup() %>%
+  ungroup() %>%
   # select(-n, -temp) %>%
-  arrange(
-    state_student_id, subject, -prof_not_missing, -test_priority, -prof_priority, -scale_score,
-    -semester_priority, -demo_priority, -grade_priority
-  ) %>%
-  distinct(state_student_id, subject, .keep_all = T) %>% # original_subject
+  # arrange(
+  #   state_student_id, subject, -prof_not_missing, -test_priority, -prof_priority, -scale_score,
+  #   -semester_priority, -demo_priority, -grade_priority
+  # ) %>%
+  # distinct(state_student_id, subject, .keep_all = T) %>% # original_subject
   # Valid test if there is a proficiency level
   mutate(valid_test = as.integer(not_na(performance_level)))
 
@@ -930,7 +950,35 @@ summarize(
   n1 = nrow(distinct(dedup)),
   n2 = n_distinct(state_student_id),
   n3 = n_distinct(state_student_id, original_subject),
-  n4 = n_distinct(
+  # Distinct by student ID, original subject, and subject
+  n4 = n_distinct(state_student_id, original_subject, subject),
+  n5 = n_distinct(
+    state_student_id, semester, test, original_subject,
+    performance_level, scale_score
+  )
+)
+
+dedup %>%
+  group_by(state_student_id, original_subject) %>%
+  filter(n() > 1) %>%
+  View()
+
+dedup <- student_level %>%
+  anti_join(
+    duplicates %>% distinct(state_student_id, original_subject, subject),
+    by = c("state_student_id", "original_subject", "subject")
+  ) %>%
+  bind_rows(dedup)
+
+summarize(
+  dedup,
+  n0 = n(),
+  n1 = nrow(distinct(dedup)),
+  n2 = n_distinct(state_student_id),
+  n3 = n_distinct(state_student_id, original_subject),
+  # Distinct by student ID, original subject, and subject
+  n4 = n_distinct(state_student_id, original_subject, subject),
+  n5 = n_distinct(
     state_student_id, semester, test, original_subject,
     performance_level, scale_score
   )
@@ -1057,7 +1105,8 @@ summarize(
   n1 = nrow(distinct(student_level_2)),
   n2 = n_distinct(state_student_id),
   n3 = n_distinct(state_student_id, original_subject),
-  n4 = n_distinct(
+  n4 = n_distinct(state_student_id, original_subject, subject),
+  n5 = n_distinct(
     state_student_id, semester, test, original_subject,
     performance_level, scale_score, grade
   )
@@ -1069,7 +1118,8 @@ summarize(
   n1 = nrow(distinct(student_level_am)),
   n2 = n_distinct(state_student_id),
   n3 = n_distinct(state_student_id, original_subject),
-  n4 = n_distinct(
+  n4 = n_distinct(state_student_id, original_subject, subject),
+  n5 = n_distinct(
     state_student_id, semester, test, original_subject,
     performance_level, scale_score
     # enrolled, tested,
@@ -1087,7 +1137,8 @@ student_level_comp <- list(student_level_2, student_level_am) %>%
         system, school,
         test = if_else(test %in% c("Alt-Science", "Alt-Social Studies"), "Alt-Science/Social Studies", test),
         original_subject = if_else(original_subject == "Biology I", "Biology", original_subject),
-        subject, semester, scale_score,
+        subject = if_else(subject == "Biology I", "Biology", subject),
+        semester, scale_score,
         enrolled, tested,
         state_student_id, grade, reason_not_tested, absent,
         ri_status, refused_to_test, residential_facility
@@ -1099,7 +1150,8 @@ student_level_comp <- list(student_level_2, student_level_am) %>%
   ) %>%
   reduce(
     full_join,
-    by = c("system", "school", "state_student_id", "semester", "test", "original_subject"),
+    # by = c("system", "school", "state_student_id", "semester", "test", "original_subject"),
+    by = c("state_student_id", "original_subject", "subject"),
     suffix = c("", "_am")
   )
 
@@ -1118,14 +1170,14 @@ missing_in_jc <- student_level_comp %>% filter(is.na(present)) %>% arrange(state
 count_categories(
   missing_in_am, 
   system, school, test, grade,
-  original_subject,
+  original_subject, subject,
   semester, enrolled, tested
 )
 
 count_categories(
   missing_in_jc,
   system_am, school_am, test, grade_am,
-  original_subject,
+  original_subject, subject,
   semester, enrolled_am, tested_am
 )
 
