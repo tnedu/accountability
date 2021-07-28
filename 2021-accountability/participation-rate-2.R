@@ -852,7 +852,7 @@ dedup <- duplicates %>%
   # For students with multiple records across test types, MSAA has priority, then EOC, then 3-8
   mutate(
     test_priority = case_when(
-      test %in% c("MSAA", "Alt-Science", "Alt-Social Studies") ~ 3,
+      test %in% c("MSAA", "Alt-Science", "Alt-Social Studies", "Alt-ELA", "Alt-Math") ~ 3,
       test == "EOC" ~ 2,
       test == "TNReady" ~ 1
     )
