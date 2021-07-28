@@ -1151,7 +1151,7 @@ student_level_comp <- list(student_level_2, student_level_am) %>%
   reduce(
     full_join,
     # by = c("system", "school", "state_student_id", "semester", "test", "original_subject"),
-    by = c("state_student_id", "original_subject", "subject"),
+    by = c("system", "school", "state_student_id", "original_subject", "subject"),
     suffix = c("", "_am")
   )
 
@@ -1262,7 +1262,7 @@ View(student_level_2 %>% group_by(state_student_id, original_subject) %>% filter
 count(student_level_2, test, original_subject)
 
 partic_dist <- student_level_2 %>%
-  filter(semester == "Spring", test %in% c("TNReady", "EOC")) %>% # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  # filter(semester == "Spring", test %in% c("TNReady", "EOC")) %>% # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   # arrange(state_student_id, subject, semester, desc(enrolled), desc(tested)) %>%
   # distinct(state_student_id, subject, semester, .keep_all = T) %>%
   group_by(system) %>%
