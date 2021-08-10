@@ -1205,7 +1205,7 @@ View(student_level_2 %>% group_by(state_student_id, original_subject) %>% filter
 count(student_level_2, test, original_subject)
 
 partic_dist <- student_level_2 %>%
-  # filter(semester == "Spring", test %in% c("TNReady", "EOC")) %>% # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  # filter(!str_detect(test, "Alt")) %>%
   # arrange(state_student_id, subject, semester, desc(enrolled), desc(tested)) %>%
   # distinct(state_student_id, subject, semester, .keep_all = T) %>%
   group_by(system) %>%
@@ -1325,7 +1325,7 @@ partic_dist <- read_csv(last(list.files(pattern = "participation-rate-district")
 
 partic_dist_am <- read_csv("N:/ORP_accountability/projects/Andrew/Data Requests/2021/data/Participation Rate/district_participation_rate_MSAA_TNReady_EOC_06182021.csv")
 
-partic_dist_w_wida_am <- read_csv("N:/ORP_accountability/projects/Andrew/Data Requests/2021/data/Participation Rate/preliminary_district_participation_rate_no_Alt_07262021.csv")
+partic_dist_w_wida_am <- read_csv("N:/ORP_accountability/projects/Andrew/Data Requests/2021/data/Participation Rate/district_participation_rate_no_alt_08102021.csv")
 
 summary(partic_dist)
 summary(partic_dist_am)
