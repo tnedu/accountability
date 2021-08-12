@@ -1345,7 +1345,7 @@ partic_dist <- read_csv(last(list.files(pattern = "participation-rate-district")
 
 partic_dist_am <- read_csv("N:/ORP_accountability/projects/Andrew/Data Requests/2021/data/Participation Rate/district_participation_rate_MSAA_TNReady_EOC_06182021.csv")
 
-partic_dist_w_wida_am <- read_csv("N:/ORP_accountability/projects/Andrew/Data Requests/2021/data/Participation Rate/district_participation_rate_no_alt_08102021.csv")
+partic_dist_w_wida_am <- read_csv("N:/ORP_accountability/projects/Andrew/Data Requests/2021/data/Participation Rate/district_participation_rate_all_08122021.csv")
 
 summary(partic_dist)
 summary(partic_dist_am)
