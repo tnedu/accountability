@@ -70,20 +70,6 @@ msaa <- read_csv("N:/ORP_accountability/data/2021_cdf/2021_msaa_cdf.csv") %>%
     tested = if_else(reporting_status == "DNT", 0, 1)
   )
 
-# alt_ss <- read_csv("N:/ORP_accountability/data/2019_cdf/2019_alt_ss_cdf.csv") %>%
-#   filter(school != 0) %>%
-#   mutate(
-#     system_name = if_else(system_name == str_to_upper(system_name), str_to_title(system_name), system_name),
-#     test = "Alt-Social Studies",
-#     semester = "Spring",
-#     special_ed = 1L,
-#     performance_level = case_when(
-#       performance_level == "Level 3" ~ "Mastered",
-#       performance_level == "Level 2" ~ "On Track",
-#       performance_level == "Level 1" ~ "Approaching"
-#     )
-#   )
-
 regis_fall_eoc_raw <- clean_names(
   read_csv(
     "N:/Assessment_Data Returns/Student Registration file/SY2020-21/EOC fall Student Registration Export 2021-06-15.csv",
@@ -127,6 +113,25 @@ cdf_raw <- bind_rows(
       mutate(test = ..2, semester = ..3)
   )
 )
+
+cdf_alt_raw <- read_csv("N:/ORP_accountability/data/2021_cdf/2021_alt_ss_cdf.csv") %>%
+  filter(school != 0) %>%
+  mutate(
+    system_name = if_else(system_name == str_to_upper(system_name), str_to_title(system_name), system_name),
+    test = case_when(
+      content_area_code == "SOC" ~ "Alt-Social Studies",
+      content_area_code %in% c("SCI", "B1") ~ "Alt-Science",
+      content_area_code == "ENG" ~ "Alt-ELA",
+      content_area_code == "MAT" ~ "Alt-Math"
+    ),
+    semester = "Spring",
+    special_ed = 1L,
+    performance_level = case_when(
+      performance_level == "Level 3" ~ "Mastered",
+      performance_level == "Level 2" ~ "On Track",
+      performance_level == "Level 1" ~ "Approaching"
+    )
+  )
 
 # Clean demographic data ----
 
@@ -351,10 +356,12 @@ rm(regis_fall_eoc_raw, regis_spring_3_8_raw, regis_spring_alt_raw, regis_spring_
 
 # Clean and explore CDF data ----
 
+cdf_raw_2 <- bind_rows(cdf_raw, cdf_alt_raw)
+
 summarize(
-  cdf_raw,
+  cdf_raw_2,
   n0 = n(),
-  n1 = nrow(distinct(cdf_raw)),
+  n1 = nrow(distinct(cdf_raw_2)),
   n2 = n_distinct(system),
   n3 = n_distinct(system, school),
   n4 = n_distinct(unique_student_id),
@@ -364,40 +371,40 @@ summarize(
   n7 = n_distinct(unique_student_id, content_area_code, test, semester, raw_score)
 )
 
-summarize_numeric_vars(cdf_raw)
+# Includes private districts and schools
+summarize_numeric_vars(cdf_raw_2)
 
 # 1% of records missing raw score
 # 1% of records missing scale score and performance level
-summarize_missingness(cdf_raw)
+summarize_missingness(cdf_raw_2)
 
 # In most instances where the raw score is missing, reason not tested and/or RI
 # status are non-zero. Where the raw score is missing, reason not tested is 0,
 # and RI status is 0, attempted equals "N".
-cdf_raw %>%
+cdf_raw_2 %>%
   filter(is.na(raw_score), reason_not_tested == 0, ri_status == 0) %>%
   count(attempted, modified_format, sort = T)
 
-# Scale scores are missing where raw scores are missing.
-cdf_raw %>%
+cdf_raw_2 %>%
   mutate(
     missing_raw_score = is.na(raw_score),
     missing_scale_score = is.na(scale_score)
   ) %>%
   count(missing_raw_score, missing_scale_score)
 
-# Grades 2-12
-# Test mode = "P"
+# Grades 2-12 (and 0)
 # Reason not tested and RI status include zeroes, not NAs.
 count_categories(
-  cdf_raw,
+  cdf_raw_2,
   grade, content_area_code, test_mode, attempted, modified_format,
   reason_not_tested, ri_status,
-  enrolled_50_pct_district, enrolled_50_pct_school
+  t1234, enrolled_50_pct_district, enrolled_50_pct_school
 )
 
-count(cdf_raw %>% filter(test == "EOC"), grade)
+count(cdf_raw_2 %>% filter(test == "EOC"), grade)
+count(cdf_raw_2 %>% filter(test %in% c("Alt-ELA", "Alt-Math")), grade) # Gr. 2
 
-cdf <- cdf_raw %>%
+cdf <- cdf_raw_2 %>%
   # filter(system %in% test_district) %>%
   filter(
     system < 990,
@@ -440,20 +447,19 @@ summarize_missingness(cdf)
 count(cdf, test, content_area_code)
 count_categories(cdf, reason_not_tested, ri_status)
 
-# About 14,000 records (across all tests/semesters) lack raw scores but have
+# About 13,000 records (across all tests/semesters) lack raw scores but have
 # reason not tested equal to 0.
 cdf %>%
   mutate(missing_raw_score = is.na(raw_score)) %>%
   count(reason_not_tested, missing_raw_score)
 
-# About 21,000 records lack raw scores but have RI status equal to 0.
+# About 20,000 records lack raw scores but have RI status equal to 0.
 cdf %>%
   mutate(missing_raw_score = is.na(raw_score)) %>%
   count(ri_status, missing_raw_score)
 
 # Join CDF and registration data ----
 
-count_categories(cdf, reason_not_tested, ri_status)
 count(regis, overall_snt_regis)
 # count_categories(regis_raw, ri_subpart1, ri_subpart2, ri_subpart3, ri_subpart4)
 
@@ -583,21 +589,19 @@ summarize(
   n0 = n(),
   n1 = nrow(distinct(cdf_2)),
   n2 = n_distinct(unique_student_id),
-  # Distinct by system, school, student, semester, test, and content area
+  # Distinct by system, school, student, grade, semester, test, and content area
   n3 = n_distinct(
     system, school, unique_student_id, grade,
     semester, test, content_area_code
   )
 )
 
-# No missing SNT codes, 7% missing RI codes
+# 0.08% missing SNT codes, 9% missing RI codes (from registration data)
 summarize_missingness(cdf_2)
+cdf_2 %>% count(in_cdf, ri_status)
+cdf_2 %>% count(in_cdf, reason_not_tested)
 
 count(cdf_2, original_subject)
-
-cdf_2 %>%
-  filter(is.na(original_subject)) %>%
-  View()
 
 # Create student-level data set ----
 
@@ -771,6 +775,9 @@ count_categories(student_level, test, grade, reported_race)
 
 # De-duplicate student-level data ----
 
+# Duplicate values of subject exist within student ID and original subject, AND
+# duplicate values of original subject exist within student ID and subject.
+
 duplicates <- student_level %>%
   group_by(state_student_id, original_subject) %>%
   filter(n() > 1) %>%
@@ -893,13 +900,19 @@ summarize(
   n1 = nrow(distinct(dedup)),
   n2 = n_distinct(state_student_id),
   n3 = n_distinct(state_student_id, original_subject),
-  # Distinct by student ID, original subject, and subject
   n4 = n_distinct(state_student_id, original_subject, subject),
   n5 = n_distinct(
     state_student_id, semester, test, original_subject,
     performance_level, scale_score
   )
 )
+
+# One duplicate record exists (for Grade 2 Alt-Math), but the grade filter
+# further down will drop it.
+dedup %>%
+  group_by(state_student_id, original_subject, subject) %>%
+  filter(n() > 1) %>%
+  View()
 
 dedup %>%
   group_by(state_student_id, original_subject) %>%
@@ -919,7 +932,6 @@ summarize(
   n1 = nrow(distinct(dedup)),
   n2 = n_distinct(state_student_id),
   n3 = n_distinct(state_student_id, original_subject),
-  # Distinct by student ID, original subject, and subject
   n4 = n_distinct(state_student_id, original_subject, subject),
   n5 = n_distinct(
     state_student_id, semester, test, original_subject,
@@ -1028,9 +1040,15 @@ student_level_2 <- dedup %>%
   ) %>%
   filter(grade %in% c(0, 3:12))
 
+summarize(
+  student_level_2,
+  n0 = n(),
+  n1 = n_distinct(state_student_id, original_subject),
+  n2 = n_distinct(state_student_id, original_subject, subject)
+)
+
 count_categories(student_level_2, test, original_subject, semester, enrolled, tested)
 count(student_level_2, grade)
-count(student_level_2, test)
 
 # write_csv(student_level_2, "student-level-file.csv", na = "")
 # write_csv(student_level_2, "N:/ORP_accountability/projects/2021_student_level_file/student-level-file-jc.csv")
@@ -1166,6 +1184,8 @@ x <- student_level_comp %>%
   arrange(state_student_id)
 
 View(x)
+
+write_csv(x, str_c("mismatches-tested-", today(), ".csv"))
 
 # x2 <- x$state_student_id
 x2 <- missing_in_am$state_student_id
